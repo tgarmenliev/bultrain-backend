@@ -1,0 +1,277 @@
+{
+    "date": "05.02.2024",
+    "route": "София - Антон",
+    "totalTrains": 9,
+    "options": [
+        {
+            "duration": "02:11",
+            "departureTime": "05:35",
+            "arrivalTime": "07:46",
+            "departureDate": "05.02.2024",
+            "arrivalDate": "05.02.2024",
+            "numOfTransfers": 0,
+            "trains": [
+                {
+                    "from": "София",
+                    "to": "Антон",
+                    "depart": "05:35",
+                    "arrive": "07:46",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "ПВ",
+                    "trainNumber": "30111",
+                    "duration": "02:11",
+                    "timeToWaitNext": 0
+                }
+            ]
+        },
+        {
+            "duration": "02:00",
+            "departureTime": "08:45",
+            "arrivalTime": "10:45",
+            "departureDate": "05.02.2024",
+            "arrivalDate": "05.02.2024",
+            "numOfTransfers": 0,
+            "trains": [
+                {
+                    "from": "София",
+                    "to": "Антон",
+                    "depart": "08:45",
+                    "arrive": "10:45",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "ПВ",
+                    "trainNumber": "30121",
+                    "duration": "02:00",
+                    "timeToWaitNext": 0
+                }
+            ]
+        },
+        {
+            "duration": "02:14",
+            "departureTime": "13:55",
+            "arrivalTime": "16:09",
+            "departureDate": "05.02.2024",
+            "arrivalDate": "05.02.2024",
+            "numOfTransfers": 0,
+            "trains": [
+                {
+                    "from": "София",
+                    "to": "Антон",
+                    "depart": "13:55",
+                    "arrive": "16:09",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "ПВ",
+                    "trainNumber": "30113",
+                    "duration": "02:14",
+                    "timeToWaitNext": 0
+                }
+            ]
+        },
+        {
+            "duration": "02:23",
+            "departureTime": "17:40",
+            "arrivalTime": "20:03",
+            "departureDate": "05.02.2024",
+            "arrivalDate": "05.02.2024",
+            "numOfTransfers": 0,
+            "trains": [
+                {
+                    "from": "София",
+                    "to": "Антон",
+                    "depart": "17:40",
+                    "arrive": "20:03",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "ПВ",
+                    "trainNumber": "30115",
+                    "duration": "02:23",
+                    "timeToWaitNext": 0
+                }
+            ]
+        },
+        {
+            "duration": "01:58",
+            "departureTime": "19:25",
+            "arrivalTime": "21:23",
+            "departureDate": "05.02.2024",
+            "arrivalDate": "05.02.2024",
+            "numOfTransfers": 0,
+            "trains": [
+                {
+                    "from": "София",
+                    "to": "Антон",
+                    "depart": "19:25",
+                    "arrive": "21:23",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "ПВ",
+                    "trainNumber": "30123",
+                    "duration": "01:58",
+                    "timeToWaitNext": 0
+                }
+            ]
+        },
+        {
+            "duration": "02:01",
+            "departureTime": "13:15",
+            "arrivalTime": "15:16",
+            "departureDate": "05.02.2024",
+            "arrivalDate": "05.02.2024",
+            "numOfTransfers": 1,
+            "trains": [
+                {
+                    "from": "София",
+                    "to": "Копривщица",
+                    "depart": "13:15",
+                    "arrive": "14:53",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "БВ",
+                    "trainNumber": "3623",
+                    "duration": "01:38",
+                    "timeToWaitNext": "00:15"
+                },
+                {
+                    "from": "Копривщица",
+                    "to": "Антон",
+                    "depart": "15:08",
+                    "arrive": "15:16",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "ПВ",
+                    "trainNumber": "30114",
+                    "duration": "00:08",
+                    "timeToWaitNext": 0
+                }
+            ]
+        },
+        {
+            "duration": "01:56",
+            "departureTime": "16:40",
+            "arrivalTime": "18:36",
+            "departureDate": "05.02.2024",
+            "arrivalDate": "05.02.2024",
+            "numOfTransfers": 1,
+            "trains": [
+                {
+                    "from": "София",
+                    "to": "Копривщица",
+                    "depart": "16:40",
+                    "arrive": "18:14",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "БВ",
+                    "trainNumber": "3625",
+                    "duration": "01:34",
+                    "timeToWaitNext": "00:14"
+                },
+                {
+                    "from": "Копривщица",
+                    "to": "Антон",
+                    "depart": "18:28",
+                    "arrive": "18:36",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "ПВ",
+                    "trainNumber": "30116",
+                    "duration": "00:08",
+                    "timeToWaitNext": 0
+                }
+            ]
+        },
+        {
+            "duration": "02:21",
+            "departureTime": "12:55",
+            "arrivalTime": "15:16",
+            "departureDate": "05.02.2024",
+            "arrivalDate": "05.02.2024",
+            "numOfTransfers": 2,
+            "trains": [
+                {
+                    "from": "София",
+                    "to": "Подуяне",
+                    "depart": "12:55",
+                    "arrive": "13:02",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "БВ",
+                    "trainNumber": "8613",
+                    "duration": "00:07",
+                    "timeToWaitNext": "00:21"
+                },
+                {
+                    "from": "Подуяне",
+                    "to": "Копривщица",
+                    "depart": "13:23",
+                    "arrive": "14:53",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "БВ",
+                    "trainNumber": "3623",
+                    "duration": "01:30",
+                    "timeToWaitNext": "00:15"
+                },
+                {
+                    "from": "Копривщица",
+                    "to": "Антон",
+                    "depart": "15:08",
+                    "arrive": "15:16",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "ПВ",
+                    "trainNumber": "30114",
+                    "duration": "00:08",
+                    "timeToWaitNext": 0
+                }
+            ]
+        },
+        {
+            "duration": "02:16",
+            "departureTime": "16:20",
+            "arrivalTime": "18:36",
+            "departureDate": "05.02.2024",
+            "arrivalDate": "05.02.2024",
+            "numOfTransfers": 2,
+            "trains": [
+                {
+                    "from": "София",
+                    "to": "Подуяне",
+                    "depart": "16:20",
+                    "arrive": "16:26",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "БВ",
+                    "trainNumber": "1621",
+                    "duration": "00:06",
+                    "timeToWaitNext": "00:21"
+                },
+                {
+                    "from": "Подуяне",
+                    "to": "Копривщица",
+                    "depart": "16:47",
+                    "arrive": "18:14",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "БВ",
+                    "trainNumber": "3625",
+                    "duration": "01:27",
+                    "timeToWaitNext": "00:14"
+                },
+                {
+                    "from": "Копривщица",
+                    "to": "Антон",
+                    "depart": "18:28",
+                    "arrive": "18:36",
+                    "departDate": "05.02.2024",
+                    "arriveDate": "05.02.2024",
+                    "trainType": "ПВ",
+                    "trainNumber": "30116",
+                    "duration": "00:08",
+                    "timeToWaitNext": 0
+                }
+            ]
+        }
+    ]
+}

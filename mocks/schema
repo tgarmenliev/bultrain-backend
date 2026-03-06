@@ -1,0 +1,38 @@
+	
+schedule example:
+
+{
+	date:
+	route:
+	totalTrains:
+	options:
+	[
+		{
+			duration:
+			departureTime:
+			arrivalTime:
+			departureDate:
+			arrivalDate:
+			numOfTransfers:
+			trains:
+			[
+				{
+					from:
+					to:
+					depart:
+					arrive:
+					departDate:
+					arriveDate:
+					trainType:
+					trainNumber:
+					duration:
+					time_to_wait_next:
+				}
+				... //more trains
+			]
+		}
+		... //more options for trains
+	]
+}
+
+

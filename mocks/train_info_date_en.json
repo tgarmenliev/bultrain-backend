@@ -1,0 +1,47 @@
+{
+    "trainType": "Intercity Fast Train",
+    "trainNumber": "3622",
+    "date": "06.02.2024",
+    "stations": [
+        {
+            "station": "Burgas",
+            "arrive": "↦",
+            "depart": "08:10"
+        },
+        {
+            "station": "Vladimir Pavlov",
+            "arrive": "08:15",
+            "depart": "08:16"
+        },
+        {
+            "station": "Ajtos",
+            "arrive": "08:37",
+            "depart": "08:38"
+        },
+        {
+            "station": "Karnobat",
+            "arrive": "08:53",
+            "depart": "08:54"
+        },
+        {
+            "station": "Straldzha",
+            "arrive": "09:10",
+            "depart": "09:11"
+        },
+        {
+            "station": "Zimnica",
+            "arrive": "09:19",
+            "depart": "09:20"
+        },
+        {
+            "station": "Sliven",
+            "arrive": "09:37",
+            "depart": "09:38"
+        },
+        {
+            "station": "Tvardica",
+            "arrive": "10:15",
+            "depart": "↤"
+        }
+    ]
+}

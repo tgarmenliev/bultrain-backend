@@ -1,0 +1,57 @@
+{
+    "station": "Долно Камарци ",
+    "trains": [
+        {
+            "direction": "Карлово ",
+            "time": "15:28",
+            "isDelayed": false,
+            "delayedTime": 0,
+            "delayInfo": {
+                "delayMinutes": 0,
+                "delayString": "",
+                "delayInfo": ""
+            },
+            "type": "ПВ",
+            "trainNum": "30113"
+        },
+        {
+            "direction": "София ",
+            "time": "15:56",
+            "isDelayed": false,
+            "delayedTime": 0,
+            "delayInfo": {
+                "delayMinutes": 0,
+                "delayString": "",
+                "delayInfo": ""
+            },
+            "type": "ПВ",
+            "trainNum": "30114"
+        },
+        {
+            "direction": "Карлово ",
+            "time": "19:17",
+            "isDelayed": false,
+            "delayedTime": 0,
+            "delayInfo": {
+                "delayMinutes": 0,
+                "delayString": "",
+                "delayInfo": ""
+            },
+            "type": "ПВ",
+            "trainNum": "30115"
+        },
+        {
+            "direction": "София ",
+            "time": "19:16",
+            "isDelayed": false,
+            "delayedTime": 0,
+            "delayInfo": {
+                "delayMinutes": 0,
+                "delayString": "",
+                "delayInfo": ""
+            },
+            "type": "ПВ",
+            "trainNum": "30116"
+        }
+    ]
+}

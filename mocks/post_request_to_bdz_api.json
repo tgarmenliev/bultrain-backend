@@ -1,0 +1,173 @@
+[
+    {
+        "date": "21.11.2023",
+        "name": "ПИРДОП - АНТОН",
+        "options": [
+            {
+                "id": 202882239,
+                "total_time": "00:06",
+                "total_distance": 7,
+                "trains": [
+                    {
+                        "id": 329,
+                        "name": "ПВ 30111",
+                        "stations": "ПИРДОП - АНТОН",
+                        "depart": "07:45",
+                        "arrive": "07:51",
+                        "total_time": "00:06",
+                        "time_to_wait": "00:00",
+                        "distance": "7",
+                        "information": {
+                            "first_class": false,
+                            "second_class": false,
+                            "berth": false,
+                            "calendar": false,
+                            "sell_seats": false
+                        },
+                        "is_delayed": false,
+                        "full": false,
+                        "depart_date": "21.11.2023",
+                        "arrive_date": "21.11.2023"
+                    }
+                ],
+                "is_visible": true,
+                "departure_time": "07:45",
+                "departure_date": "21.11.2023",
+                "arrival_time": "07:51",
+                "arrival_date": "21.11.2023"
+            },
+            {
+                "id": 202882240,
+                "total_time": "00:05",
+                "total_distance": 7,
+                "trains": [
+                    {
+                        "id": 337,
+                        "name": "ПВ 30121",
+                        "stations": "ПИРДОП - АНТОН",
+                        "depart": "10:46",
+                        "arrive": "10:51",
+                        "total_time": "00:05",
+                        "time_to_wait": "00:00",
+                        "distance": "7",
+                        "information": {
+                            "first_class": false,
+                            "second_class": false,
+                            "berth": false,
+                            "calendar": false,
+                            "sell_seats": false
+                        },
+                        "is_delayed": false,
+                        "full": false,
+                        "depart_date": "21.11.2023",
+                        "arrive_date": "21.11.2023"
+                    }
+                ],
+                "is_visible": true,
+                "departure_time": "10:46",
+                "departure_date": "21.11.2023",
+                "arrival_time": "10:51",
+                "arrival_date": "21.11.2023"
+            },
+            {
+                "id": 202882241,
+                "total_time": "00:05",
+                "total_distance": 7,
+                "trains": [
+                    {
+                        "id": 331,
+                        "name": "ПВ 30113",
+                        "stations": "ПИРДОП - АНТОН",
+                        "depart": "15:56",
+                        "arrive": "16:01",
+                        "total_time": "00:05",
+                        "time_to_wait": "00:00",
+                        "distance": "7",
+                        "information": {
+                            "first_class": false,
+                            "second_class": false,
+                            "berth": false,
+                            "calendar": false,
+                            "sell_seats": false
+                        },
+                        "is_delayed": false,
+                        "full": false,
+                        "depart_date": "21.11.2023",
+                        "arrive_date": "21.11.2023"
+                    }
+                ],
+                "is_visible": true,
+                "departure_time": "15:56",
+                "departure_date": "21.11.2023",
+                "arrival_time": "16:01",
+                "arrival_date": "21.11.2023"
+            },
+            {
+                "id": 202882242,
+                "total_time": "00:07",
+                "total_distance": 7,
+                "trains": [
+                    {
+                        "id": 333,
+                        "name": "ПВ 30115",
+                        "stations": "ПИРДОП - АНТОН",
+                        "depart": "19:49",
+                        "arrive": "19:56",
+                        "total_time": "00:07",
+                        "time_to_wait": "00:00",
+                        "distance": "7",
+                        "information": {
+                            "first_class": false,
+                            "second_class": false,
+                            "berth": false,
+                            "calendar": false,
+                            "sell_seats": false
+                        },
+                        "is_delayed": false,
+                        "full": false,
+                        "depart_date": "21.11.2023",
+                        "arrive_date": "21.11.2023"
+                    }
+                ],
+                "is_visible": true,
+                "departure_time": "19:49",
+                "departure_date": "21.11.2023",
+                "arrival_time": "19:56",
+                "arrival_date": "21.11.2023"
+            },
+            {
+                "id": 202882243,
+                "total_time": "00:05",
+                "total_distance": 7,
+                "trains": [
+                    {
+                        "id": 339,
+                        "name": "ПВ 30123",
+                        "stations": "ПИРДОП - АНТОН",
+                        "depart": "21:30",
+                        "arrive": "21:35",
+                        "total_time": "00:05",
+                        "time_to_wait": "00:00",
+                        "distance": "7",
+                        "information": {
+                            "first_class": false,
+                            "second_class": false,
+                            "berth": false,
+                            "calendar": false,
+                            "sell_seats": false
+                        },
+                        "is_delayed": false,
+                        "full": false,
+                        "depart_date": "21.11.2023",
+                        "arrive_date": "21.11.2023"
+                    }
+                ],
+                "is_visible": true,
+                "departure_time": "21:30",
+                "departure_date": "21.11.2023",
+                "arrival_time": "21:35",
+                "arrival_date": "21.11.2023"
+            }
+        ]
+    }
+]

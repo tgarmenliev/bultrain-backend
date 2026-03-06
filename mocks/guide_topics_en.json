@@ -1,0 +1,68 @@
+[
+    {
+        "id": 0,
+        "title": "How do I find my train?",
+        "subtitle": "Finding the location of the train.",
+        "image": "topic1.jpg"
+    },
+    {
+        "id": 1,
+        "title": "How to know if this is my train?",
+        "subtitle": "Easy finding of your train.",
+        "image": "topic2.jpg"
+    },
+    {
+        "id": 2,
+        "title": "How to open or close the door?",
+        "subtitle": "Is this task hard?",
+        "image": "topic3.jpg"
+    },
+    {
+        "id": 3,
+        "title": "How to find my wagon?",
+        "subtitle": "Am I here or not?",
+        "image": "topic4.jpg"
+    },
+    {
+        "id": 4,
+        "title": "How to find my seat?",
+        "subtitle": "The most difficult question in BDZ.",
+        "image": "topic5.jpg"
+    },
+    {
+        "id": 5,
+        "title": "Where is the toilet?",
+        "subtitle": "Location in the train.",
+        "image": "topic6.jpg"
+    },
+    {
+        "id": 6,
+        "title": "What is the difference between first and second class?",
+        "subtitle": "Main differences.",
+        "image": "topic7.jpg"
+    },
+    {
+        "id": 7,
+        "title": "Are there any contacts and internet?",
+        "subtitle": "The answers are here!",
+        "image": "topic8.jpg"
+    },
+    {
+        "id": 8,
+        "title": "How do I know when to get off?",
+        "subtitle": "Are there ways?",
+        "image": "topic9.jpg"
+    },
+    {
+        "id": 9,
+        "title": "When can I get off the train for a break or to buy something?",
+        "subtitle": "And can I really?",
+        "image": "topic10.jpg"
+    },
+    {
+        "id": 10,
+        "title": "How late can a train be and when should I stop waiting for it?",
+        "subtitle": "Should I catch it?",
+        "image": "topic11.jpg"
+    }
+]

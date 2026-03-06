@@ -1,0 +1,122 @@
+{
+    "trainType": "Бърз влак",
+    "trainNumber": "3622",
+    "date": "4.02.2024",
+    "stations": [
+        {
+            "station": "Бургас",
+            "arrive": "↦",
+            "depart": "08:35"
+        },
+        {
+            "station": "Владимир Павлов",
+            "arrive": "08:40",
+            "depart": "08:41"
+        },
+        {
+            "station": "Айтос",
+            "arrive": "08:59",
+            "depart": "09:00"
+        },
+        {
+            "station": "Карнобат",
+            "arrive": "09:14",
+            "depart": "09:15"
+        },
+        {
+            "station": "Стралджа",
+            "arrive": "09:29",
+            "depart": "09:30"
+        },
+        {
+            "station": "Зимница",
+            "arrive": "09:36",
+            "depart": "09:37"
+        },
+        {
+            "station": "Сливен",
+            "arrive": "09:52",
+            "depart": "09:53"
+        },
+        {
+            "station": "Твърдица",
+            "arrive": "10:30",
+            "depart": "10:31"
+        },
+        {
+            "station": "Дъбово",
+            "arrive": "10:52",
+            "depart": "10:54"
+        },
+        {
+            "station": "Тулово",
+            "arrive": "11:00",
+            "depart": "11:01"
+        },
+        {
+            "station": "Казанлък",
+            "arrive": "11:14",
+            "depart": "11:15"
+        },
+        {
+            "station": "Павел баня",
+            "arrive": "11:33",
+            "depart": "11:33"
+        },
+        {
+            "station": "Калофер",
+            "arrive": "11:50",
+            "depart": "11:51"
+        },
+        {
+            "station": "Карлово",
+            "arrive": "12:09",
+            "depart": "12:11"
+        },
+        {
+            "station": "Клисура",
+            "arrive": "12:33",
+            "depart": "12:34"
+        },
+        {
+            "station": "Копривщица",
+            "arrive": "12:47",
+            "depart": "12:48"
+        },
+        {
+            "station": "Пирдоп",
+            "arrive": "13:01",
+            "depart": "13:02"
+        },
+        {
+            "station": "Златица",
+            "arrive": "13:06",
+            "depart": "13:07"
+        },
+        {
+            "station": "Столник",
+            "arrive": "13:48",
+            "depart": "13:54"
+        },
+        {
+            "station": "Казичене",
+            "arrive": "14:07",
+            "depart": "14:08"
+        },
+        {
+            "station": "Искърско шосе",
+            "arrive": "14:15",
+            "depart": "14:15"
+        },
+        {
+            "station": "Подуяне Пътническа",
+            "arrive": "14:22",
+            "depart": "14:23"
+        },
+        {
+            "station": "София",
+            "arrive": "14:30",
+            "depart": "↤"
+        }
+    ]
+}

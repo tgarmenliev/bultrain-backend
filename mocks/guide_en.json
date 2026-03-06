@@ -1,0 +1,22 @@
+{
+    "title": "How to know if this is my train?",
+    "subtitle": "Easy finding of your train.",
+    "image": "topic2.jpg",
+    "content": [
+        {
+            "text": "Every train is different and for a different direction. If you want to make sure that this is the right train you are looking for, here are a few tips for its recognition.\n\nDepending on the type of rolling stock, there are 2 possible options for information:\n\nOn the Siemens Desiro motor cars (you can see the picture below) the information is electronic and can be seen on their electronic boards.",
+            "image": "desiro.jpg"
+        },
+        {
+            "text": "They are easily noticeable and it is hard to miss them. They write the direction of the train. The picture shows an example of such a board.",
+            "image": "tabela-desiro.jpg"
+        },
+        {
+            "text": "On all other trains, which are with ordinary wagons, the formula for finding their route is as follows: on each wagon there is information about where it travels and what number it is. This information can be found at the beginning or at the end of the wagon. (picture below) At the beginning or at the end of each wagon (depending on the direction in which the train is moving) there is a separate place where the initial station, the final station and the number of the wagon are written. The number of the wagon is of utmost importance when you want to find your place in the train, but more on this topic can be seen in another article, specially dedicated to this topic.\nWhen you find this important field of the wagon, you can directly understand if this is really your train.",
+            "image": "vagon-info.jpg"
+        },
+        {
+            "text": "Option number 3: again the method of asking. When you get on or when the train arrives, look around. If you see a train staff, just ask and you will find out if this is your train."
+        }
+    ]
+}

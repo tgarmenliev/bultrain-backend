@@ -1,0 +1,122 @@
+{
+    "trainType": "Intercity Fast Train",
+    "trainNumber": "3622",
+    "date": "4.02.2024",
+    "stations": [
+        {
+            "station": "Burgas",
+            "arrive": "↦",
+            "depart": "08:35"
+        },
+        {
+            "station": "Vladimir Pavlov",
+            "arrive": "08:40",
+            "depart": "08:41"
+        },
+        {
+            "station": "Ajtos",
+            "arrive": "08:59",
+            "depart": "09:00"
+        },
+        {
+            "station": "Karnobat",
+            "arrive": "09:14",
+            "depart": "09:15"
+        },
+        {
+            "station": "Straldzha",
+            "arrive": "09:29",
+            "depart": "09:30"
+        },
+        {
+            "station": "Zimnica",
+            "arrive": "09:36",
+            "depart": "09:37"
+        },
+        {
+            "station": "Sliven",
+            "arrive": "09:52",
+            "depart": "09:53"
+        },
+        {
+            "station": "Tvardica",
+            "arrive": "10:30",
+            "depart": "10:31"
+        },
+        {
+            "station": "Dabovo",
+            "arrive": "10:52",
+            "depart": "10:54"
+        },
+        {
+            "station": "Tulovo",
+            "arrive": "11:00",
+            "depart": "11:01"
+        },
+        {
+            "station": "Kazanlak",
+            "arrive": "11:14",
+            "depart": "11:15"
+        },
+        {
+            "station": "Pavel banja",
+            "arrive": "11:33",
+            "depart": "11:33"
+        },
+        {
+            "station": "Kalofer",
+            "arrive": "11:50",
+            "depart": "11:51"
+        },
+        {
+            "station": "Karlovo",
+            "arrive": "12:09",
+            "depart": "12:11"
+        },
+        {
+            "station": "Klisura",
+            "arrive": "12:33",
+            "depart": "12:34"
+        },
+        {
+            "station": "Koprivshtica",
+            "arrive": "12:47",
+            "depart": "12:48"
+        },
+        {
+            "station": "Pirdop",
+            "arrive": "13:01",
+            "depart": "13:02"
+        },
+        {
+            "station": "Zlatica",
+            "arrive": "13:06",
+            "depart": "13:07"
+        },
+        {
+            "station": "Stolnik",
+            "arrive": "13:48",
+            "depart": "13:54"
+        },
+        {
+            "station": "Kazichene",
+            "arrive": "14:07",
+            "depart": "14:08"
+        },
+        {
+            "station": "Iskarsko shose",
+            "arrive": "14:15",
+            "depart": "14:15"
+        },
+        {
+            "station": "Podujane Passenger",
+            "arrive": "14:22",
+            "depart": "14:23"
+        },
+        {
+            "station": "Sofia",
+            "arrive": "14:30",
+            "depart": "↤"
+        }
+    ]
+}

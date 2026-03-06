@@ -1,0 +1,57 @@
+{
+    "station": "Dolno Kamarci ",
+    "trains": [
+        {
+            "direction": "Karlovo ",
+            "time": "15:28",
+            "isDelayed": false,
+            "delayedTime": 0,
+            "delayInfo": {
+                "delayMinutes": 0,
+                "delayString": "",
+                "delayInfo": ""
+            },
+            "type": "REG",
+            "trainNum": "30113"
+        },
+        {
+            "direction": "Sofia ",
+            "time": "15:56",
+            "isDelayed": false,
+            "delayedTime": 0,
+            "delayInfo": {
+                "delayMinutes": 0,
+                "delayString": "",
+                "delayInfo": ""
+            },
+            "type": "REG",
+            "trainNum": "30114"
+        },
+        {
+            "direction": "Karlovo ",
+            "time": "19:17",
+            "isDelayed": false,
+            "delayedTime": 0,
+            "delayInfo": {
+                "delayMinutes": 0,
+                "delayString": "",
+                "delayInfo": ""
+            },
+            "type": "REG",
+            "trainNum": "30115"
+        },
+        {
+            "direction": "Sofia ",
+            "time": "19:16",
+            "isDelayed": false,
+            "delayedTime": 0,
+            "delayInfo": {
+                "delayMinutes": 0,
+                "delayString": "",
+                "delayInfo": ""
+            },
+            "type": "REG",
+            "trainNum": "30116"
+        }
+    ]
+}

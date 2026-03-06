@@ -1,0 +1,47 @@
+{
+    "trainType": "Бърз влак",
+    "trainNumber": "3622",
+    "date": "06.02.2024",
+    "stations": [
+        {
+            "station": "Бургас",
+            "arrive": "↦",
+            "depart": "08:10"
+        },
+        {
+            "station": "Владимир Павлов",
+            "arrive": "08:15",
+            "depart": "08:16"
+        },
+        {
+            "station": "Айтос",
+            "arrive": "08:37",
+            "depart": "08:38"
+        },
+        {
+            "station": "Карнобат",
+            "arrive": "08:53",
+            "depart": "08:54"
+        },
+        {
+            "station": "Стралджа",
+            "arrive": "09:10",
+            "depart": "09:11"
+        },
+        {
+            "station": "Зимница",
+            "arrive": "09:19",
+            "depart": "09:20"
+        },
+        {
+            "station": "Сливен",
+            "arrive": "09:37",
+            "depart": "09:38"
+        },
+        {
+            "station": "Твърдица",
+            "arrive": "10:15",
+            "depart": "↤"
+        }
+    ]
+}
