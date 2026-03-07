@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Private texts
+gdv_texts/
