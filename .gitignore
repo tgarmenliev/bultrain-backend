@@ -12,3 +12,13 @@ node_modules/
 
 # Private texts
 gdv_texts/
+extract_train_numbers/
+mocks/
+bultrain.sqlite
+stations.json
+raw_bdz_data/
+failed_trains.json
+train_numbers.json
+unmapped_stations_report.json
+unmapped_stations_report_old.json
+guide/
