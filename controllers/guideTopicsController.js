@@ -1,7 +1,20 @@
+const Database = require('better-sqlite3');
 const path = require('path');
-const fs = require('fs');
 
-const MOCKS_DIR = path.join(__dirname, '..', 'mocks');
+// ── Database ────────────────────────────────────────────────────────────────
+const DB_PATH = path.join(__dirname, '..', 'bultrain.sqlite');
+const db = new Database(DB_PATH, { readonly: true });
+db.pragma('journal_mode = WAL');
+
+// ── Prepared statement ──────────────────────────────────────────────────────
+const stmtAllTopics = db.prepare(`
+    SELECT app_topic_id, title, subtitle, cover_image
+    FROM handbook_topics
+    WHERE language = ?
+    ORDER BY sort_order ASC
+`);
+
+// ── Controller ──────────────────────────────────────────────────────────────
 
 /**
  * GET /api/guide/:language
@@ -15,11 +28,20 @@ exports.getAllTopics = (req, res) => {
     }
 
     try {
-        const mockFile = path.join(MOCKS_DIR, `guide_topics_${language}.json`);
-        const data = JSON.parse(fs.readFileSync(mockFile, 'utf-8'));
-        res.json(data);
+        const rows = stmtAllTopics.all(language);
+
+        const topics = rows.map(row => ({
+            id: row.app_topic_id,
+            title: row.title,
+            subtitle: row.subtitle,
+            image: row.cover_image,
+        }));
+
+        res.header('Content-Type', 'application/json');
+        res.send(JSON.stringify(topics, null, 4));
+
     } catch (error) {
-        console.error('Error:', error);
+        console.error('guideTopicsController error:', error);
         res.status(500).json({ error: 'Internal Server Error with access to the guide!' });
     }
 };
