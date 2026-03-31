@@ -8,11 +8,11 @@ db.pragma('journal_mode = WAL');
 
 // ── Category abbreviation maps ──────────────────────────────────────────────
 const CATEGORY_EN = {
-    'ПВ': 'RT',
-    'КПВ': 'SRT',
-    'БВ': 'ICF',
-    'МБВ': 'IICF',
-    'БВЗР': 'ICFMR',
+    'ПВ': 'PT',
+    'КПВ': 'SUT',
+    'БВ': 'FT',
+    'МБВ': 'IFT',
+    'БВЗР': 'FT',
     'ЕВ': 'ET',
 };
 
@@ -40,6 +40,14 @@ function calcDuration(depart, arrive) {
     return minToTime(diff);
 }
 
+/** Duration from absolute minute values (no wrap-around needed) */
+function calcAbsoluteDuration(absDepartMins, absArriveMins) {
+    const diff = absArriveMins - absDepartMins;
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
 function waitMinutes(arriveTime, departTime) {
     let diff = timeToMin(departTime) - timeToMin(arriveTime);
     if (diff < 0) diff += 24 * 60;
@@ -51,6 +59,14 @@ function formatDate(dateObj) {
     const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
     const yyyy = dateObj.getFullYear();
     return `${dd}.${mm}.${yyyy}`;
+}
+
+/** Add N days to a DD.MM.YYYY string and return a new DD.MM.YYYY string */
+function addDaysToDateString(baseDateStr, daysToAdd) {
+    const [dd, mm, yyyy] = baseDateStr.split('.').map(Number);
+    const d = new Date(yyyy, mm - 1, dd);
+    d.setDate(d.getDate() + daysToAdd);
+    return formatDate(d);
 }
 
 // ── Station name lookup ─────────────────────────────────────────────────────
@@ -257,115 +273,188 @@ function minTransferWait(opt) {
     return minWait;
 }
 
-// ── Controller ──────────────────────────────────────────────────────────────
-exports.getSchedule = (req, res) => {
-    const { language, from, to, date } = req.params;
-
+// ── Core Schedule Logic ─────────────────────────────────────────────────────
+exports.generateScheduleData = (language, from, to, date) => {
     if (language !== 'bg' && language !== 'en') {
-        return res.status(400).json({ error: 'Bad request! Language does not exist!' });
+        return { error: 'Bad request! Language does not exist!', status: 400 };
     }
 
     const fromStationId = parseInt(from);
     const toStationId = parseInt(to);
     if (isNaN(fromStationId) || isNaN(toStationId)) {
-        return res.status(400).json({ error: 'Bad Request! Station numbers not correct!' });
+        return { error: 'Bad Request! Station numbers not correct!', status: 400 };
     }
     if (fromStationId === toStationId) {
-        return res.status(400).json({ error: 'Bad Request! From and To stations are the same!' });
+        return { error: 'Bad Request! From and To stations are the same!', status: 400 };
     }
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(date)) {
-        return res.status(400).json({ error: 'Bad Request! Wrong date!' });
+        return { error: 'Bad Request! Wrong date!', status: 400 };
     }
     const dateObj = new Date(date + 'T00:00:00');
     if (isNaN(dateObj.getTime())) {
-        return res.status(400).json({ error: 'Bad Request! Invalid date!' });
+        return { error: 'Bad Request! Invalid date!', status: 400 };
     }
 
-    try {
-        const dayIndex = dateObj.getDay();
-        const dayColumn = DAY_COLUMN[dayIndex];
-        const dateStr = formatDate(dateObj);
+    const dayIndex = dateObj.getDay();
+    const dayColumn = DAY_COLUMN[dayIndex];
+    const dateStr = formatDate(dateObj);
 
-        // ── Load data & find routes ─────────────────────────────────────
-        const { trainRuns, stationDepartures } = loadDayData(dayColumn);
-        const paths = findRoutes(trainRuns, stationDepartures, fromStationId, toStationId);
+    // ── Load data & find routes ─────────────────────────────────────
+    const { trainRuns, stationDepartures } = loadDayData(dayColumn);
+    const paths = findRoutes(trainRuns, stationDepartures, fromStationId, toStationId);
 
-        const fromName = getStationName(fromStationId, language);
-        const toName = getStationName(toStationId, language);
+    const fromName = getStationName(fromStationId, language);
+    const toName = getStationName(toStationId, language);
 
-        if (paths.length === 0) {
-            return res.json({
+    if (paths.length === 0) {
+        return {
+            data: {
                 date: dateStr,
                 route: `${fromName} - ${toName}`,
                 totalTrains: 0,
                 options: [],
+            }
+        };
+    }
+
+    // ── Build option objects (with absolute time tracking) ────────
+    let options = paths.map(legs => {
+        const numOfTransfers = legs.length - 1;
+
+        // Track absolute minutes from 00:00 of the request day
+        let absTracker = 0;
+        const trainObjs = [];
+
+        for (let idx = 0; idx < legs.length; idx++) {
+            const leg = legs[idx];
+            const isLast = idx === legs.length - 1;
+            const cat = (language === 'en')
+                ? (CATEGORY_EN[leg.category] || leg.category)
+                : leg.category;
+
+            const legDepartRaw = timeToMin(leg.departTime);
+            const legArriveRaw = timeToMin(leg.arriveTime);
+
+            // Compute absolute depart
+            let absDepart;
+            if (idx === 0) {
+                absDepart = legDepartRaw;
+            } else {
+                // Transfer: if depart time-of-day < previous absolute arrive time-of-day,
+                // it means we crossed midnight during the wait
+                const prevAbsArrive = trainObjs[idx - 1]._absArrive;
+                absDepart = prevAbsArrive + waitMinutes(legs[idx - 1].arriveTime, leg.departTime);
+            }
+
+            // Compute absolute arrive
+            let absArrive;
+            if (legArriveRaw < legDepartRaw) {
+                // Midnight crossing within this leg
+                absArrive = absDepart + (legArriveRaw + 1440 - legDepartRaw);
+            } else {
+                absArrive = absDepart + (legArriveRaw - legDepartRaw);
+            }
+
+            // Compute dates: days offset from base date
+            const departDayOffset = Math.floor(absDepart / 1440);
+            const arriveDayOffset = Math.floor(absArrive / 1440);
+
+            // Wait time to next train
+            let timeToWaitNext = 0;
+            if (!isLast) {
+                // Will be filled after next leg is processed; placeholder
+                timeToWaitNext = '__PENDING__';
+            }
+
+            trainObjs.push({
+                from: getStationName(leg.fromStationId, language),
+                to: getStationName(leg.toStationId, language),
+                depart: leg.departTime,
+                arrive: leg.arriveTime,
+                departDate: addDaysToDateString(dateStr, departDayOffset),
+                arriveDate: addDaysToDateString(dateStr, arriveDayOffset),
+                trainType: cat,
+                trainNumber: leg.trainNumber,
+                duration: calcAbsoluteDuration(absDepart, absArrive),
+                timeToWaitNext,
+                // Internal fields (stripped later)
+                _absDepart: absDepart,
+                _absArrive: absArrive,
             });
         }
 
-        // ── Build option objects ────────────────────────────────────────
-        let options = paths.map(legs => {
-            const firstDepart = legs[0].departTime;
-            const lastArrive = legs[legs.length - 1].arriveTime;
-            const numOfTransfers = legs.length - 1;
+        // Fill in timeToWaitNext now that all legs have absolute times
+        for (let i = 0; i < trainObjs.length - 1; i++) {
+            const waitMins = trainObjs[i + 1]._absDepart - trainObjs[i]._absArrive;
+            trainObjs[i].timeToWaitNext = minToTime(waitMins);
+        }
 
-            const trains = legs.map((leg, idx) => {
-                const isLast = idx === legs.length - 1;
-                const cat = (language === 'en')
-                    ? (CATEGORY_EN[leg.category] || leg.category)
-                    : leg.category;
+        const overallAbsDepart = trainObjs[0]._absDepart;
+        const overallAbsArrive = trainObjs[trainObjs.length - 1]._absArrive;
 
-                let timeToWaitNext = 0;
-                if (!isLast) {
-                    const nextLeg = legs[idx + 1];
-                    timeToWaitNext = minToTime(waitMinutes(leg.arriveTime, nextLeg.departTime));
-                }
+        // Strip internal fields from train objects
+        const trains = trainObjs.map(({ _absDepart, _absArrive, ...rest }) => rest);
 
-                return {
-                    from: getStationName(leg.fromStationId, language),
-                    to: getStationName(leg.toStationId, language),
-                    depart: leg.departTime,
-                    arrive: leg.arriveTime,
-                    departDate: dateStr,
-                    arriveDate: dateStr,
-                    trainType: cat,
-                    trainNumber: leg.trainNumber,
-                    duration: calcDuration(leg.departTime, leg.arriveTime),
-                    timeToWaitNext,
-                };
-            });
+        return {
+            duration: calcAbsoluteDuration(overallAbsDepart, overallAbsArrive),
+            departureTime: legs[0].departTime,
+            arrivalTime: legs[legs.length - 1].arriveTime,
+            departureDate: trains[0].departDate,
+            arrivalDate: trains[trains.length - 1].arriveDate,
+            numOfTransfers,
+            trains,
+            // Internal fields for filtering/sorting
+            departMins: overallAbsDepart,
+            arriveMins: overallAbsArrive,
+        };
+    });
 
-            return {
-                duration: calcDuration(firstDepart, lastArrive),
-                departureTime: firstDepart,
-                arrivalTime: lastArrive,
-                departureDate: dateStr,
-                arrivalDate: dateStr,
-                numOfTransfers,
-                trains,
-                departMins: timeToMin(firstDepart),
-                arriveMins: timeToMin(lastArrive),
-            };
-        });
+    // ── De-duplicate → Pareto filter → Sort ─────────────────────────
+    options = dedup(options);
+    options = paretoFilter(options);
+    options.sort((a, b) => a.departMins - b.departMins);
 
-        // ── De-duplicate → Pareto filter → Sort ─────────────────────────
-        options = dedup(options);
-        options = paretoFilter(options);
-        options.sort((a, b) => a.departMins - b.departMins);
+    // Remove internal fields but KEEP departMins for scheduleSecController filtering, 
+    // we'll strip it in the final HTTP handler or let the caller do it.
+    // Actually, to not break existing clients, let's strip it before returning to API,
+    // but the programmatic caller needs it. I'll return it and strip it in `getSchedule`.
 
-        // Remove internal fields
-        options = options.map(({ departMins, arriveMins, ...rest }) => rest);
+    // For safety, let's keep departMins in the programmatic response.
 
-        const result = {
-            date: dateStr,
-            route: `${fromName} - ${toName}`,
-            totalTrains: options.length,
-            options,
+    const resultData = {
+        date: dateStr,
+        route: `${fromName} - ${toName}`,
+        totalTrains: options.length,
+        options,
+    };
+
+    return { data: resultData };
+};
+
+// ── Controller ──────────────────────────────────────────────────────────────
+exports.getSchedule = (req, res) => {
+    const { language, from, to, date } = req.params;
+
+    try {
+        const result = exports.generateScheduleData(language, from, to, date);
+
+        if (result.error) {
+            return res.status(result.status).json({ error: result.error });
+        }
+
+        // Strip departMins and arriveMins before sending to client
+        const finalOptions = result.data.options.map(({ departMins, arriveMins, ...rest }) => rest);
+
+        const responseData = {
+            ...result.data,
+            totalTrains: finalOptions.length,
+            options: finalOptions
         };
 
         res.header('Content-Type', 'application/json');
-        res.send(JSON.stringify(result, null, 4));
+        res.send(JSON.stringify(responseData, null, 4));
 
     } catch (error) {
         console.error('scheduleController error:', error);
