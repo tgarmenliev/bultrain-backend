@@ -22,3 +22,6 @@ train_numbers.json
 unmapped_stations_report.json
 unmapped_stations_report_old.json
 guide/
+stations-converter/
+
+map.html
