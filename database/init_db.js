@@ -24,16 +24,26 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS train_validity (
-    validity_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    train_number  TEXT NOT NULL REFERENCES trains(train_number) ON DELETE CASCADE,
-    runs_monday   INTEGER NOT NULL DEFAULT 0,
-    runs_tuesday  INTEGER NOT NULL DEFAULT 0,
+    validity_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    train_number   TEXT NOT NULL REFERENCES trains(train_number) ON DELETE CASCADE,
+    runs_monday    INTEGER NOT NULL DEFAULT 0,
+    runs_tuesday   INTEGER NOT NULL DEFAULT 0,
     runs_wednesday INTEGER NOT NULL DEFAULT 0,
-    runs_thursday INTEGER NOT NULL DEFAULT 0,
-    runs_friday   INTEGER NOT NULL DEFAULT 0,
-    runs_saturday INTEGER NOT NULL DEFAULT 0,
-    runs_sunday   INTEGER NOT NULL DEFAULT 0,
-    description   TEXT
+    runs_thursday  INTEGER NOT NULL DEFAULT 0,
+    runs_friday    INTEGER NOT NULL DEFAULT 0,
+    runs_saturday  INTEGER NOT NULL DEFAULT 0,
+    runs_sunday    INTEGER NOT NULL DEFAULT 0,
+    description    TEXT,
+    -- NULL = permanent (general) schedule; ISO-8601 dates = temporary override window
+    valid_from     TEXT,
+    valid_to       TEXT
+  );
+
+  -- Maps specific calendar dates to an alternate day-type for schedule resolution.
+  -- schedule_type_override must match a runs_<day> column suffix, e.g. 'sunday'.
+  CREATE TABLE IF NOT EXISTS schedule_exceptions (
+    exception_date          TEXT PRIMARY KEY,  -- ISO-8601, e.g. '2026-05-06'
+    schedule_type_override  TEXT NOT NULL       -- e.g. 'sunday', 'saturday'
   );
 
   CREATE TABLE IF NOT EXISTS schedules (
@@ -48,12 +58,14 @@ db.exec(`
 
 // --- Performance Indexes ---
 db.exec(`
-  CREATE INDEX IF NOT EXISTS idx_schedules_station_id  ON schedules(station_id);
-  CREATE INDEX IF NOT EXISTS idx_schedules_validity_id ON schedules(validity_id);
+  CREATE INDEX IF NOT EXISTS idx_schedules_station_id    ON schedules(station_id);
+  CREATE INDEX IF NOT EXISTS idx_schedules_validity_id   ON schedules(validity_id);
+  -- Speeds up the temporary-schedule range query (valid_from <= date <= valid_to)
+  CREATE INDEX IF NOT EXISTS idx_train_validity_dates     ON train_validity(train_number, valid_from, valid_to);
 `);
 
 db.close();
 
 console.log('Database initialized successfully.');
-console.log('Tables: stations, trains, train_validity, schedules');
-console.log('Indexes: idx_schedules_station_id, idx_schedules_validity_id');
+console.log('Tables: stations, trains, train_validity, schedules, schedule_exceptions');
+console.log('Indexes: idx_schedules_station_id, idx_schedules_validity_id, idx_train_validity_dates');

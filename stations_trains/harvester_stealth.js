@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // --- Config ---
-const TRAIN_NUMBERS_PATH = path.join(__dirname, './extracted/train_numbers.json');
+const TRAIN_NUMBERS_PATH = path.join(__dirname, './train_numbers.json');
 const OUTPUT_DIR = path.join(__dirname, 'raw_bdz_data');
 const FAILED_PATH = path.join(__dirname, 'failed_trains.json');
 
@@ -12,12 +12,12 @@ const LANGUAGE = 'bg';
 const BATCH_SIZE = 15;
 
 // Jitter between individual requests (ms)
-const SHORT_DELAY_MIN = 3000;
-const SHORT_DELAY_MAX = 6000;
+const SHORT_DELAY_MIN = 500;
+const SHORT_DELAY_MAX = 900;
 
 // Long break after each batch (ms)
 const LONG_BREAK_MIN = 60000;
-const LONG_BREAK_MAX = 90000;
+const LONG_BREAK_MAX = 80000;
 
 // --- Dates (DD.MM.YYYY for the BDZ API) ---
 function getNextDayOfWeek(dayOfWeek) {
@@ -35,7 +35,7 @@ function formatDateBDZ(date) {
     return `${dd}.${mm}.${yyyy}`;
 }
 
-const WEEKDAY_DATE = formatDateBDZ(getNextDayOfWeek(3)); // Wednesday
+const WEEKDAY_DATE = formatDateBDZ(getNextDayOfWeek(2)); // Tuesday
 const WEEKEND_DATE = formatDateBDZ(getNextDayOfWeek(6)); // Saturday
 
 // --- Helpers ---
@@ -80,7 +80,7 @@ async function fetchTrainInfo(trainNo, date) {
     console.log(`=== BulTrain Stealth Harvester ===`);
     console.log(`Source: ${BASE_URL}`);
     console.log(`Trains to fetch: ${total}`);
-    console.log(`Weekday date: ${WEEKDAY_DATE} (Wed)`);
+    console.log(`Weekday date: ${WEEKDAY_DATE} (Tue)`);
     console.log(`Weekend date: ${WEEKEND_DATE} (Sat)`);
     console.log(`Batch size: ${BATCH_SIZE} | Short delay: ${SHORT_DELAY_MIN / 1000}-${SHORT_DELAY_MAX / 1000}s | Long break: ${LONG_BREAK_MIN / 1000}-${LONG_BREAK_MAX / 1000}s`);
     console.log(`Estimated time: ~${Math.round((total * 2 * ((SHORT_DELAY_MIN + SHORT_DELAY_MAX) / 2) + Math.floor(total / BATCH_SIZE) * ((LONG_BREAK_MIN + LONG_BREAK_MAX) / 2)) / 60000)} minutes`);
@@ -92,7 +92,7 @@ async function fetchTrainInfo(trainNo, date) {
 
         // --- Fetch for both dates ---
         const fetches = [
-            { date: WEEKDAY_DATE, suffix: 'wed', label: 'Weekday' },
+            { date: WEEKDAY_DATE, suffix: 'tue', label: 'Weekday' },
             { date: WEEKEND_DATE, suffix: 'sat', label: 'Weekend' },
         ];
 
