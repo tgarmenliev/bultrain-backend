@@ -14,6 +14,7 @@ const CATEGORY_BG = {
     'МБВ': 'Международен бърз влак',
     'БВЗР': 'Бърз влак със задължителна резервация',
     'ЕВ': 'Експресен влак',
+    "АВТ": 'Автобус'
 };
 
 const CATEGORY_EN = {
@@ -23,6 +24,7 @@ const CATEGORY_EN = {
     'МБВ': 'International fast train',
     'БВЗР': 'Fast train with mandatory reservation',
     'ЕВ': 'Express train',
+    "АВТ": 'Bus'
 };
 
 // ── Day-of-week helpers ─────────────────────────────────────────────────────

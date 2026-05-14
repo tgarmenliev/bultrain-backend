@@ -26,6 +26,7 @@ const TYPE_TO_ABBR = {
     'международен бърз влак': 'МБВ',
     'бърз влак със задължителна резервация': 'БВЗР',
     'експресен влак': 'ЕВ',
+    'АВТ': 'АВТ',
 };
 
 function abbreviateType(fullType) {
@@ -70,8 +71,9 @@ const insertTrain = db.prepare(`
   INSERT OR IGNORE INTO trains (train_number, category) VALUES (?, ?)
 `);
 const insertValidity = db.prepare(`
-  INSERT INTO train_validity (train_number, runs_monday, runs_tuesday, runs_wednesday, runs_thursday, runs_friday, runs_saturday, runs_sunday, description)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO train_validity
+    (train_number, runs_monday, runs_tuesday, runs_wednesday, runs_thursday, runs_friday, runs_saturday, runs_sunday, description, valid_from, valid_to)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
 `);
 const insertSchedule = db.prepare(`
   INSERT INTO schedules (validity_id, station_id, arrival_time, departure_time, stop_sequence)
@@ -113,7 +115,7 @@ for (const num of trainNumbers) {
     const trainNumber = String(num);
 
     try {
-        const wedPath = path.join(RAW_DIR, `${trainNumber}_wed.json`);
+        const wedPath = path.join(RAW_DIR, `${trainNumber}_tue.json`);
         const satPath = path.join(RAW_DIR, `${trainNumber}_sat.json`);
 
         const wedExists = fs.existsSync(wedPath);
