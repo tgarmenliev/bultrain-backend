@@ -15,6 +15,8 @@ export interface Stop {
 export interface Validity {
     validity_id: number;
     description: string;
+    valid_from: string | null;
+    valid_to: string | null;
     days: {
         monday: number; tuesday: number; wednesday: number; thursday: number; friday: number; saturday: number; sunday: number;
     };
@@ -55,6 +57,8 @@ export default function TrainManager() {
     const [importDays, setImportDays] = useState({
         monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true, sunday: true
     });
+    const [importValidFrom, setImportValidFrom] = useState('');
+    const [importValidTo, setImportValidTo] = useState('');
     const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
     const getDaysLabel = (days: Validity['days']) => {
@@ -104,6 +108,8 @@ export default function TrainManager() {
         setActiveTab('timeline');
         setImportStatus(null);
         setJsonInput('');
+        setImportValidFrom('');
+        setImportValidTo('');
         setImportDays({ monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true, sunday: true });
         setSelectedValidityIndex(0);
         await fetchSchedule(train.train_number);
@@ -192,7 +198,11 @@ export default function TrainManager() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     schedule: parsedData.stations || parsedData,
-                    days: importDays
+                    days: importDays,
+                    ...(importValidFrom && importValidTo && {
+                        valid_from: importValidFrom,
+                        valid_to: importValidTo,
+                    }),
                 }),
             });
 
@@ -366,6 +376,11 @@ export default function TrainManager() {
                                                                 <span className="ml-2 opacity-70 border-l border-current pl-2 text-xs">
                                                                     {getDaysLabel(v.days)}
                                                                 </span>
+                                                                {v.valid_from && v.valid_to && (
+                                                                    <span className="ml-2 text-[10px] font-mono opacity-60">
+                                                                        {v.valid_from} → {v.valid_to}
+                                                                    </span>
+                                                                )}
                                                             </button>
                                                         ))}
                                                     </div>
@@ -447,27 +462,54 @@ export default function TrainManager() {
                             {/* JSON IMPORT TAB */}
                             {activeTab === 'json' && (
                                 <div className="space-y-6 flex flex-col h-full">
-                                    <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
-                                        <h4 className="text-sm font-bold text-white mb-4">Дни на движение</h4>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            {DAYS_MAP.map((day) => (
-                                                <label key={day.key} className="flex items-center space-x-3 cursor-pointer group">
-                                                    <div className="relative flex items-center justify-center">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={importDays[day.key as keyof typeof importDays]}
-                                                            onChange={(e) => setImportDays({ ...importDays, [day.key]: e.target.checked })}
-                                                            className="peer appearance-none w-5 h-5 border border-neutral-600 rounded bg-neutral-950 checked:bg-blue-600 checked:border-blue-500 transition-colors cursor-pointer"
-                                                        />
-                                                        <svg className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    </div>
-                                                    <span className="text-sm font-medium text-neutral-300 group-hover:text-white transition-colors">
-                                                        {day.label}
-                                                    </span>
-                                                </label>
-                                            ))}
+                                    <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 space-y-5">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-white mb-4">Дни на движение</h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                {DAYS_MAP.map((day) => (
+                                                    <label key={day.key} className="flex items-center space-x-3 cursor-pointer group">
+                                                        <div className="relative flex items-center justify-center">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={importDays[day.key as keyof typeof importDays]}
+                                                                onChange={(e) => setImportDays({ ...importDays, [day.key]: e.target.checked })}
+                                                                className="peer appearance-none w-5 h-5 border border-neutral-600 rounded bg-neutral-950 checked:bg-blue-600 checked:border-blue-500 transition-colors cursor-pointer"
+                                                            />
+                                                            <svg className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        </div>
+                                                        <span className="text-sm font-medium text-neutral-300 group-hover:text-white transition-colors">
+                                                            {day.label}
+                                                        </span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="border-t border-neutral-800 pt-4">
+                                            <h4 className="text-sm font-bold text-white mb-1">Временен период <span className="text-neutral-500 font-normal text-xs">(незадължително)</span></h4>
+                                            <p className="text-xs text-neutral-500 mb-3">Остави празно за постоянно (общо) разписание.</p>
+                                            <div className="flex flex-wrap gap-4">
+                                                <div className="space-y-1 flex-1 min-w-[140px]">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Валидно от</label>
+                                                    <input
+                                                        type="date"
+                                                        value={importValidFrom}
+                                                        onChange={e => setImportValidFrom(e.target.value)}
+                                                        className="input-premium w-full"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1 flex-1 min-w-[140px]">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Валидно до</label>
+                                                    <input
+                                                        type="date"
+                                                        value={importValidTo}
+                                                        onChange={e => setImportValidTo(e.target.value)}
+                                                        className="input-premium w-full"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 

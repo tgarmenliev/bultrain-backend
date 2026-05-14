@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import GuideManager from './components/GuideManager';
 import TrainManager from './components/TrainManager';
+import DataSync from './components/DataSync';
+import ExceptionsManager from './components/ExceptionsManager';
 
-type View = 'dashboard' | 'guide' | 'trains';
+type View = 'dashboard' | 'guide' | 'trains' | 'exceptions';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -76,6 +78,13 @@ function App() {
           >
             Справочник
           </button>
+          <button
+            onClick={() => setCurrentView('exceptions')}
+            className={`w-full text-left px-4 py-3 rounded-xl font-bold tracking-wide transition-all duration-300 ${currentView === 'exceptions' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border border-transparent'
+              }`}
+          >
+            Празници / Изключения
+          </button>
         </nav>
 
         {/* Sidebar Stats Area */}
@@ -115,6 +124,8 @@ function App() {
                 <h2 className="text-3xl font-bold text-gradient">Общ изглед</h2>
                 <p className="text-slate-400 text-sm mt-2">Системна статистика и обобщение.</p>
               </div>
+
+              <DataSync />
               <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-8 glass-card rounded-2xl cursor-default group hover:shadow-indigo-500/10 hover:border-indigo-500/30">
                   <h2 className="text-slate-400 text-sm font-semibold mb-3 tracking-wide uppercase">Общо Влакове</h2>
@@ -134,6 +145,7 @@ function App() {
 
           {currentView === 'guide' && <GuideManager />}
           {currentView === 'trains' && <TrainManager />}
+          {currentView === 'exceptions' && <ExceptionsManager />}
         </div>
       </main>
     </div>
