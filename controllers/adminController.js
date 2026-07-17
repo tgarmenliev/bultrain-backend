@@ -100,6 +100,17 @@ function normalizeStationName(name) {
     return n;
 }
 
+// The BDZ payload marks a stop's missing time with an arrow: the origin has no
+// arrival (↦) and the terminus no departure (↤). Both have to land as NULL —
+// routeWorker reads a falsy time as "cannot board/alight here", and a literal
+// arrow is truthy, so storing it would make the origin look like a valid stop.
+function normalizeStopTime(value) {
+    if (value === undefined || value === null) return null;
+    const v = String(value).trim();
+    if (v === '' || v === '↦' || v === '↤') return null;
+    return v;
+}
+
 const TYPE_TO_ABBR = {
     'пътнически влак': 'ПВ',
     'бърз влак': 'БВ',
@@ -442,8 +453,8 @@ exports.importTrainSchedule = (req, res) => {
 
             stopsToInsert.push({
                 stationId,
-                arrive: stop.arrive || stop.arrival_time || null,
-                depart: stop.depart || stop.departure_time || null,
+                arrive: normalizeStopTime(stop.arrive ?? stop.arrival_time),
+                depart: normalizeStopTime(stop.depart ?? stop.departure_time),
             });
         }
 
