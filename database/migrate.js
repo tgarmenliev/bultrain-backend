@@ -1,90 +1,89 @@
 'use strict';
 
 /**
- * migrate.js
+ * migrate.js — versioned, forward-only migration runner.
  *
- * Idempotent migration for the live bultrain.sqlite database.
- * Adds the new columns and table introduced for GTFS-style schedule overrides.
- * Safe to run multiple times — each step is guarded.
+ * Applies every *.sql file in database/migrations/ that has not been applied
+ * yet, in filename order, each inside its own transaction, and records it in
+ * the schema_version table. Safe to run repeatedly: already-applied migrations
+ * are skipped.
  *
- * Usage:  node database/migrate.js
+ * Migrations must be idempotent-friendly (CREATE TABLE IF NOT EXISTS etc.) so
+ * that baseline migration 001 is a harmless no-op against the existing
+ * production database while still building the schema from nothing on a fresh
+ * clone.
+ *
+ * Usage:  node database/migrate.js [path/to/db.sqlite]
  */
 
 const Database = require('better-sqlite3');
+const fs       = require('fs');
 const path     = require('path');
 
-const DB_PATH = path.join(__dirname, '..', 'bultrain.sqlite');
-const db      = new Database(DB_PATH);
+const DB_PATH        = process.argv[2] || path.join(__dirname, '..', 'bultrain.sqlite');
+const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+function run(dbPath = DB_PATH) {
+    const db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
 
-// ── Helper: check whether a column already exists ─────────────────────────────
-function columnExists(table, column) {
-    const info = db.prepare(`PRAGMA table_info(${table})`).all();
-    return info.some(col => col.name === column);
-}
-
-// ── Helper: check whether a table already exists ──────────────────────────────
-function tableExists(table) {
-    return !!db.prepare(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
-    ).get(table);
-}
-
-// ── Helper: check whether an index already exists ─────────────────────────────
-function indexExists(name) {
-    return !!db.prepare(
-        `SELECT name FROM sqlite_master WHERE type='index' AND name=?`
-    ).get(name);
-}
-
-let steps = 0;
-
-// ── Step 1: valid_from on train_validity ──────────────────────────────────────
-if (!columnExists('train_validity', 'valid_from')) {
-    db.exec(`ALTER TABLE train_validity ADD COLUMN valid_from TEXT`);
-    console.log('[+] train_validity.valid_from added (NULL = permanent schedule)');
-    steps++;
-} else {
-    console.log('[=] train_validity.valid_from already exists — skipped');
-}
-
-// ── Step 2: valid_to on train_validity ────────────────────────────────────────
-if (!columnExists('train_validity', 'valid_to')) {
-    db.exec(`ALTER TABLE train_validity ADD COLUMN valid_to TEXT`);
-    console.log('[+] train_validity.valid_to added (NULL = permanent schedule)');
-    steps++;
-} else {
-    console.log('[=] train_validity.valid_to already exists — skipped');
-}
-
-// ── Step 3: schedule_exceptions table ────────────────────────────────────────
-if (!tableExists('schedule_exceptions')) {
     db.exec(`
-        CREATE TABLE schedule_exceptions (
-            exception_date          TEXT PRIMARY KEY,  -- ISO-8601, e.g. '2026-05-06'
-            schedule_type_override  TEXT NOT NULL       -- e.g. 'sunday', 'saturday'
+        CREATE TABLE IF NOT EXISTS schema_version (
+            version     TEXT PRIMARY KEY,   -- the migration filename
+            applied_at  TEXT NOT NULL       -- ISO-8601 UTC
         )
     `);
-    console.log('[+] schedule_exceptions table created');
-    steps++;
-} else {
-    console.log('[=] schedule_exceptions already exists — skipped');
+
+    const applied = new Set(
+        db.prepare('SELECT version FROM schema_version').all().map(r => r.version)
+    );
+
+    const files = fs.readdirSync(MIGRATIONS_DIR)
+        .filter(f => f.endsWith('.sql'))
+        .sort(); // 001_, 002_, … lexicographic == numeric here
+
+    const record = db.prepare(
+        'INSERT INTO schema_version (version, applied_at) VALUES (?, ?)'
+    );
+
+    let count = 0;
+    for (const file of files) {
+        if (applied.has(file)) {
+            console.log(`[=] ${file} already applied`);
+            continue;
+        }
+        const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
+
+        // Each migration is atomic: either the whole file applies and is
+        // recorded, or nothing changes.
+        const apply = db.transaction(() => {
+            db.exec(sql);
+            record.run(file, new Date().toISOString());
+        });
+
+        try {
+            apply();
+            console.log(`[+] ${file} applied`);
+            count++;
+        } catch (err) {
+            db.close();
+            throw new Error(`Migration ${file} failed: ${err.message}`);
+        }
+    }
+
+    db.close();
+    console.log(`\nMigrations up to date. ${count} applied this run.`);
+    return count;
 }
 
-// ── Step 4: covering index for the temporal range query ───────────────────────
-if (!indexExists('idx_train_validity_dates')) {
-    db.exec(`
-        CREATE INDEX idx_train_validity_dates
-        ON train_validity(train_number, valid_from, valid_to)
-    `);
-    console.log('[+] idx_train_validity_dates created');
-    steps++;
-} else {
-    console.log('[=] idx_train_validity_dates already exists — skipped');
+if (require.main === module) {
+    try {
+        run();
+    } catch (err) {
+        console.error(err.message);
+        process.exit(1);
+    }
 }
 
-db.close();
-
-console.log(`\nMigration complete. ${steps} change(s) applied.`);
+module.exports = run;
