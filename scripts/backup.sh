@@ -14,8 +14,8 @@ set -euo pipefail
 
 DB_PATH="${BULTRAIN_DB:-/root/bultrain-app/bultrain.sqlite}"
 BACKUP_DIR="${BULTRAIN_BACKUP_DIR:-/root/backups}"
-# 56 backups = 14 days of history at a 6-hour interval.
-RETENTION="${BULTRAIN_BACKUP_RETENTION:-56}"
+# 30 backups = 30 days of history at the daily interval.
+RETENTION="${BULTRAIN_BACKUP_RETENTION:-30}"
 # Optional off-box target, e.g. a Hetzner Storage Box:
 #   BULTRAIN_BACKUP_REMOTE="u123456@u123456.your-storagebox.de:backups/"
 REMOTE="${BULTRAIN_BACKUP_REMOTE:-}"
