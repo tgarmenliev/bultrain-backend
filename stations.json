@@ -1,0 +1,5594 @@
+[
+  {
+    "id": 611,
+    "name": "Абланица",
+    "englishName": "Ablanica",
+    "lat": 43.0353678,
+    "lon": 24.7144122,
+    "romanizedName": "ablanica"
+  },
+  {
+    "id": 417,
+    "name": "Аврамово",
+    "englishName": "Avramovo",
+    "lat": 42.0368955,
+    "lon": 23.8204387,
+    "romanizedName": "avramovo"
+  },
+  {
+    "id": 61,
+    "name": "Айтос",
+    "englishName": "Aytos",
+    "lat": 42.6947243,
+    "lon": 27.2460998,
+    "romanizedName": "ajtos"
+  },
+  {
+    "id": 599,
+    "name": "Алдомировци",
+    "englishName": "Aldomirovci",
+    "lat": 42.8791813,
+    "lon": 22.987556,
+    "romanizedName": "aldomirovci"
+  },
+  {
+    "id": 173,
+    "name": "Александрово",
+    "englishName": "Aleksandrovo",
+    "lat": 43.2658001,
+    "lon": 24.9425551,
+    "romanizedName": "aleksandrovo"
+  },
+  {
+    "id": 453,
+    "name": "Александър Димитров",
+    "englishName": "Aleksandar Dimitrov",
+    "lat": 42.4587909,
+    "lon": 22.9063858,
+    "romanizedName": "aleksandar-dimitrov"
+  },
+  {
+    "id": 513,
+    "name": "Алфатар",
+    "englishName": "Alfatar",
+    "lat": 43.942351,
+    "lon": 27.2932609,
+    "romanizedName": "alfatar"
+  },
+  {
+    "id": 538,
+    "name": "Анево",
+    "englishName": "Anevo",
+    "lat": 42.6543946,
+    "lon": 24.7158121,
+    "romanizedName": "anevo"
+  },
+  {
+    "id": 440,
+    "name": "Антон",
+    "englishName": "Anton",
+    "lat": 42.7290637,
+    "lon": 24.2472763,
+    "romanizedName": "anton"
+  },
+  {
+    "id": 472,
+    "name": "Арковна",
+    "englishName": "Arkovna",
+    "lat": 43.0384389,
+    "lon": 27.1998447,
+    "romanizedName": "arkovna"
+  },
+  {
+    "id": 12,
+    "name": "Асеновград",
+    "englishName": "Asenovgrad",
+    "lat": 42.0143538,
+    "lon": 24.8692142,
+    "romanizedName": "asenovgrad"
+  },
+  {
+    "id": 367,
+    "name": "Асеново",
+    "englishName": "Asenovo",
+    "lat": 43.2566385,
+    "lon": 26.0424775,
+    "romanizedName": "asenovo"
+  },
+  {
+    "id": 278,
+    "name": "Асеновци",
+    "englishName": "Asenovci",
+    "lat": 43.3302805,
+    "lon": 25.0900269,
+    "romanizedName": "asenovci"
+  },
+  {
+    "id": 166,
+    "name": "Аспарухово",
+    "englishName": "Asparuhovo",
+    "lat": 42.9875335,
+    "lon": 27.3168936,
+    "romanizedName": "asparuhovo"
+  },
+  {
+    "id": 345,
+    "name": "Атолово",
+    "englishName": "Atolovo",
+    "lat": 42.595973,
+    "lon": 26.7340762,
+    "romanizedName": "atolovo"
+  },
+  {
+    "id": 627,
+    "name": "Байково",
+    "englishName": "Baikovo",
+    "lat": 43.4651212,
+    "lon": 26.8469528,
+    "romanizedName": "bajkovo"
+  },
+  {
+    "id": 380,
+    "name": "Балкан",
+    "englishName": "Balkan",
+    "lat": 43.0539472,
+    "lon": 23.3626238,
+    "romanizedName": "balkan"
+  },
+  {
+    "id": 384,
+    "name": "Банковица",
+    "englishName": "Bankovica",
+    "lat": 42.3626424,
+    "lon": 23.0070128,
+    "romanizedName": "bankovica"
+  },
+  {
+    "id": 77,
+    "name": "Банкя",
+    "englishName": "Bankya",
+    "lat": 42.7058971,
+    "lon": 23.1512249,
+    "romanizedName": "bankja"
+  },
+  {
+    "id": 255,
+    "name": "Банско",
+    "englishName": "Bansko",
+    "lat": 41.8439702,
+    "lon": 23.4902688,
+    "romanizedName": "bansko"
+  },
+  {
+    "id": 124,
+    "name": "Баня",
+    "englishName": "Banya",
+    "lat": 42.5420389,
+    "lon": 24.8454175,
+    "romanizedName": "banja"
+  },
+  {
+    "id": 62,
+    "name": "Батановци",
+    "englishName": "Batanovci",
+    "lat": 42.5954734,
+    "lon": 22.9536343,
+    "romanizedName": "batanovci"
+  },
+  {
+    "id": 495,
+    "name": "Батишница",
+    "englishName": "Batishnica",
+    "lat": 43.5452703,
+    "lon": 25.8497999,
+    "romanizedName": "batishnica"
+  },
+  {
+    "id": 571,
+    "name": "Бачо Киро",
+    "englishName": "Bacho Kiro",
+    "lat": 42.9576308,
+    "lon": 25.4318678,
+    "romanizedName": "bacho-kiro"
+  },
+  {
+    "id": 407,
+    "name": "Безименна",
+    "englishName": "Bezimenna",
+    "lat": 43.7633317,
+    "lon": 26.99509,
+    "romanizedName": "bezimenna"
+  },
+  {
+    "id": 491,
+    "name": "Безмер",
+    "englishName": "Bezmer",
+    "lat": 42.4602788,
+    "lon": 26.3875446,
+    "romanizedName": "bezmer"
+  },
+  {
+    "id": 694,
+    "name": "Бела Вода",
+    "englishName": "Bela Voda",
+    "lat": 42.5995227,
+    "lon": 22.9828538,
+    "romanizedName": "bela-voda"
+  },
+  {
+    "id": 126,
+    "name": "Бели Извор",
+    "englishName": "Beli Izvor",
+    "lat": 43.278516,
+    "lon": 23.4618028,
+    "romanizedName": "beli-izvor"
+  },
+  {
+    "id": 322,
+    "name": "Белица",
+    "englishName": "Belica",
+    "lat": 41.9175715,
+    "lon": 23.5796397,
+    "romanizedName": "belica"
+  },
+  {
+    "id": 50,
+    "name": "Белово",
+    "englishName": "Belovo",
+    "lat": 42.215463,
+    "lon": 24.0183916,
+    "romanizedName": "belovo"
+  },
+  {
+    "id": 58,
+    "name": "Белозем",
+    "englishName": "Belozem",
+    "lat": 42.2016393,
+    "lon": 25.0460252,
+    "romanizedName": "belozem"
+  },
+  {
+    "id": 588,
+    "name": "Бяло поле",
+    "englishName": "Belo Pole",
+    "lat": 42.0317458,
+    "lon": 23.0437061,
+    "romanizedName": "belo-pole"
+  },
+  {
+    "id": 56,
+    "name": "Белослав",
+    "englishName": "Beloslav",
+    "lat": 43.1985773,
+    "lon": 27.7059961,
+    "romanizedName": "beloslav"
+  },
+  {
+    "id": 449,
+    "name": "Белщица",
+    "englishName": "Belshtica",
+    "lat": 43.7117361,
+    "lon": 22.7090471,
+    "romanizedName": "belshtica"
+  },
+  {
+    "id": 589,
+    "name": "Бенковски",
+    "englishName": "Benkovski",
+    "lat": 42.2050454,
+    "lon": 24.6394267,
+    "romanizedName": "benkovski"
+  },
+  {
+    "id": 185,
+    "name": "Берковица",
+    "englishName": "Berkovica",
+    "lat": 43.2399394,
+    "lon": 23.1398129,
+    "romanizedName": "berkovica"
+  },
+  {
+    "id": 400,
+    "name": "Бисер",
+    "englishName": "Biser",
+    "lat": 41.872207,
+    "lon": 25.9843789,
+    "romanizedName": "biser"
+  },
+  {
+    "id": 426,
+    "name": "Благово",
+    "englishName": "Blagovo",
+    "lat": 43.3609713,
+    "lon": 23.2249403,
+    "romanizedName": "blagovo"
+  },
+  {
+    "id": 51,
+    "name": "Благоевград",
+    "englishName": "Blagoevgrad",
+    "lat": 42.0134639,
+    "lon": 23.0850569,
+    "romanizedName": "blagoevgrad"
+  },
+  {
+    "id": 396,
+    "name": "Благоевград - Спирка",
+    "englishName": "Blagoevgrad Stop",
+    "lat": 41.9914378,
+    "lon": 23.0848382,
+    "romanizedName": "blagoevgrad-st"
+  },
+  {
+    "id": 324,
+    "name": "Благой Захариев",
+    "englishName": "Blagoi Zahariev",
+    "lat": 42.2124056,
+    "lon": 24.0489355,
+    "romanizedName": "blagoj-zahariev"
+  },
+  {
+    "id": 298,
+    "name": "Бобов Дол",
+    "englishName": "Bobov Dol",
+    "lat": 42.3758498,
+    "lon": 23.0005404,
+    "romanizedName": "bobov-dol"
+  },
+  {
+    "id": 489,
+    "name": "Бобошево",
+    "englishName": "Boboshevo",
+    "lat": 42.1584567,
+    "lon": 23.0374075,
+    "romanizedName": "boboshevo"
+  },
+  {
+    "id": 89,
+    "name": "Бов",
+    "englishName": "Bov",
+    "lat": 43.0220704,
+    "lon": 23.3514552,
+    "romanizedName": "bov"
+  },
+  {
+    "id": 330,
+    "name": "Богданци",
+    "englishName": "Bogdanci",
+    "lat": 43.6081012,
+    "lon": 26.8195271,
+    "romanizedName": "bogdanci"
+  },
+  {
+    "id": 609,
+    "name": "Божичен",
+    "englishName": "Bozhichen",
+    "lat": 43.7217224,
+    "lon": 25.93823,
+    "romanizedName": "bozhichen"
+  },
+  {
+    "id": 421,
+    "name": "Божковци",
+    "englishName": "Bozhkovci",
+    "lat": 42.8559078,
+    "lon": 25.4655375,
+    "romanizedName": "bozhkovci"
+  },
+  {
+    "id": 398,
+    "name": "Божурица",
+    "englishName": "Bozhurica",
+    "lat": 43.5167276,
+    "lon": 24.5793315,
+    "romanizedName": "bozhurica"
+  },
+  {
+    "id": 256,
+    "name": "Божурище",
+    "englishName": "Bozhurishte",
+    "lat": 42.7522924,
+    "lon": 23.2134312,
+    "romanizedName": "bozhurishte"
+  },
+  {
+    "id": 549,
+    "name": "Бозаджи",
+    "englishName": "Bozadzhii",
+    "lat": 42.4711063,
+    "lon": 26.3224655,
+    "romanizedName": "bozadzhii"
+  },
+  {
+    "id": 231,
+    "name": "Бойка",
+    "englishName": "Boika",
+    "lat": 42.2588968,
+    "lon": 23.9040494,
+    "romanizedName": "bojka"
+  },
+  {
+    "id": 19,
+    "name": "Бойчиновци",
+    "englishName": "Boichinovci",
+    "lat": 43.4751152,
+    "lon": 23.338444,
+    "romanizedName": "bojchinovci"
+  },
+  {
+    "id": 606,
+    "name": "Бокиловци",
+    "englishName": "Bokilovci",
+    "lat": 43.2770902,
+    "lon": 23.1745923,
+    "romanizedName": "bokilovci"
+  },
+  {
+    "id": 102,
+    "name": "Борово",
+    "englishName": "Borovo",
+    "lat": 43.4881928,
+    "lon": 25.8098149,
+    "romanizedName": "borovo"
+  },
+  {
+    "id": 253,
+    "name": "Боровци",
+    "englishName": "Borovci",
+    "lat": 43.3209819,
+    "lon": 23.1805423,
+    "romanizedName": "borovci"
+  },
+  {
+    "id": 395,
+    "name": "Борущица",
+    "englishName": "Borushtica",
+    "lat": 42.7198189,
+    "lon": 25.5853544,
+    "romanizedName": "borushtica"
+  },
+  {
+    "id": 235,
+    "name": "Боряна",
+    "englishName": "Boryana",
+    "lat": 43.0393391,
+    "lon": 27.2943144,
+    "romanizedName": "borjana"
+  },
+  {
+    "id": 444,
+    "name": "Ботев",
+    "englishName": "Botev",
+    "lat": 42.6012208,
+    "lon": 24.8938072,
+    "romanizedName": "botev"
+  },
+  {
+    "id": 416,
+    "name": "Ботево",
+    "englishName": "Botevo",
+    "lat": 43.4757379,
+    "lon": 27.7095018,
+    "romanizedName": "botevo"
+  },
+  {
+    "id": 536,
+    "name": "Ботунец",
+    "englishName": "Botunec",
+    "lat": 42.7421867,
+    "lon": 23.5178641,
+    "romanizedName": "botunec"
+  },
+  {
+    "id": 245,
+    "name": "Брацигово",
+    "englishName": "Bracigovo",
+    "lat": 42.0378612,
+    "lon": 24.3616175,
+    "romanizedName": "bracigovo"
+  },
+  {
+    "id": 591,
+    "name": "Бригадир",
+    "englishName": "Brigadir",
+    "lat": 42.7918795,
+    "lon": 23.1685808,
+    "romanizedName": "brigadir"
+  },
+  {
+    "id": 640,
+    "name": "Бригадирска Слава",
+    "englishName": "Brigadirska Slava",
+    "lat": 42.757779,
+    "lon": 23.0233718,
+    "romanizedName": "brigadirska-slava"
+  },
+  {
+    "id": 33,
+    "name": "Брусарци",
+    "englishName": "Brusarci",
+    "lat": 43.6651214,
+    "lon": 23.0753958,
+    "romanizedName": "brusarci"
+  },
+  {
+    "id": 471,
+    "name": "Брусен",
+    "englishName": "Brusen",
+    "lat": 43.1392288,
+    "lon": 23.7472385,
+    "romanizedName": "brusen"
+  },
+  {
+    "id": 658,
+    "name": "Бръчма",
+    "englishName": "Brachma",
+    "lat": 44.0157008,
+    "lon": 27.2976874,
+    "romanizedName": "brachma"
+  },
+  {
+    "id": 667,
+    "name": "Бряст",
+    "englishName": "Bryast",
+    "lat": 42.097407,
+    "lon": 25.5602415,
+    "romanizedName": "brjast"
+  },
+  {
+    "id": 377,
+    "name": "Буново",
+    "englishName": "Bunovo",
+    "lat": 42.7159729,
+    "lon": 23.9380122,
+    "romanizedName": "bunovo"
+  },
+  {
+    "id": 9,
+    "name": "Бургас",
+    "englishName": "Burgas",
+    "lat": 42.490953,
+    "lon": 27.472546,
+    "romanizedName": "burgas"
+  },
+  {
+    "id": 689,
+    "name": "Бургас-разпределителна-спирка",
+    "englishName": "Burgas Razpredelitelna Spirka",
+    "lat": 42.5172671,
+    "lon": 27.424247,
+    "romanizedName": "burgas-razpredelitelna-spirka"
+  },
+  {
+    "id": 137,
+    "name": "Бургас-товарна",
+    "englishName": "Burgas Tovarna",
+    "lat": 42.5130021,
+    "lon": 27.4426031,
+    "romanizedName": "burgas-tovarna"
+  },
+  {
+    "id": 176,
+    "name": "Бутово",
+    "englishName": "Butovo",
+    "lat": 43.302586,
+    "lon": 25.2171103,
+    "romanizedName": "butovo"
+  },
+  {
+    "id": 535,
+    "name": "Бъзовец",
+    "englishName": "Bazovec",
+    "lat": 42.7888424,
+    "lon": 25.5435991,
+    "romanizedName": "bazovec"
+  },
+  {
+    "id": 461,
+    "name": "Българово",
+    "englishName": "Balgarovo",
+    "lat": 42.5958706,
+    "lon": 27.3020822,
+    "romanizedName": "balgarovo"
+  },
+  {
+    "id": 553,
+    "name": "Бърдоква",
+    "englishName": "Bardokva",
+    "lat": 43.6373782,
+    "lon": 26.8077128,
+    "romanizedName": "bardokva"
+  },
+  {
+    "id": 186,
+    "name": "Бяга",
+    "englishName": "Byaga",
+    "lat": 42.0631896,
+    "lon": 24.3738041,
+    "romanizedName": "bjaga"
+  },
+  {
+    "id": 111,
+    "name": "Бяла",
+    "englishName": "Byala",
+    "lat": 43.4688687,
+    "lon": 25.6693883,
+    "romanizedName": "bjala"
+  },
+  {
+    "id": 399,
+    "name": "Бял Бряг",
+    "englishName": "Byal Bryag",
+    "lat": 43.0593883,
+    "lon": 27.1213382,
+    "romanizedName": "bjal-brjag"
+  },
+  {
+    "id": 115,
+    "name": "Вр.депо Пловдив - спирка",
+    "englishName": "Vagono-Remontno Depo Plovdiv",
+    "lat": 42.125141,
+    "lon": 24.7646547,
+    "romanizedName": "vagono-remontno-depo-plovdiv"
+  },
+  {
+    "id": 53,
+    "name": "Вакарел",
+    "englishName": "Vakarel",
+    "lat": 42.5562156,
+    "lon": 23.7073482,
+    "romanizedName": "vakarel"
+  },
+  {
+    "id": 503,
+    "name": "Вакарел - Спирка",
+    "englishName": "Vakarel Stop",
+    "lat": 42.560806,
+    "lon": 23.6952552,
+    "romanizedName": "vakarel-sp"
+  },
+  {
+    "id": 412,
+    "name": "Варвара",
+    "englishName": "Varvara",
+    "lat": 42.1556003,
+    "lon": 24.1376407,
+    "romanizedName": "varvara"
+  },
+  {
+    "id": 4,
+    "name": "Варна",
+    "englishName": "Varna",
+    "lat": 43.1980013,
+    "lon": 27.9122585,
+    "romanizedName": "varna"
+  },
+  {
+    "id": 133,
+    "name": "Варна - Спирка",
+    "englishName": "Varna Stop",
+    "lat": 43.1980013,
+    "lon": 27.9122585,
+    "romanizedName": "varna-sp"
+  },
+  {
+    "id": 379,
+    "name": "Васил Левски",
+    "englishName": "Vasil Levski",
+    "lat": 43.2609372,
+    "lon": 26.6238711,
+    "romanizedName": "vasil-levski"
+  },
+  {
+    "id": 107,
+    "name": "Василовци",
+    "englishName": "Vasilovci",
+    "lat": 43.7123706,
+    "lon": 23.1308127,
+    "romanizedName": "vasilovci"
+  },
+  {
+    "id": 443,
+    "name": "Ведрово",
+    "englishName": "Vedrovo",
+    "lat": 42.8323975,
+    "lon": 26.9728048,
+    "romanizedName": "vedrovo"
+  },
+  {
+    "id": 37,
+    "name": "Велико Търново",
+    "englishName": "Veliko Tarnovo",
+    "lat": 43.0741458,
+    "lon": 25.6382402,
+    "romanizedName": "veliko-tarnovo"
+  },
+  {
+    "id": 113,
+    "name": "Велинград",
+    "englishName": "Velingrad",
+    "lat": 42.0247422,
+    "lon": 23.9963548,
+    "romanizedName": "velingrad"
+  },
+  {
+    "id": 467,
+    "name": "Велинград Юг",
+    "englishName": "Velingrad South",
+    "lat": 42.0018644,
+    "lon": 23.9821278,
+    "romanizedName": "velingrad-jug"
+  },
+  {
+    "id": 636,
+    "name": "Велино",
+    "englishName": "Velino",
+    "lat": 43.3868295,
+    "lon": 27.0135739,
+    "romanizedName": "velino"
+  },
+  {
+    "id": 134,
+    "name": "Величково",
+    "englishName": "Velichkovo",
+    "lat": 43.0472244,
+    "lon": 27.4416506,
+    "romanizedName": "velichkovo"
+  },
+  {
+    "id": 302,
+    "name": "Венчан",
+    "englishName": "Venchan",
+    "lat": 43.233157,
+    "lon": 27.3903924,
+    "romanizedName": "venchan"
+  },
+  {
+    "id": 112,
+    "name": "Верила",
+    "englishName": "Verila",
+    "lat": 42.6411039,
+    "lon": 23.5211157,
+    "romanizedName": "verila"
+  },
+  {
+    "id": 362,
+    "name": "Веринско",
+    "englishName": "Verinsko",
+    "lat": 42.4955326,
+    "lon": 23.769157,
+    "romanizedName": "verinsko"
+  },
+  {
+    "id": 202,
+    "name": "Ветово",
+    "englishName": "Vetovo",
+    "lat": 43.6946208,
+    "lon": 26.2482478,
+    "romanizedName": "vetovo"
+  },
+  {
+    "id": 438,
+    "name": "Ветрен",
+    "englishName": "Vetren",
+    "lat": 42.6158043,
+    "lon": 25.6898947,
+    "romanizedName": "vetren"
+  },
+  {
+    "id": 623,
+    "name": "Видбол",
+    "englishName": "Vidbol",
+    "lat": 43.9134664,
+    "lon": 22.8194442,
+    "romanizedName": "vidbol"
+  },
+  {
+    "id": 49,
+    "name": "Видин",
+    "englishName": "Vidin",
+    "lat": 43.9843157,
+    "lon": 22.8752289,
+    "romanizedName": "vidin"
+  },
+  {
+    "id": 191,
+    "name": "Виница",
+    "englishName": "Vinica",
+    "lat": 42.1262379,
+    "lon": 25.1378641,
+    "romanizedName": "vinica"
+  },
+  {
+    "id": 459,
+    "name": "Висока Поляна",
+    "englishName": "Visoka Poljana",
+    "lat": 43.4693131,
+    "lon": 26.7700559,
+    "romanizedName": "visoka-poljana"
+  },
+  {
+    "id": 192,
+    "name": "Владая",
+    "englishName": "Vladaya",
+    "lat": 42.6233017,
+    "lon": 23.1852168,
+    "romanizedName": "vladaja"
+  },
+  {
+    "id": 165,
+    "name": "Владимир Павлов",
+    "englishName": "Vladimir Pavlov",
+    "lat": 42.5022882,
+    "lon": 27.4575061,
+    "romanizedName": "vladimir-pavlov"
+  },
+  {
+    "id": 117,
+    "name": "Владо Тричков",
+    "englishName": "Vlado Trichkov",
+    "lat": 42.8609989,
+    "lon": 23.3718081,
+    "romanizedName": "vlado-trichkov"
+  },
+  {
+    "id": 229,
+    "name": "Власатица",
+    "englishName": "Vlasatica",
+    "lat": 43.3038529,
+    "lon": 23.4657214,
+    "romanizedName": "vlasatica"
+  },
+  {
+    "id": 409,
+    "name": "Воднянци",
+    "englishName": "Vodnyanci",
+    "lat": 43.7046641,
+    "lon": 22.8530462,
+    "romanizedName": "vodnjanci"
+  },
+  {
+    "id": 184,
+    "name": "Волуяк",
+    "englishName": "Voluyak",
+    "lat": 42.7548363,
+    "lon": 23.2444286,
+    "romanizedName": "volujak"
+  },
+  {
+    "id": 10,
+    "name": "Враца",
+    "englishName": "Vraca",
+    "lat": 43.2087597,
+    "lon": 23.5577245,
+    "romanizedName": "vraca"
+  },
+  {
+    "id": 91,
+    "name": "Враца - Спирка",
+    "englishName": "Vraca Stop",
+    "lat": 43.2211787,
+    "lon": 23.5393261,
+    "romanizedName": "vraca-st"
+  },
+  {
+    "id": 219,
+    "name": "Връбница",
+    "englishName": "Vrabnica",
+    "lat": 42.7277406,
+    "lon": 23.2827967,
+    "romanizedName": "vrabnica"
+  },
+  {
+    "id": 514,
+    "name": "Въбел",
+    "englishName": "Vabel",
+    "lat": 43.2624059,
+    "lon": 26.528522,
+    "romanizedName": "vabel"
+  },
+  {
+    "id": 136,
+    "name": "Вълчи Дол",
+    "englishName": "Valchi Dol",
+    "lat": 43.4048799,
+    "lon": 27.5588001,
+    "romanizedName": "valchi-dol"
+  },
+  {
+    "id": 447,
+    "name": "Вълчин",
+    "englishName": "Valchin",
+    "lat": 42.7249282,
+    "lon": 26.8901128,
+    "romanizedName": "valchin"
+  },
+  {
+    "id": 307,
+    "name": "Габарево",
+    "englishName": "Gabarevo",
+    "lat": 42.6335856,
+    "lon": 25.1570216,
+    "romanizedName": "gabarevo"
+  },
+  {
+    "id": 295,
+    "name": "Габровница",
+    "englishName": "Gabrovnica",
+    "lat": 43.5351526,
+    "lon": 23.2664898,
+    "romanizedName": "gabrovnica"
+  },
+  {
+    "id": 76,
+    "name": "Габрово",
+    "englishName": "Gabrovo",
+    "lat": 42.8851746,
+    "lon": 25.3167276,
+    "romanizedName": "gabrovo"
+  },
+  {
+    "id": 500,
+    "name": "Гавраилово",
+    "englishName": "Gavrailovo",
+    "lat": 42.6403241,
+    "lon": 26.1715335,
+    "romanizedName": "gavrailovo"
+  },
+  {
+    "id": 385,
+    "name": "Ганчовец",
+    "englishName": "Ganchovec",
+    "lat": 42.9912022,
+    "lon": 25.5173058,
+    "romanizedName": "ganchovec"
+  },
+  {
+    "id": 294,
+    "name": "Генерал Киселово",
+    "englishName": "General Kiselovo",
+    "lat": 43.4432743,
+    "lon": 27.5966291,
+    "romanizedName": "general-kiselovo"
+  },
+  {
+    "id": 411,
+    "name": "Генерал Ковачев",
+    "englishName": "General Kovachev",
+    "lat": 41.8872149,
+    "lon": 23.5712537,
+    "romanizedName": "general-kovachev"
+  },
+  {
+    "id": 647,
+    "name": "Генерал Колево",
+    "englishName": "General Kolevo",
+    "lat": 43.6608301,
+    "lon": 27.9523007,
+    "romanizedName": "general-kolevo"
+  },
+  {
+    "id": 142,
+    "name": "Генерал Тодоров",
+    "englishName": "General Todorov",
+    "lat": 41.4559257,
+    "lon": 23.2805633,
+    "romanizedName": "general-todorov"
+  },
+  {
+    "id": 175,
+    "name": "Генерал Тошево",
+    "englishName": "General Toshevo",
+    "lat": 43.7012701,
+    "lon": 28.0337338,
+    "romanizedName": "general-toshevo"
+  },
+  {
+    "id": 402,
+    "name": "Глумче",
+    "englishName": "Glumche",
+    "lat": 42.6969837,
+    "lon": 27.0309902,
+    "romanizedName": "glumche"
+  },
+  {
+    "id": 566,
+    "name": "Глухар",
+    "englishName": "Gluhar",
+    "lat": 41.5904053,
+    "lon": 25.3905187,
+    "romanizedName": "gluhar"
+  },
+  {
+    "id": 477,
+    "name": "Голяма Вода",
+    "englishName": "Goljama Voda",
+    "lat": 43.5759661,
+    "lon": 26.8235397,
+    "romanizedName": "goljama-voda"
+  },
+  {
+    "id": 390,
+    "name": "Голямо Дряново",
+    "englishName": "Golyamo Dryanovo",
+    "lat": 42.6566928,
+    "lon": 25.252224,
+    "romanizedName": "goljamo-drjanovo"
+  },
+  {
+    "id": 507,
+    "name": "Голямо Ново",
+    "englishName": "Golyamo Novo",
+    "lat": 43.3299224,
+    "lon": 26.379451,
+    "romanizedName": "goljamo-novo"
+  },
+  {
+    "id": 406,
+    "name": "Голямо Село",
+    "englishName": "Golyamo Selo",
+    "lat": 42.2922764,
+    "lon": 23.0358201,
+    "romanizedName": "goljamo-selo"
+  },
+  {
+    "id": 563,
+    "name": "Голям Поровец",
+    "englishName": "Golyam Porovec",
+    "lat": 43.6674487,
+    "lon": 26.8038894,
+    "romanizedName": "goljam-porovec"
+  },
+  {
+    "id": 569,
+    "name": "Горица",
+    "englishName": "Gorica",
+    "lat": 43.269921,
+    "lon": 26.0882078,
+    "romanizedName": "gorica"
+  },
+  {
+    "id": 28,
+    "name": "Горна Баня",
+    "englishName": "Gorna Banya",
+    "lat": 42.6756138,
+    "lon": 23.2423556,
+    "romanizedName": "gorna-banja"
+  },
+  {
+    "id": 701,
+    "name": "спирка Горна баня - метростанция",
+    "englishName": "Stop Gorna Banya Metro",
+    "lat": 42.6817301,
+    "lon": 23.2406819,
+    "romanizedName": "stop-gorna-banja-metro"
+  },
+  {
+    "id": 487,
+    "name": "Горна Крета",
+    "englishName": "Gorna Kreta",
+    "lat": 43.122509,
+    "lon": 23.6989339,
+    "romanizedName": "gorna-kreta"
+  },
+  {
+    "id": 545,
+    "name": "Горна Малина",
+    "englishName": "Gorna Malina",
+    "lat": 42.7036578,
+    "lon": 23.6868898,
+    "romanizedName": "gorna-malina"
+  },
+  {
+    "id": 275,
+    "name": "Горна Махала",
+    "englishName": "Gorna Mahala",
+    "lat": 42.4437986,
+    "lon": 24.7826648,
+    "romanizedName": "gorna-mahala"
+  },
+  {
+    "id": 5,
+    "name": "Горна Оряховица",
+    "englishName": "Gorna Oryahovica",
+    "lat": 43.1398177,
+    "lon": 25.6819367,
+    "romanizedName": "gorna-orjahovica"
+  },
+  {
+    "id": 141,
+    "name": "Горни Дъбник",
+    "englishName": "Gorni Dabnik",
+    "lat": 43.3801344,
+    "lon": 24.3443728,
+    "romanizedName": "gorni-dabnik"
+  },
+  {
+    "id": 445,
+    "name": "Горно Ботево",
+    "englishName": "Gorno Botevo",
+    "lat": 42.431209,
+    "lon": 25.788655,
+    "romanizedName": "gorno-botevo"
+  },
+  {
+    "id": 301,
+    "name": "Горско Дюлево",
+    "englishName": "Gorsko Dyulevo",
+    "lat": 41.4771673,
+    "lon": 25.3819575,
+    "romanizedName": "gorsko-djulevo"
+  },
+  {
+    "id": 662,
+    "name": "Г.оряховица-пр.парк",
+    "englishName": "G.Oryahovica-pr.park",
+    "lat": null,
+    "lon": null,
+    "romanizedName": "gorjahovica-prpark"
+  },
+  {
+    "id": 671,
+    "name": "Г.оряховица Разпр.п.",
+    "englishName": "Gorna Oryahovica Razpr.",
+    "lat": null,
+    "lon": null,
+    "romanizedName": "gorna-orjahovica-razprp"
+  },
+  {
+    "id": 522,
+    "name": "Градешница",
+    "englishName": "Gradeshnica",
+    "lat": 41.6772344,
+    "lon": 23.1848268,
+    "romanizedName": "gradeshnica"
+  },
+  {
+    "id": 155,
+    "name": "Градище",
+    "englishName": "Gradishte",
+    "lat": 43.3262292,
+    "lon": 25.208724,
+    "romanizedName": "gradishte"
+  },
+  {
+    "id": 139,
+    "name": "Граф Игнатиево",
+    "englishName": "Graf Ignatievo",
+    "lat": 42.2840389,
+    "lon": 24.7321279,
+    "romanizedName": "graf-ignatievo"
+  },
+  {
+    "id": 270,
+    "name": "Гривица",
+    "englishName": "Grivica",
+    "lat": 43.4101672,
+    "lon": 24.695517,
+    "romanizedName": "grivica"
+  },
+  {
+    "id": 279,
+    "name": "Гулийна Баня",
+    "englishName": "Gulijna Banya",
+    "lat": 41.8898268,
+    "lon": 23.5231733,
+    "romanizedName": "gulijna-banja"
+  },
+  {
+    "id": 478,
+    "name": "Гурково",
+    "englishName": "Gurkovo",
+    "lat": 42.6538642,
+    "lon": 25.8141975,
+    "romanizedName": "gurkovo"
+  },
+  {
+    "id": 246,
+    "name": "Гълъбник",
+    "englishName": "Galabnik",
+    "lat": 42.4131592,
+    "lon": 23.0850637,
+    "romanizedName": "galabnik"
+  },
+  {
+    "id": 676,
+    "name": "Гюешево",
+    "englishName": "Gjueshevo",
+    "lat": 42.235653,
+    "lon": 22.4761775,
+    "romanizedName": "gjueshevo"
+  },
+  {
+    "id": 365,
+    "name": "Дагоново",
+    "englishName": "Dagonovo",
+    "lat": 41.9571584,
+    "lon": 23.5931903,
+    "romanizedName": "dagonovo"
+  },
+  {
+    "id": 328,
+    "name": "Дамяница",
+    "englishName": "Damyanica",
+    "lat": 41.5047886,
+    "lon": 23.2702217,
+    "romanizedName": "damjanica"
+  },
+  {
+    "id": 57,
+    "name": "Даскалово",
+    "englishName": "Daskalovo",
+    "lat": 42.6022386,
+    "lon": 23.1126212,
+    "romanizedName": "daskalovo"
+  },
+  {
+    "id": 80,
+    "name": "Две Могили",
+    "englishName": "Dve Mogili",
+    "lat": 43.5883296,
+    "lon": 25.8725239,
+    "romanizedName": "dve-mogili"
+  },
+  {
+    "id": 483,
+    "name": "Дебелец",
+    "englishName": "Debelec",
+    "lat": 43.0454849,
+    "lon": 25.5969797,
+    "romanizedName": "debelec"
+  },
+  {
+    "id": 515,
+    "name": "Дебели Лаг",
+    "englishName": "Debeli Laг",
+    "lat": 42.4633873,
+    "lon": 22.8845654,
+    "romanizedName": "debeli-lak"
+  },
+  {
+    "id": 383,
+    "name": "Девня",
+    "englishName": "Devnya",
+    "lat": 43.2177414,
+    "lon": 27.5960691,
+    "romanizedName": "devnja"
+  },
+  {
+    "id": 389,
+    "name": "Делян",
+    "englishName": "Delyan",
+    "lat": 42.3875231,
+    "lon": 23.1093287,
+    "romanizedName": "deljan"
+  },
+  {
+    "id": 582,
+    "name": "Джебел",
+    "englishName": "Dzhebel",
+    "lat": 41.5651667,
+    "lon": 25.3910126,
+    "romanizedName": "dzhebel"
+  },
+  {
+    "id": 602,
+    "name": "Джерман",
+    "englishName": "Dzherman",
+    "lat": 42.2253834,
+    "lon": 23.080017,
+    "romanizedName": "dzherman"
+  },
+  {
+    "id": 355,
+    "name": "Джулюница",
+    "englishName": "Dzhuljunica",
+    "lat": 43.1607667,
+    "lon": 25.8829668,
+    "romanizedName": "dzhuljunica"
+  },
+  {
+    "id": 244,
+    "name": "Дибич",
+    "englishName": "Dibich",
+    "lat": 43.2269118,
+    "lon": 26.9935395,
+    "romanizedName": "dibich"
+  },
+  {
+    "id": 502,
+    "name": "Дивдядово",
+    "englishName": "Divdyadovo",
+    "lat": 43.2336254,
+    "lon": 26.9378968,
+    "romanizedName": "divdjadovo"
+  },
+  {
+    "id": 359,
+    "name": "Димитриево",
+    "englishName": "Dimitrievo",
+    "lat": 42.1869744,
+    "lon": 25.5469841,
+    "romanizedName": "dimitrievo"
+  },
+  {
+    "id": 23,
+    "name": "Димитровград",
+    "englishName": "Dimitrovgrad",
+    "lat": 42.0551199,
+    "lon": 25.592937,
+    "romanizedName": "dimitrovgrad"
+  },
+  {
+    "id": 637,
+    "name": "Димитровград Север",
+    "englishName": "Dimitrovgrad North",
+    "lat": 42.071341,
+    "lon": 25.573484,
+    "romanizedName": "dimitrovgrad-sever"
+  },
+  {
+    "id": 197,
+    "name": "Димово",
+    "englishName": "Dimovo",
+    "lat": 43.7359006,
+    "lon": 22.7221692,
+    "romanizedName": "dimovo"
+  },
+  {
+    "id": 151,
+    "name": "Добрина",
+    "englishName": "Dobrina",
+    "lat": 43.1640962,
+    "lon": 27.4437133,
+    "romanizedName": "dobrina"
+  },
+  {
+    "id": 303,
+    "name": "Добринище",
+    "englishName": "Dobrinishte",
+    "lat": 41.8254363,
+    "lon": 23.5622341,
+    "romanizedName": "dobrinishte"
+  },
+  {
+    "id": 652,
+    "name": "Добриново",
+    "englishName": "Dobrinovo",
+    "lat": 41.7133637,
+    "lon": 25.5316261,
+    "romanizedName": "dobrinovo"
+  },
+  {
+    "id": 46,
+    "name": "Добрич",
+    "englishName": "Dobrich",
+    "lat": 43.5661751,
+    "lon": 27.8156075,
+    "romanizedName": "dobrich"
+  },
+  {
+    "id": 448,
+    "name": "Добрич - Север",
+    "englishName": "Dobrich North",
+    "lat": 43.5915919,
+    "lon": 27.8399323,
+    "romanizedName": "dobrich-sever"
+  },
+  {
+    "id": 615,
+    "name": "Добродан",
+    "englishName": "Dobrodan",
+    "lat": 42.9636227,
+    "lon": 24.6837241,
+    "romanizedName": "dobrodan"
+  },
+  {
+    "id": 613,
+    "name": "Дождевица",
+    "englishName": "Dozhdevica",
+    "lat": 42.3461555,
+    "lon": 22.5524206,
+    "romanizedName": "dozhdevica"
+  },
+  {
+    "id": 343,
+    "name": "Дойренци",
+    "englishName": "Dojrenci",
+    "lat": 43.2266506,
+    "lon": 24.844489,
+    "romanizedName": "dojrenci"
+  },
+  {
+    "id": 601,
+    "name": "Долапите",
+    "englishName": "Dolapite",
+    "lat": 43.7560397,
+    "lon": 25.9076958,
+    "romanizedName": "dolapite"
+  },
+  {
+    "id": 542,
+    "name": "Долене",
+    "englishName": "Dolene",
+    "lat": 42.0926814,
+    "lon": 24.0480837,
+    "romanizedName": "dolene"
+  },
+  {
+    "id": 172,
+    "name": "Долна Махала",
+    "englishName": "Dolna Mahala",
+    "lat": 42.4080811,
+    "lon": 24.7784639,
+    "romanizedName": "dolna-mahala"
+  },
+  {
+    "id": 505,
+    "name": "Долна Митрополия",
+    "englishName": "Dolna Mitropoliya",
+    "lat": 43.472999,
+    "lon": 24.5376282,
+    "romanizedName": "dolna-mitropolija"
+  },
+  {
+    "id": 465,
+    "name": "Долни Вит",
+    "englishName": "Dolni Vit",
+    "lat": 43.6616626,
+    "lon": 24.7474235,
+    "romanizedName": "dolni-vit"
+  },
+  {
+    "id": 277,
+    "name": "Долни Дъбник",
+    "englishName": "Dolni Dabnik",
+    "lat": 43.4140195,
+    "lon": 24.4294936,
+    "romanizedName": "dolni-dabnik"
+  },
+  {
+    "id": 283,
+    "name": "Долни Раковец",
+    "englishName": "Dolni Rakovec",
+    "lat": 42.4679127,
+    "lon": 22.9957449,
+    "romanizedName": "dolni-rakovec"
+  },
+  {
+    "id": 243,
+    "name": "Долно Езерово",
+    "englishName": "Dolno Ezerovo",
+    "lat": 42.5161407,
+    "lon": 27.3609784,
+    "romanizedName": "dolno-ezerovo"
+  },
+  {
+    "id": 413,
+    "name": "Долно Камарци",
+    "englishName": "Dolno Kamarci",
+    "lat": 42.71329,
+    "lon": 23.8619403,
+    "romanizedName": "dolno-kamarci"
+  },
+  {
+    "id": 585,
+    "name": "Долно Село",
+    "englishName": "Dolno Selo",
+    "lat": 42.2986157,
+    "lon": 22.4967535,
+    "romanizedName": "dolno-selo"
+  },
+  {
+    "id": 311,
+    "name": "Долно Церовене",
+    "englishName": "Dolno Cerovene",
+    "lat": 43.5923164,
+    "lon": 23.2251384,
+    "romanizedName": "dolno-cerovene"
+  },
+  {
+    "id": 162,
+    "name": "Дончево",
+    "englishName": "Donchevo",
+    "lat": 43.5183981,
+    "lon": 27.7680854,
+    "romanizedName": "donchevo"
+  },
+  {
+    "id": 171,
+    "name": "Драгичево",
+    "englishName": "Dragichevo",
+    "lat": 42.6051467,
+    "lon": 23.1327394,
+    "romanizedName": "dragichevo"
+  },
+  {
+    "id": 212,
+    "name": "Драгоман",
+    "englishName": "Dragoman",
+    "lat": 42.9221887,
+    "lon": 22.9318242,
+    "romanizedName": "dragoman"
+  },
+  {
+    "id": 455,
+    "name": "Драгоман - Спирка",
+    "englishName": "Dragoman Stop",
+    "lat": 42.9129427,
+    "lon": 22.9398385,
+    "romanizedName": "dragoman-sp"
+  },
+  {
+    "id": 188,
+    "name": "Драгомирово",
+    "englishName": "Dragomirovo",
+    "lat": 43.5194796,
+    "lon": 25.2428861,
+    "romanizedName": "dragomirovo"
+  },
+  {
+    "id": 314,
+    "name": "Дралфа",
+    "englishName": "Dralfa",
+    "lat": 43.331564,
+    "lon": 26.4340744,
+    "romanizedName": "dralfa"
+  },
+  {
+    "id": 672,
+    "name": "Драсов",
+    "englishName": "Drasov",
+    "lat": 43.2654462,
+    "lon": 24.8957231,
+    "romanizedName": "drasov"
+  },
+  {
+    "id": 195,
+    "name": "Дреновец",
+    "englishName": "Drenovec",
+    "lat": 43.6923431,
+    "lon": 22.9729099,
+    "romanizedName": "drenovec"
+  },
+  {
+    "id": 657,
+    "name": "Дропла",
+    "englishName": "Dropla",
+    "lat": 42.9051919,
+    "lon": 27.189543,
+    "romanizedName": "dropla"
+  },
+  {
+    "id": 528,
+    "name": "Дружба",
+    "englishName": "Druzhba",
+    "lat": 42.561357,
+    "lon": 27.3171449,
+    "romanizedName": "druzhba"
+  },
+  {
+    "id": 66,
+    "name": "Дряново",
+    "englishName": "Drjanovo",
+    "lat": 42.9713565,
+    "lon": 25.476087,
+    "romanizedName": "drjanovo"
+  },
+  {
+    "id": 344,
+    "name": "Дряново - Спирка",
+    "englishName": "Drjanovo Stop",
+    "lat": 42.98034,
+    "lon": 25.488328,
+    "romanizedName": "drjanovo-st"
+  },
+  {
+    "id": 429,
+    "name": "Дулово",
+    "englishName": "Dulovo",
+    "lat": 43.8029535,
+    "lon": 27.1476439,
+    "romanizedName": "dulovo"
+  },
+  {
+    "id": 296,
+    "name": "Дунавци",
+    "englishName": "Dunavci",
+    "lat": 42.6590686,
+    "lon": 25.3023217,
+    "romanizedName": "dunavci"
+  },
+  {
+    "id": 71,
+    "name": "Дупница",
+    "englishName": "Dupnica",
+    "lat": 42.2602542,
+    "lon": 23.1036452,
+    "romanizedName": "dupnica"
+  },
+  {
+    "id": 486,
+    "name": "Дупница - Спирка",
+    "englishName": "Dupnica Stop",
+    "lat": 42.2770233,
+    "lon": 23.1285124,
+    "romanizedName": "dupnica-st"
+  },
+  {
+    "id": 316,
+    "name": "Дъбене",
+    "englishName": "Dabene",
+    "lat": 42.5950789,
+    "lon": 24.7801865,
+    "romanizedName": "dabene"
+  },
+  {
+    "id": 419,
+    "name": "Дъбова Махала",
+    "englishName": "Dabova Mahala",
+    "lat": 43.6843071,
+    "lon": 23.0165903,
+    "romanizedName": "dabova-mahala"
+  },
+  {
+    "id": 87,
+    "name": "Дъбово",
+    "englishName": "Dabovo",
+    "lat": 42.6140242,
+    "lon": 25.6377881,
+    "romanizedName": "dabovo"
+  },
+  {
+    "id": 643,
+    "name": "Дълга Лъка",
+    "englishName": "Dalga Laka",
+    "lat": 43.0600567,
+    "lon": 25.6339655,
+    "romanizedName": "dalga-laka"
+  },
+  {
+    "id": 78,
+    "name": "Дългопол",
+    "englishName": "Dalgopol",
+    "lat": 43.0479273,
+    "lon": 27.341002,
+    "romanizedName": "dalgopol"
+  },
+  {
+    "id": 331,
+    "name": "Дъскотна",
+    "englishName": "Daskotna",
+    "lat": 42.8857015,
+    "lon": 27.1941607,
+    "romanizedName": "daskotna"
+  },
+  {
+    "id": 688,
+    "name": "Дюлево",
+    "englishName": "Djulevo",
+    "lat": 42.4503407,
+    "lon": 24.3715201,
+    "romanizedName": "djulevo"
+  },
+  {
+    "id": 614,
+    "name": "Дяково",
+    "englishName": "Djakovo",
+    "lat": 42.329239,
+    "lon": 23.1052299,
+    "romanizedName": "djakovo"
+  },
+  {
+    "id": 327,
+    "name": "Егълница",
+    "englishName": "Egalnica",
+    "lat": 42.4794555,
+    "lon": 22.8596847,
+    "romanizedName": "egalnica"
+  },
+  {
+    "id": 143,
+    "name": "Езерово",
+    "englishName": "Ezerovo",
+    "lat": 43.197472,
+    "lon": 27.7688995,
+    "romanizedName": "ezerovo"
+  },
+  {
+    "id": 621,
+    "name": "Езерово-спирка",
+    "englishName": "Ezerovo Spirka",
+    "lat": 43.2033588,
+    "lon": 27.7867185,
+    "romanizedName": "ezerovo-spirka"
+  },
+  {
+    "id": 392,
+    "name": "Еленино",
+    "englishName": "Elenino",
+    "lat": 42.3703941,
+    "lon": 25.5991774,
+    "romanizedName": "elenino"
+  },
+  {
+    "id": 32,
+    "name": "Елин Пелин",
+    "englishName": "Elin Pelin",
+    "lat": 42.628234,
+    "lon": 23.5787004,
+    "romanizedName": "elin-pelin"
+  },
+  {
+    "id": 233,
+    "name": "Елисейна",
+    "englishName": "Elisejna",
+    "lat": 43.0822419,
+    "lon": 23.5054912,
+    "romanizedName": "elisejna"
+  },
+  {
+    "id": 572,
+    "name": "Елит",
+    "englishName": "Elit",
+    "lat": 43.6180575,
+    "lon": 25.305283,
+    "romanizedName": "elit"
+  },
+  {
+    "id": 167,
+    "name": "Ерден",
+    "englishName": "Erden",
+    "lat": 43.4705156,
+    "lon": 23.2843893,
+    "romanizedName": "erden"
+  },
+  {
+    "id": 353,
+    "name": "Жабляно",
+    "englishName": "Zhabljano",
+    "lat": 42.4909474,
+    "lon": 22.7904678,
+    "romanizedName": "zhabljano"
+  },
+  {
+    "id": 376,
+    "name": "Жеглица",
+    "englishName": "Zheglica",
+    "lat": 43.8867298,
+    "lon": 22.7995741,
+    "romanizedName": "zheglica"
+  },
+  {
+    "id": 648,
+    "name": "Железница",
+    "englishName": "Zheleznica",
+    "lat": 41.9253737,
+    "lon": 23.1048865,
+    "romanizedName": "zheleznica"
+  },
+  {
+    "id": 247,
+    "name": "Желен",
+    "englishName": "Zhelen",
+    "lat": 42.980243,
+    "lon": 23.3619492,
+    "romanizedName": "zhelen"
+  },
+  {
+    "id": 446,
+    "name": "Желъд",
+    "englishName": "Zhelad",
+    "lat": 43.0440778,
+    "lon": 27.177569,
+    "romanizedName": "zhelad"
+  },
+  {
+    "id": 299,
+    "name": "Желю Войвода",
+    "englishName": "Zhelju Vojvoda",
+    "lat": 42.6058811,
+    "lon": 26.486137,
+    "romanizedName": "zhelju-vojvoda"
+  },
+  {
+    "id": 544,
+    "name": "Желязна Врата",
+    "englishName": "Zhelezni Vrata",
+    "lat": 41.6269884,
+    "lon": 25.445902,
+    "romanizedName": "zheljazna-vrata"
+  },
+  {
+    "id": 315,
+    "name": "Живково",
+    "englishName": "Zhivkovo",
+    "lat": 42.4628118,
+    "lon": 23.7695086,
+    "romanizedName": "zhivkovo"
+  },
+  {
+    "id": 285,
+    "name": "Житница",
+    "englishName": "Zhitnica",
+    "lat": 43.1104186,
+    "lon": 27.5228329,
+    "romanizedName": "zhitnica"
+  },
+  {
+    "id": 436,
+    "name": "Жп.школа - Лакатник",
+    "englishName": "Zhp Shkola Lakatnik",
+    "lat": 43.0864057,
+    "lon": 23.3925861,
+    "romanizedName": "zhp-shkola-lakatnik"
+  },
+  {
+    "id": 333,
+    "name": "Завет",
+    "englishName": "Zavet",
+    "lat": 42.8416676,
+    "lon": 27.0389161,
+    "romanizedName": "zavet"
+  },
+  {
+    "id": 527,
+    "name": "Завет - Спирка",
+    "englishName": "Zavet Stop",
+    "lat": 42.8383424,
+    "lon": 27.0581632,
+    "romanizedName": "zavet-sp"
+  },
+  {
+    "id": 492,
+    "name": "Завой",
+    "englishName": "Zavoj",
+    "lat": 42.5569729,
+    "lon": 26.5303389,
+    "romanizedName": "zavoj"
+  },
+  {
+    "id": 21,
+    "name": "Захарна Фабрика",
+    "englishName": "Zaharna Fabrika",
+    "lat": 42.712837,
+    "lon": 23.291283,
+    "romanizedName": "zaharna-fabrika"
+  },
+  {
+    "id": 442,
+    "name": "Звезделина",
+    "englishName": "Zvezdelina",
+    "lat": 41.6425612,
+    "lon": 25.4826352,
+    "romanizedName": "zvezdelina"
+  },
+  {
+    "id": 94,
+    "name": "Зверино",
+    "englishName": "Zverino",
+    "lat": 43.0811568,
+    "lon": 23.5712936,
+    "romanizedName": "zverino"
+  },
+  {
+    "id": 293,
+    "name": "Звъничево",
+    "englishName": "Zvanichevo",
+    "lat": 42.187381,
+    "lon": 24.2406459,
+    "romanizedName": "zvanichevo"
+  },
+  {
+    "id": 435,
+    "name": "Здравец",
+    "englishName": "Zdravec",
+    "lat": 43.2892804,
+    "lon": 26.4994099,
+    "romanizedName": "zdravec"
+  },
+  {
+    "id": 79,
+    "name": "Земен",
+    "englishName": "Zemen",
+    "lat": 42.4810429,
+    "lon": 22.7474967,
+    "romanizedName": "zemen"
+  },
+  {
+    "id": 127,
+    "name": "Зимница",
+    "englishName": "Zimnica",
+    "lat": 42.5854353,
+    "lon": 26.5981727,
+    "romanizedName": "zimnica"
+  },
+  {
+    "id": 304,
+    "name": "Златица",
+    "englishName": "Zlatica",
+    "lat": 42.7159829,
+    "lon": 24.1264824,
+    "romanizedName": "zlatica"
+  },
+  {
+    "id": 665,
+    "name": "Златна Нива",
+    "englishName": "Zlatna Niva",
+    "lat": 43.357859,
+    "lon": 27.0476514,
+    "romanizedName": "zlatna-niva"
+  },
+  {
+    "id": 644,
+    "name": "Златуша",
+    "englishName": "Zlatusha",
+    "lat": 42.7655209,
+    "lon": 23.0398643,
+    "romanizedName": "zlatusha"
+  },
+  {
+    "id": 656,
+    "name": "Змейово",
+    "englishName": "Zmejovo",
+    "lat": 42.4989283,
+    "lon": 25.5961436,
+    "romanizedName": "zmejovo"
+  },
+  {
+    "id": 372,
+    "name": "Иван Вазово",
+    "englishName": "Ivan Vazovo",
+    "lat": 42.4632324,
+    "lon": 24.7971766,
+    "romanizedName": "ivan-vazovo"
+  },
+  {
+    "id": 393,
+    "name": "Иванковци",
+    "englishName": "Ivankovci",
+    "lat": 42.8963364,
+    "lon": 25.3607467,
+    "romanizedName": "ivankovci"
+  },
+  {
+    "id": 97,
+    "name": "Иваново",
+    "englishName": "Ivanovo",
+    "lat": 43.6842446,
+    "lon": 25.9555757,
+    "romanizedName": "ivanovo"
+  },
+  {
+    "id": 510,
+    "name": "Ивански",
+    "englishName": "Ivanski",
+    "lat": 43.1516812,
+    "lon": 27.0203455,
+    "romanizedName": "ivanski"
+  },
+  {
+    "id": 321,
+    "name": "Иваняне",
+    "englishName": "Ivanjane",
+    "lat": 42.7159257,
+    "lon": 23.1674214,
+    "romanizedName": "ivanjane"
+  },
+  {
+    "id": 597,
+    "name": "Иганово",
+    "englishName": "Iganovo",
+    "lat": 42.6763001,
+    "lon": 24.6740444,
+    "romanizedName": "iganovo"
+  },
+  {
+    "id": 103,
+    "name": "Илиянци",
+    "englishName": "Ilijanci",
+    "lat": 42.750659,
+    "lon": 23.3262093,
+    "romanizedName": "ilijanci"
+  },
+  {
+    "id": 26,
+    "name": "Искър",
+    "englishName": "Iskar",
+    "lat": 42.6647171,
+    "lon": 23.4130159,
+    "romanizedName": "iskar"
+  },
+  {
+    "id": 696,
+    "name": "Искърско Шосе",
+    "englishName": "Iskarsko Shose",
+    "lat": 42.6694989,
+    "lon": 23.403143,
+    "romanizedName": "iskarsko-shose"
+  },
+  {
+    "id": 190,
+    "name": "Исперих",
+    "englishName": "Isperih",
+    "lat": 43.7041032,
+    "lon": 26.8346109,
+    "romanizedName": "isperih"
+  },
+  {
+    "id": 74,
+    "name": "Ихтиман",
+    "englishName": "Ihtiman",
+    "lat": 42.4295731,
+    "lon": 23.7990107,
+    "romanizedName": "ihtiman"
+  },
+  {
+    "id": 508,
+    "name": "Йоглав",
+    "englishName": "Joglav",
+    "lat": 43.2132566,
+    "lon": 24.8189184,
+    "romanizedName": "joglav"
+  },
+  {
+    "id": 138,
+    "name": "Кадиево",
+    "englishName": "Kadievo",
+    "lat": 42.1318453,
+    "lon": 24.6022815,
+    "romanizedName": "kadievo"
+  },
+  {
+    "id": 40,
+    "name": "Казанлък",
+    "englishName": "Kazanlak",
+    "lat": 42.6138328,
+    "lon": 25.3915575,
+    "romanizedName": "kazanlak"
+  },
+  {
+    "id": 620,
+    "name": "Казачево",
+    "englishName": "Kazachevo",
+    "lat": 43.0904378,
+    "lon": 24.7410912,
+    "romanizedName": "kazachevo"
+  },
+  {
+    "id": 187,
+    "name": "Казичене",
+    "englishName": "Kazichene",
+    "lat": 42.6525527,
+    "lon": 23.4698415,
+    "romanizedName": "kazichene"
+  },
+  {
+    "id": 554,
+    "name": "Калейца",
+    "englishName": "Kalejca",
+    "lat": 42.9298128,
+    "lon": 24.6995861,
+    "romanizedName": "kalejca"
+  },
+  {
+    "id": 581,
+    "name": "Калипетрово",
+    "englishName": "Kalipetrovo",
+    "lat": 44.0855735,
+    "lon": 27.2197006,
+    "romanizedName": "kalipetrovo"
+  },
+  {
+    "id": 227,
+    "name": "Калитиново",
+    "englishName": "Kalitinovo",
+    "lat": 42.4269865,
+    "lon": 25.7315691,
+    "romanizedName": "kalitinovo"
+  },
+  {
+    "id": 163,
+    "name": "Калища",
+    "englishName": "Kalishta",
+    "lat": 42.4868707,
+    "lon": 22.8427882,
+    "romanizedName": "kalishta"
+  },
+  {
+    "id": 678,
+    "name": "Калотина-запад",
+    "englishName": "Kalotina Zapad",
+    "lat": 42.9946227,
+    "lon": 22.842989,
+    "romanizedName": "kalotina-zapad"
+  },
+  {
+    "id": 305,
+    "name": "Калофер",
+    "englishName": "Kalofer",
+    "lat": 42.5964076,
+    "lon": 25.0041446,
+    "romanizedName": "kalofer"
+  },
+  {
+    "id": 129,
+    "name": "Калояновец",
+    "englishName": "Kalojanovec",
+    "lat": 42.3109322,
+    "lon": 25.569378,
+    "romanizedName": "kalojanovec"
+  },
+  {
+    "id": 271,
+    "name": "Калояново",
+    "englishName": "Kalojanovo",
+    "lat": 42.3341979,
+    "lon": 24.7555724,
+    "romanizedName": "kalojanovo"
+  },
+  {
+    "id": 320,
+    "name": "Калоянци",
+    "englishName": "Kalojanci",
+    "lat": 41.6706802,
+    "lon": 25.5474626,
+    "romanizedName": "kalojanci"
+  },
+  {
+    "id": 432,
+    "name": "Калугерица",
+    "englishName": "Kalugerica",
+    "lat": 43.302401,
+    "lon": 27.1278976,
+    "romanizedName": "kalugerica"
+  },
+  {
+    "id": 346,
+    "name": "Каменец",
+    "englishName": "Kamenec",
+    "lat": 43.3627389,
+    "lon": 25.00631,
+    "romanizedName": "kamenec"
+  },
+  {
+    "id": 358,
+    "name": "Каменни Кариери",
+    "englishName": "Kamenni Karieri",
+    "lat": 42.6210619,
+    "lon": 27.2876839,
+    "romanizedName": "kamenni-karieri"
+  },
+  {
+    "id": 104,
+    "name": "Камено",
+    "englishName": "Kameno",
+    "lat": 42.5700132,
+    "lon": 27.3137561,
+    "romanizedName": "kameno"
+  },
+  {
+    "id": 518,
+    "name": "Каменяк",
+    "englishName": "Kamenjak",
+    "lat": 43.4000827,
+    "lon": 26.9768073,
+    "romanizedName": "kamenjak"
+  },
+  {
+    "id": 523,
+    "name": "Каравельово",
+    "englishName": "Karaveljovo",
+    "lat": null,
+    "lon": null,
+    "romanizedName": "karaveljovo"
+  },
+  {
+    "id": 183,
+    "name": "Карагеоргиево",
+    "englishName": "Karageorgievo",
+    "lat": 42.7204799,
+    "lon": 27.1811843,
+    "romanizedName": "karageorgievo"
+  },
+  {
+    "id": 211,
+    "name": "Караджалово",
+    "englishName": "Karadzhalovo",
+    "lat": 42.1025626,
+    "lon": 25.3205575,
+    "romanizedName": "karadzhalovo"
+  },
+  {
+    "id": 600,
+    "name": "Караджата",
+    "englishName": "Karadzhata",
+    "lat": 43.3063399,
+    "lon": 26.3124804,
+    "romanizedName": "karadzhata"
+  },
+  {
+    "id": 653,
+    "name": "Карбинци",
+    "englishName": "Karbinci",
+    "lat": 43.678242,
+    "lon": 22.802707,
+    "romanizedName": "karbinci"
+  },
+  {
+    "id": 222,
+    "name": "Кардам",
+    "englishName": "Kardam",
+    "lat": 43.7530388,
+    "lon": 28.1145791,
+    "romanizedName": "kardam"
+  },
+  {
+    "id": 693,
+    "name": "Кариера-скакавица",
+    "englishName": "Kariera Skakavica",
+    "lat": 42.4296091,
+    "lon": 22.7010706,
+    "romanizedName": "kariera-skakavica"
+  },
+  {
+    "id": 38,
+    "name": "Карлово",
+    "englishName": "Karlovo",
+    "lat": 42.6319099,
+    "lon": 24.804811,
+    "romanizedName": "karlovo"
+  },
+  {
+    "id": 282,
+    "name": "Карлуково",
+    "englishName": "Karlukovo",
+    "lat": 43.1888557,
+    "lon": 24.071275,
+    "romanizedName": "karlukovo"
+  },
+  {
+    "id": 41,
+    "name": "Карнобат",
+    "englishName": "Karnobat",
+    "lat": 42.6677803,
+    "lon": 26.9771958,
+    "romanizedName": "karnobat"
+  },
+  {
+    "id": 67,
+    "name": "Каспичан",
+    "englishName": "Kaspichan",
+    "lat": 43.3116258,
+    "lon": 27.1670225,
+    "romanizedName": "kaspichan"
+  },
+  {
+    "id": 156,
+    "name": "Катуница",
+    "englishName": "Katunica",
+    "lat": 42.1015957,
+    "lon": 24.875722,
+    "romanizedName": "katunica"
+  },
+  {
+    "id": 225,
+    "name": "Кермен",
+    "englishName": "Kermen",
+    "lat": 42.498094,
+    "lon": 26.2636811,
+    "romanizedName": "kermen"
+  },
+  {
+    "id": 555,
+    "name": "Кесарево",
+    "englishName": "Kesarevo",
+    "lat": 43.1684605,
+    "lon": 25.9293913,
+    "romanizedName": "kesarevo"
+  },
+  {
+    "id": 548,
+    "name": "Кипра",
+    "englishName": "Kipra",
+    "lat": 43.259829,
+    "lon": 27.6053532,
+    "romanizedName": "kipra"
+  },
+  {
+    "id": 567,
+    "name": "Китанчево",
+    "englishName": "Kitanchevo",
+    "lat": 43.7244595,
+    "lon": 26.8893065,
+    "romanizedName": "kitanchevo"
+  },
+  {
+    "id": 276,
+    "name": "Кликач",
+    "englishName": "Klikach",
+    "lat": 42.7071463,
+    "lon": 27.0568807,
+    "romanizedName": "klikach"
+  },
+  {
+    "id": 632,
+    "name": "Климат.училище",
+    "englishName": "Klimat Uchilishte",
+    "lat": 43.8804617,
+    "lon": 27.2459417,
+    "romanizedName": "klimat-uchilishte"
+  },
+  {
+    "id": 356,
+    "name": "Климаш",
+    "englishName": "Klimash",
+    "lat": 42.7785828,
+    "lon": 26.9067022,
+    "romanizedName": "klimash"
+  },
+  {
+    "id": 350,
+    "name": "Клисура",
+    "englishName": "Klisura",
+    "lat": 42.6905229,
+    "lon": 24.4623225,
+    "romanizedName": "klisura"
+  },
+  {
+    "id": 481,
+    "name": "Книжовник",
+    "englishName": "Knizhovnik",
+    "lat": 41.8250768,
+    "lon": 25.5963069,
+    "romanizedName": "knizhovnik"
+  },
+  {
+    "id": 182,
+    "name": "Ковачево",
+    "englishName": "Kovachevo",
+    "lat": 42.198492,
+    "lon": 24.1883287,
+    "romanizedName": "kovachevo"
+  },
+  {
+    "id": 405,
+    "name": "Козаревец",
+    "englishName": "Kozarevec",
+    "lat": 43.1386671,
+    "lon": 25.8176885,
+    "romanizedName": "kozarevec"
+  },
+  {
+    "id": 269,
+    "name": "Козарско",
+    "englishName": "Kozarsko",
+    "lat": 42.0687601,
+    "lon": 24.4150774,
+    "romanizedName": "kozarsko"
+  },
+  {
+    "id": 264,
+    "name": "Комарево",
+    "englishName": "Komarevo",
+    "lat": 43.5861201,
+    "lon": 24.6320309,
+    "romanizedName": "komarevo"
+  },
+  {
+    "id": 109,
+    "name": "Комунари",
+    "englishName": "Komunari",
+    "lat": 43.0064957,
+    "lon": 27.290366,
+    "romanizedName": "komunari"
+  },
+  {
+    "id": 607,
+    "name": "Конаре",
+    "englishName": "Konare",
+    "lat": 42.0953506,
+    "lon": 24.4918295,
+    "romanizedName": "konare"
+  },
+  {
+    "id": 616,
+    "name": "Кондофрей",
+    "englishName": "Kondofrej",
+    "lat": 42.4545312,
+    "lon": 23.0178706,
+    "romanizedName": "kondofrej"
+  },
+  {
+    "id": 575,
+    "name": "Константиново",
+    "englishName": "Konstantinovo",
+    "lat": 42.0088609,
+    "lon": 25.7956474,
+    "romanizedName": "konstantinovo"
+  },
+  {
+    "id": 252,
+    "name": "Коньово",
+    "englishName": "Konjovo",
+    "lat": 42.5145033,
+    "lon": 26.1556177,
+    "romanizedName": "konjovo"
+  },
+  {
+    "id": 297,
+    "name": "Копаница",
+    "englishName": "Kopanica",
+    "lat": 42.5730462,
+    "lon": 22.9380866,
+    "romanizedName": "kopanica"
+  },
+  {
+    "id": 257,
+    "name": "Копиловци",
+    "englishName": "Kopilovci",
+    "lat": 42.3313076,
+    "lon": 22.7331478,
+    "romanizedName": "kopilovci"
+  },
+  {
+    "id": 397,
+    "name": "Копривщица",
+    "englishName": "Koprivshtica",
+    "lat": 42.7007328,
+    "lon": 24.3390143,
+    "romanizedName": "koprivshtica"
+  },
+  {
+    "id": 462,
+    "name": "Костандово",
+    "englishName": "Kostandovo",
+    "lat": 42.0356741,
+    "lon": 24.0704378,
+    "romanizedName": "kostandovo"
+  },
+  {
+    "id": 669,
+    "name": "Коста Петров",
+    "englishName": "Kosta Petrov",
+    "lat": 42.2151434,
+    "lon": 23.0734965,
+    "romanizedName": "kosta-petrov"
+  },
+  {
+    "id": 39,
+    "name": "Костенец",
+    "englishName": "Kostenec",
+    "lat": 42.3081684,
+    "lon": 23.8598437,
+    "romanizedName": "kostenec"
+  },
+  {
+    "id": 98,
+    "name": "Костинброд",
+    "englishName": "Kostinbrod",
+    "lat": 42.8073079,
+    "lon": 23.1997364,
+    "romanizedName": "kostinbrod"
+  },
+  {
+    "id": 228,
+    "name": "Костинброд - Спирка",
+    "englishName": "Kostinbrod Stop",
+    "lat": 42.7931564,
+    "lon": 23.2094935,
+    "romanizedName": "kostinbrod-sp"
+  },
+  {
+    "id": 695,
+    "name": "Кочево",
+    "englishName": "Kochevo",
+    "lat": 42.1069135,
+    "lon": 24.9016413,
+    "romanizedName": "kochevo"
+  },
+  {
+    "id": 512,
+    "name": "Кочериново",
+    "englishName": "Kocherinovo",
+    "lat": 42.0808105,
+    "lon": 23.0373996,
+    "romanizedName": "kocherinovo"
+  },
+  {
+    "id": 259,
+    "name": "Кочово",
+    "englishName": "Kochovo",
+    "lat": 43.2233301,
+    "lon": 26.7945727,
+    "romanizedName": "kochovo"
+  },
+  {
+    "id": 470,
+    "name": "Кошарите",
+    "englishName": "Kosharite",
+    "lat": 42.4918962,
+    "lon": 22.9551166,
+    "romanizedName": "kosharite"
+  },
+  {
+    "id": 558,
+    "name": "Кошов",
+    "englishName": "Koshov",
+    "lat": 43.6536249,
+    "lon": 25.9676614,
+    "romanizedName": "koshov"
+  },
+  {
+    "id": 540,
+    "name": "Кракра",
+    "englishName": "Krakra",
+    "lat": 42.5969365,
+    "lon": 23.0089663,
+    "romanizedName": "krakra"
+  },
+  {
+    "id": 475,
+    "name": "Кремиковци",
+    "englishName": "Kremikovci",
+    "lat": 42.7516528,
+    "lon": 23.485635,
+    "romanizedName": "kremikovci"
+  },
+  {
+    "id": 680,
+    "name": "Крепост",
+    "englishName": "Krepost",
+    "lat": 42.0209682,
+    "lon": 25.6171262,
+    "romanizedName": "krepost"
+  },
+  {
+    "id": 382,
+    "name": "Кресна",
+    "englishName": "Kresna",
+    "lat": 41.7099161,
+    "lon": 23.1731329,
+    "romanizedName": "kresna"
+  },
+  {
+    "id": 460,
+    "name": "Кресна - Спирка",
+    "englishName": "Kresna Stop",
+    "lat": 41.7278071,
+    "lon": 23.1514226,
+    "romanizedName": "kresna-sp"
+  },
+  {
+    "id": 437,
+    "name": "Крета",
+    "englishName": "Kreta",
+    "lat": 43.6091055,
+    "lon": 24.6677669,
+    "romanizedName": "kreta"
+  },
+  {
+    "id": 240,
+    "name": "Крива Бара",
+    "englishName": "Kriva Bara",
+    "lat": 43.6859994,
+    "lon": 23.0990423,
+    "romanizedName": "kriva-bara"
+  },
+  {
+    "id": 506,
+    "name": "Кривня",
+    "englishName": "Krivnja",
+    "lat": 43.6756166,
+    "lon": 26.3475108,
+    "romanizedName": "krivnja"
+  },
+  {
+    "id": 60,
+    "name": "Криводол",
+    "englishName": "Krivodol",
+    "lat": 43.3669136,
+    "lon": 23.4725259,
+    "romanizedName": "krivodol"
+  },
+  {
+    "id": 361,
+    "name": "Кричим",
+    "englishName": "Krichim",
+    "lat": 42.0603575,
+    "lon": 24.4648953,
+    "romanizedName": "krichim"
+  },
+  {
+    "id": 148,
+    "name": "Крум",
+    "englishName": "Krum",
+    "lat": 42.0629207,
+    "lon": 25.5024903,
+    "romanizedName": "krum"
+  },
+  {
+    "id": 20,
+    "name": "Крумово",
+    "englishName": "Krumovo",
+    "lat": 42.0935108,
+    "lon": 24.8189611,
+    "romanizedName": "krumovo"
+  },
+  {
+    "id": 154,
+    "name": "Крушето",
+    "englishName": "Krusheto",
+    "lat": 43.2421234,
+    "lon": 25.6690837,
+    "romanizedName": "krusheto"
+  },
+  {
+    "id": 456,
+    "name": "Кръстец",
+    "englishName": "Krastec",
+    "lat": 42.7697735,
+    "lon": 25.5519672,
+    "romanizedName": "krastec"
+  },
+  {
+    "id": 580,
+    "name": "Кубратово",
+    "englishName": "Kubratovo",
+    "lat": 42.7759962,
+    "lon": 23.3602106,
+    "romanizedName": "kubratovo"
+  },
+  {
+    "id": 414,
+    "name": "Кулата",
+    "englishName": "Kulata",
+    "lat": 41.3917909,
+    "lon": 23.3616894,
+    "romanizedName": "kulata"
+  },
+  {
+    "id": 174,
+    "name": "Кумарица",
+    "englishName": "Kumarica",
+    "lat": 42.7999279,
+    "lon": 23.341642,
+    "romanizedName": "kumarica"
+  },
+  {
+    "id": 189,
+    "name": "Кунино",
+    "englishName": "Kunino",
+    "lat": 43.1873892,
+    "lon": 24.005752,
+    "romanizedName": "kunino"
+  },
+  {
+    "id": 101,
+    "name": "Курило",
+    "englishName": "Kurilo",
+    "lat": 42.8180984,
+    "lon": 23.3567326,
+    "romanizedName": "kurilo"
+  },
+  {
+    "id": 178,
+    "name": "Куртово Конаре",
+    "englishName": "Kurtovo Konare",
+    "lat": 42.0953506,
+    "lon": 24.4918295,
+    "romanizedName": "kurtovo-konare"
+  },
+  {
+    "id": 578,
+    "name": "Кутугерци",
+    "englishName": "Kutugerci",
+    "lat": 42.3204349,
+    "lon": 22.5000158,
+    "romanizedName": "kutugerci"
+  },
+  {
+    "id": 248,
+    "name": "Куцина",
+    "englishName": "Kucina",
+    "lat": 43.2686652,
+    "lon": 25.6468078,
+    "romanizedName": "kucina"
+  },
+  {
+    "id": 132,
+    "name": "Кърджали",
+    "englishName": "Kardzhali",
+    "lat": 41.630779,
+    "lon": 25.3882453,
+    "romanizedName": "kardzhali"
+  },
+  {
+    "id": 368,
+    "name": "Кърнаре",
+    "englishName": "Karnare",
+    "lat": 42.6977291,
+    "lon": 24.630396,
+    "romanizedName": "karnare"
+  },
+  {
+    "id": 534,
+    "name": "Кършалево",
+    "englishName": "Karshalevo",
+    "lat": 42.3521826,
+    "lon": 22.5742261,
+    "romanizedName": "karshalevo"
+  },
+  {
+    "id": 52,
+    "name": "Кюстендил",
+    "englishName": "Kjustendil",
+    "lat": 42.2889739,
+    "lon": 22.6829259,
+    "romanizedName": "kjustendil"
+  },
+  {
+    "id": 404,
+    "name": "Лазар Пампоров",
+    "englishName": "Lazar Pamporov",
+    "lat": 42.1651872,
+    "lon": 24.1339487,
+    "romanizedName": "lazar-pamporov"
+  },
+  {
+    "id": 73,
+    "name": "Лакатник",
+    "englishName": "Lakatnik",
+    "lat": 43.0824999,
+    "lon": 23.3785485,
+    "romanizedName": "lakatnik"
+  },
+  {
+    "id": 423,
+    "name": "Левище",
+    "englishName": "Levishte",
+    "lat": 43.0875901,
+    "lon": 23.466709,
+    "romanizedName": "levishte"
+  },
+  {
+    "id": 17,
+    "name": "Левски",
+    "englishName": "Levski",
+    "lat": 43.350771,
+    "lon": 25.1429097,
+    "romanizedName": "levski"
+  },
+  {
+    "id": 319,
+    "name": "Лесичери",
+    "englishName": "Lesicheri",
+    "lat": 43.2007526,
+    "lon": 25.4157421,
+    "romanizedName": "lesicheri"
+  },
+  {
+    "id": 428,
+    "name": "Леска",
+    "englishName": "Leska",
+    "lat": 42.3244733,
+    "lon": 22.5015575,
+    "romanizedName": "leska"
+  },
+  {
+    "id": 250,
+    "name": "Летница",
+    "englishName": "Letnica",
+    "lat": 43.3162555,
+    "lon": 25.0592785,
+    "romanizedName": "letnica"
+  },
+  {
+    "id": 539,
+    "name": "Лешница",
+    "englishName": "Leshnica",
+    "lat": 43.0056824,
+    "lon": 24.7005582,
+    "romanizedName": "leshnica"
+  },
+  {
+    "id": 480,
+    "name": "Листец",
+    "englishName": "Listec",
+    "lat": 42.8608255,
+    "lon": 27.1296946,
+    "romanizedName": "listec"
+  },
+  {
+    "id": 249,
+    "name": "Ловец",
+    "englishName": "Lovec",
+    "lat": 43.2569673,
+    "lon": 26.6934054,
+    "romanizedName": "lovec"
+  },
+  {
+    "id": 83,
+    "name": "Ловеч",
+    "englishName": "Lovech",
+    "lat": 43.1368475,
+    "lon": 24.7069538,
+    "romanizedName": "lovech"
+  },
+  {
+    "id": 682,
+    "name": "Ловеч-север",
+    "englishName": "Lovech Sever",
+    "lat": 43.169194,
+    "lon": 24.7296505,
+    "romanizedName": "lovech-sever"
+  },
+  {
+    "id": 300,
+    "name": "Ловеч - Спирка",
+    "englishName": "Lovech Stop",
+    "lat": 43.1640741,
+    "lon": 24.7220248,
+    "romanizedName": "lovech-sp"
+  },
+  {
+    "id": 651,
+    "name": "Ловеч - Юг",
+    "englishName": "Lovech Jug",
+    "lat": 43.1199692,
+    "lon": 24.7164579,
+    "romanizedName": "lovech-jug"
+  },
+  {
+    "id": 281,
+    "name": "Лозарево",
+    "englishName": "Lozarevo",
+    "lat": 42.7690985,
+    "lon": 26.8874446,
+    "romanizedName": "lozarevo"
+  },
+  {
+    "id": 690,
+    "name": "Лозово",
+    "englishName": "Lozovo",
+    "lat": 42.5208956,
+    "lon": 27.4031203,
+    "romanizedName": "lozovo"
+  },
+  {
+    "id": 661,
+    "name": "Локорско",
+    "englishName": "Lokorsko",
+    "lat": 42.7679878,
+    "lon": 23.4346922,
+    "romanizedName": "lokorsko"
+  },
+  {
+    "id": 34,
+    "name": "Лом",
+    "englishName": "Lom",
+    "lat": 43.8214397,
+    "lon": 23.2420824,
+    "romanizedName": "lom"
+  },
+  {
+    "id": 625,
+    "name": "Ломец",
+    "englishName": "Lomec",
+    "lat": 42.9832785,
+    "lon": 24.6761101,
+    "romanizedName": "lomec"
+  },
+  {
+    "id": 90,
+    "name": "Луково",
+    "englishName": "Lukovo",
+    "lat": 42.8799443,
+    "lon": 23.3841997,
+    "romanizedName": "lukovo"
+  },
+  {
+    "id": 223,
+    "name": "Любимец",
+    "englishName": "Ljubimec",
+    "lat": 41.8512105,
+    "lon": 26.0738343,
+    "romanizedName": "ljubimec"
+  },
+  {
+    "id": 474,
+    "name": "Люляково",
+    "englishName": "Ljuljakovo",
+    "lat": 42.845642,
+    "lon": 27.1003291,
+    "romanizedName": "ljuljakovo"
+  },
+  {
+    "id": 254,
+    "name": "Лютиброд",
+    "englishName": "Ljutibrod",
+    "lat": 43.1118409,
+    "lon": 23.6292302,
+    "romanizedName": "ljutibrod"
+  },
+  {
+    "id": 199,
+    "name": "Маврудово",
+    "englishName": "Mavrudovo",
+    "lat": 42.0661155,
+    "lon": 24.8392038,
+    "romanizedName": "mavrudovo"
+  },
+  {
+    "id": 232,
+    "name": "Мадара",
+    "englishName": "Madara",
+    "lat": 43.2746995,
+    "lon": 27.0998543,
+    "romanizedName": "madara"
+  },
+  {
+    "id": 525,
+    "name": "Мазарачево",
+    "englishName": "Mazarachevo",
+    "lat": 42.3484557,
+    "lon": 22.6210543,
+    "romanizedName": "mazarachevo"
+  },
+  {
+    "id": 450,
+    "name": "Макоцево",
+    "englishName": "Makocevo",
+    "lat": 42.6898066,
+    "lon": 23.8035251,
+    "romanizedName": "makocevo"
+  },
+  {
+    "id": 524,
+    "name": "Макоцево - Спирка",
+    "englishName": "Makocevo Sp.",
+    "lat": 42.6898157,
+    "lon": 23.8208528,
+    "romanizedName": "makocevo-sp"
+  },
+  {
+    "id": 660,
+    "name": "Макреш",
+    "englishName": "Makresh",
+    "lat": 43.7679984,
+    "lon": 22.7316626,
+    "romanizedName": "makresh"
+  },
+  {
+    "id": 574,
+    "name": "Малево",
+    "englishName": "Malevo",
+    "lat": 41.8640797,
+    "lon": 25.6157975,
+    "romanizedName": "malevo"
+  },
+  {
+    "id": 608,
+    "name": "Мало Село",
+    "englishName": "Malo Selo",
+    "lat": 42.3084324,
+    "lon": 23.0353064,
+    "romanizedName": "malo-selo"
+  },
+  {
+    "id": 241,
+    "name": "Маноле",
+    "englishName": "Manole",
+    "lat": 42.185061,
+    "lon": 24.9234417,
+    "romanizedName": "manole"
+  },
+  {
+    "id": 309,
+    "name": "Манолово",
+    "englishName": "Manolovo",
+    "lat": 42.6268519,
+    "lon": 25.0571152,
+    "romanizedName": "manolovo"
+  },
+  {
+    "id": 520,
+    "name": "Марек",
+    "englishName": "Marek",
+    "lat": 42.3520244,
+    "lon": 23.1118591,
+    "romanizedName": "marek"
+  },
+  {
+    "id": 517,
+    "name": "Марикостино",
+    "englishName": "Marikostino",
+    "lat": 41.4341765,
+    "lon": 23.313334,
+    "romanizedName": "marikostino"
+  },
+  {
+    "id": 425,
+    "name": "Марино Поле",
+    "englishName": "Marino Pole",
+    "lat": 41.4106628,
+    "lon": 23.3496315,
+    "romanizedName": "marino-pole"
+  },
+  {
+    "id": 642,
+    "name": "Марко Николов",
+    "englishName": "Marko Nikolov",
+    "lat": 42.1298142,
+    "lon": 24.1256663,
+    "romanizedName": "marko-nikolov"
+  },
+  {
+    "id": 593,
+    "name": "Маслиново",
+    "englishName": "Maslinovo",
+    "lat": 41.767628,
+    "lon": 25.54219,
+    "romanizedName": "maslinovo"
+  },
+  {
+    "id": 119,
+    "name": "Медковец",
+    "englishName": "Medkovec",
+    "lat": 43.6173978,
+    "lon": 23.1639973,
+    "romanizedName": "medkovec"
+  },
+  {
+    "id": 401,
+    "name": "Медовина",
+    "englishName": "Medovina",
+    "lat": 43.3171887,
+    "lon": 26.1821743,
+    "romanizedName": "medovina"
+  },
+  {
+    "id": 457,
+    "name": "Межден",
+    "englishName": "Mezhden",
+    "lat": 43.8152601,
+    "lon": 27.1935441,
+    "romanizedName": "mezhden"
+  },
+  {
+    "id": 8,
+    "name": "Мездра",
+    "englishName": "Mezdra",
+    "lat": 43.1421873,
+    "lon": 23.7148622,
+    "romanizedName": "mezdra"
+  },
+  {
+    "id": 348,
+    "name": "Мездра Юг",
+    "englishName": "Mezdra Jug",
+    "lat": 43.1316472,
+    "lon": 23.7039876,
+    "romanizedName": "mezdra-jug"
+  },
+  {
+    "id": 504,
+    "name": "Меричлери",
+    "englishName": "Merichleri",
+    "lat": 42.1216709,
+    "lon": 25.4908176,
+    "romanizedName": "merichleri"
+  },
+  {
+    "id": 273,
+    "name": "Меричлери - спирка",
+    "englishName": "Merichleri Stop",
+    "lat": 42.1371335,
+    "lon": 25.495115,
+    "romanizedName": "merichleri-sp"
+  },
+  {
+    "id": 22,
+    "name": "Метал - спирка",
+    "englishName": "Metal Stop",
+    "lat": 42.6031126,
+    "lon": 23.0992578,
+    "romanizedName": "metal-stop"
+  },
+  {
+    "id": 531,
+    "name": "Милковица",
+    "englishName": "Milkovica",
+    "lat": 43.631566,
+    "lon": 24.712666,
+    "romanizedName": "milkovica"
+  },
+  {
+    "id": 494,
+    "name": "Мирково",
+    "englishName": "Mirkovo",
+    "lat": 42.7034602,
+    "lon": 23.9968253,
+    "romanizedName": "mirkovo"
+  },
+  {
+    "id": 622,
+    "name": "Мирково - Спирка",
+    "englishName": "Mirkovo Stop",
+    "lat": 42.6938669,
+    "lon": 24.0211085,
+    "romanizedName": "mirkovo-st"
+  },
+  {
+    "id": 144,
+    "name": "Михайлово",
+    "englishName": "Mihajlovo",
+    "lat": 42.2427521,
+    "lon": 25.5292225,
+    "romanizedName": "mihajlovo"
+  },
+  {
+    "id": 251,
+    "name": "Михалци-стамболово",
+    "englishName": "Mihalci Stambolovo",
+    "lat": 43.2159579,
+    "lon": 25.3608076,
+    "romanizedName": "mihalci-stambolovo"
+  },
+  {
+    "id": 619,
+    "name": "Мламолово",
+    "englishName": "Mlamolovo",
+    "lat": 42.3386345,
+    "lon": 23.0253803,
+    "romanizedName": "mlamolovo"
+  },
+  {
+    "id": 326,
+    "name": "Мокрище",
+    "englishName": "Mokrishte",
+    "lat": 42.1803239,
+    "lon": 24.2932275,
+    "romanizedName": "mokrishte"
+  },
+  {
+    "id": 201,
+    "name": "Момина Клисура",
+    "englishName": "Momina Klisura",
+    "lat": 42.2286869,
+    "lon": 23.9741938,
+    "romanizedName": "momina-klisura"
+  },
+  {
+    "id": 479,
+    "name": "Момина Скала",
+    "englishName": "Momina Skala",
+    "lat": 41.6146827,
+    "lon": 25.4659301,
+    "romanizedName": "momina-skala"
+  },
+  {
+    "id": 230,
+    "name": "Момин Брод",
+    "englishName": "Momin Brod",
+    "lat": 43.78321,
+    "lon": 23.2181135,
+    "romanizedName": "momin-brod"
+  },
+  {
+    "id": 274,
+    "name": "Момин Проход",
+    "englishName": "Momin Prohod",
+    "lat": 42.3311717,
+    "lon": 23.8702113,
+    "romanizedName": "momin-prohod"
+  },
+  {
+    "id": 135,
+    "name": "Момчилград",
+    "englishName": "Momchilgrad",
+    "lat": 41.5265621,
+    "lon": 25.4036235,
+    "romanizedName": "momchilgrad"
+  },
+  {
+    "id": 27,
+    "name": "Монтана",
+    "englishName": "Montana",
+    "lat": 43.4084098,
+    "lon": 23.2300539,
+    "romanizedName": "montana"
+  },
+  {
+    "id": 131,
+    "name": "Морава",
+    "englishName": "Morava",
+    "lat": 43.4530086,
+    "lon": 25.206585,
+    "romanizedName": "morava"
+  },
+  {
+    "id": 468,
+    "name": "Моравица",
+    "englishName": "Moravica",
+    "lat": 43.1511615,
+    "lon": 23.6688212,
+    "romanizedName": "moravica"
+  },
+  {
+    "id": 681,
+    "name": "Моруница",
+    "englishName": "Morunica",
+    "lat": 43.4900134,
+    "lon": 25.7550827,
+    "romanizedName": "morunica"
+  },
+  {
+    "id": 579,
+    "name": "Моряк",
+    "englishName": "Morjak",
+    "lat": 43.1909498,
+    "lon": 27.7585747,
+    "romanizedName": "morjak"
+  },
+  {
+    "id": 590,
+    "name": "Мост",
+    "englishName": "Most",
+    "lat": 41.7410582,
+    "lon": 25.53029,
+    "romanizedName": "most"
+  },
+  {
+    "id": 556,
+    "name": "Мулетарово",
+    "englishName": "Muletarovo",
+    "lat": 41.4352733,
+    "lon": 23.2555331,
+    "romanizedName": "muletarovo"
+  },
+  {
+    "id": 364,
+    "name": "Мурсалево",
+    "englishName": "Mursalevo",
+    "lat": 42.1174554,
+    "lon": 23.03829,
+    "romanizedName": "mursalevo"
+  },
+  {
+    "id": 683,
+    "name": "Мусачево",
+    "englishName": "Musachevo",
+    "lat": 42.6904625,
+    "lon": 23.5345666,
+    "romanizedName": "musachevo"
+  },
+  {
+    "id": 634,
+    "name": "Мъдрец",
+    "englishName": "Madrec",
+    "lat": 41.6940372,
+    "lon": 25.5209412,
+    "romanizedName": "madrec"
+  },
+  {
+    "id": 220,
+    "name": "Мърчево",
+    "englishName": "Marchevo",
+    "lat": 43.5159836,
+    "lon": 23.3394683,
+    "romanizedName": "marchevo"
+  },
+  {
+    "id": 557,
+    "name": "Мътница",
+    "englishName": "Matnica",
+    "lat": 43.2830667,
+    "lon": 27.024875,
+    "romanizedName": "matnica"
+  },
+  {
+    "id": 260,
+    "name": "Надарево",
+    "englishName": "Nadarevo",
+    "lat": 43.2454275,
+    "lon": 26.7591162,
+    "romanizedName": "nadarevo"
+  },
+  {
+    "id": 180,
+    "name": "Надежда - Сп.",
+    "englishName": "Nadezhda",
+    "lat": 42.7209869,
+    "lon": 23.3016081,
+    "romanizedName": "nadezhda"
+  },
+  {
+    "id": 570,
+    "name": "Невестино",
+    "englishName": "Nevestino",
+    "lat": 42.703015,
+    "lon": 26.9343457,
+    "romanizedName": "nevestino"
+  },
+  {
+    "id": 335,
+    "name": "Невша",
+    "englishName": "Nevsha",
+    "lat": 43.2490837,
+    "lon": 27.2843491,
+    "romanizedName": "nevsha"
+  },
+  {
+    "id": 641,
+    "name": "Негован",
+    "englishName": "Negovan",
+    "lat": 42.7746094,
+    "lon": 23.4079045,
+    "romanizedName": "negovan"
+  },
+  {
+    "id": 561,
+    "name": "Негушево",
+    "englishName": "Negushevo",
+    "lat": 42.7153662,
+    "lon": 23.725583,
+    "romanizedName": "negushevo"
+  },
+  {
+    "id": 498,
+    "name": "Немирово",
+    "englishName": "Nemirovo",
+    "lat": 42.3762447,
+    "lon": 23.8761278,
+    "romanizedName": "nemirovo"
+  },
+  {
+    "id": 268,
+    "name": "Николаево",
+    "englishName": "Nikolaevo",
+    "lat": 42.6323259,
+    "lon": 25.7829083,
+    "romanizedName": "nikolaevo"
+  },
+  {
+    "id": 59,
+    "name": "Нова Загора",
+    "englishName": "Nova Zagora",
+    "lat": 42.4856671,
+    "lon": 26.0161533,
+    "romanizedName": "nova-zagora"
+  },
+  {
+    "id": 209,
+    "name": "Нова Надежда",
+    "englishName": "Nova Nadezhda",
+    "lat": 42.0163534,
+    "lon": 25.7268285,
+    "romanizedName": "nova-nadezhda"
+  },
+  {
+    "id": 123,
+    "name": "Нова Шипка",
+    "englishName": "Nova Shipka",
+    "lat": 43.0524024,
+    "lon": 27.5173881,
+    "romanizedName": "nova-shipka"
+  },
+  {
+    "id": 560,
+    "name": "Обединена",
+    "englishName": "Obedinena",
+    "lat": null,
+    "lon": null,
+    "romanizedName": "obedinena"
+  },
+  {
+    "id": 239,
+    "name": "Обеля",
+    "englishName": "Obelja",
+    "lat": 42.7382412,
+    "lon": 23.2639075,
+    "romanizedName": "obelja"
+  },
+  {
+    "id": 258,
+    "name": "Оборище",
+    "englishName": "Oborishte",
+    "lat": 43.4561214,
+    "lon": 27.6479988,
+    "romanizedName": "oborishte"
+  },
+  {
+    "id": 509,
+    "name": "Образцов Чифлик",
+    "englishName": "Obrazcov Chiflik",
+    "lat": 43.7938332,
+    "lon": 26.0320399,
+    "romanizedName": "obrazcov-chiflik"
+  },
+  {
+    "id": 13,
+    "name": "Овчеполци",
+    "englishName": "Ovchepolci",
+    "lat": 42.349407,
+    "lon": 24.3966859,
+    "romanizedName": "ovchepolci"
+  },
+  {
+    "id": 287,
+    "name": "Огняново",
+    "englishName": "Ognjanovo",
+    "lat": 42.1383991,
+    "lon": 24.4167346,
+    "romanizedName": "ognjanovo"
+  },
+  {
+    "id": 451,
+    "name": "Одърне",
+    "englishName": "Odarne",
+    "lat": 43.3730693,
+    "lon": 24.9356286,
+    "romanizedName": "odarne"
+  },
+  {
+    "id": 485,
+    "name": "Оплетня",
+    "englishName": "Opletnja",
+    "lat": 43.0974214,
+    "lon": 23.4315711,
+    "romanizedName": "opletnja"
+  },
+  {
+    "id": 237,
+    "name": "Опълченец",
+    "englishName": "Opalchenec",
+    "lat": 42.1969413,
+    "lon": 25.1242115,
+    "romanizedName": "opalchenec"
+  },
+  {
+    "id": 374,
+    "name": "Ореш",
+    "englishName": "Oresh",
+    "lat": 43.5846359,
+    "lon": 25.2167419,
+    "romanizedName": "oresh"
+  },
+  {
+    "id": 618,
+    "name": "Орешак",
+    "englishName": "Oreshak",
+    "lat": 42.6473305,
+    "lon": 26.1137491,
+    "romanizedName": "oreshak"
+  },
+  {
+    "id": 116,
+    "name": "Орешец",
+    "englishName": "Oreshec",
+    "lat": 43.6593781,
+    "lon": 22.7447553,
+    "romanizedName": "oreshec"
+  },
+  {
+    "id": 122,
+    "name": "Оризово",
+    "englishName": "Orizovo",
+    "lat": 42.2047012,
+    "lon": 25.1756412,
+    "romanizedName": "orizovo"
+  },
+  {
+    "id": 100,
+    "name": "Орлин",
+    "englishName": "Orlin",
+    "lat": 42.9511791,
+    "lon": 23.3679651,
+    "romanizedName": "orlin"
+  },
+  {
+    "id": 464,
+    "name": "Оселна",
+    "englishName": "Oselna",
+    "lat": 43.0769443,
+    "lon": 23.5404828,
+    "romanizedName": "oselna"
+  },
+  {
+    "id": 370,
+    "name": "Осетеново",
+    "englishName": "Osetenovo",
+    "lat": 42.6129917,
+    "lon": 25.0304308,
+    "romanizedName": "osetenovo"
+  },
+  {
+    "id": 603,
+    "name": "Ослен",
+    "englishName": "Oslen",
+    "lat": 43.1296149,
+    "lon": 23.7938682,
+    "romanizedName": "oslen"
+  },
+  {
+    "id": 650,
+    "name": "Острец",
+    "englishName": "Ostrec",
+    "lat": 41.9960407,
+    "lon": 23.9171249,
+    "romanizedName": "ostrec"
+  },
+  {
+    "id": 193,
+    "name": "Отдих",
+    "englishName": "Otdih",
+    "lat": 42.5081637,
+    "lon": 24.8413172,
+    "romanizedName": "otdih"
+  },
+  {
+    "id": 290,
+    "name": "Охрид",
+    "englishName": "Ohrid",
+    "lat": 43.4524141,
+    "lon": 23.3656841,
+    "romanizedName": "ohrid"
+  },
+  {
+    "id": 342,
+    "name": "Павел Баня",
+    "englishName": "Pavel Banja",
+    "lat": 42.6362593,
+    "lon": 25.1910982,
+    "romanizedName": "pavel-banja"
+  },
+  {
+    "id": 42,
+    "name": "Павликени",
+    "englishName": "Pavlikeni",
+    "lat": 43.233114,
+    "lon": 25.3015802,
+    "romanizedName": "pavlikeni"
+  },
+  {
+    "id": 16,
+    "name": "Пазарджик",
+    "englishName": "Pazardzhik",
+    "lat": 42.1700051,
+    "lon": 24.3209036,
+    "romanizedName": "pazardzhik"
+  },
+  {
+    "id": 490,
+    "name": "Палилула",
+    "englishName": "Pali Lula",
+    "lat": 43.4356418,
+    "lon": 23.3897391,
+    "romanizedName": "pali-lula"
+  },
+  {
+    "id": 684,
+    "name": "Панагюрище",
+    "englishName": "Panagjurishte",
+    "lat": 42.4920655,
+    "lon": 24.1968517,
+    "romanizedName": "panagjurishte"
+  },
+  {
+    "id": 310,
+    "name": "Партизани",
+    "englishName": "Partizani",
+    "lat": 43.0190339,
+    "lon": 27.2563678,
+    "romanizedName": "partizani"
+  },
+  {
+    "id": 630,
+    "name": "Пейо Яворов",
+    "englishName": "Pejo Javorov",
+    "lat": 41.7496843,
+    "lon": 23.154084,
+    "romanizedName": "pejo-javorov"
+  },
+  {
+    "id": 7,
+    "name": "Перник",
+    "englishName": "Pernik",
+    "lat": 42.6012693,
+    "lon": 23.0306531,
+    "romanizedName": "pernik"
+  },
+  {
+    "id": 31,
+    "name": "Перник Разпределит.",
+    "englishName": "Pernik Razpredelit",
+    "lat": 42.6012693,
+    "lon": 23.0306531,
+    "romanizedName": "pernik-razpredelit"
+  },
+  {
+    "id": 329,
+    "name": "Перперек",
+    "englishName": "Perperek",
+    "lat": 41.6858074,
+    "lon": 25.5435161,
+    "romanizedName": "perperek"
+  },
+  {
+    "id": 439,
+    "name": "Песнопой",
+    "englishName": "Pesnopoj",
+    "lat": 42.4794109,
+    "lon": 24.8109943,
+    "romanizedName": "pesnopoj"
+  },
+  {
+    "id": 177,
+    "name": "Петко Каравелово",
+    "englishName": "Petko Karavelovo",
+    "lat": 43.299006,
+    "lon": 25.6397512,
+    "romanizedName": "petko-karavelovo"
+  },
+  {
+    "id": 145,
+    "name": "Петрич",
+    "englishName": "Petrich",
+    "lat": 41.4082066,
+    "lon": 23.2066297,
+    "romanizedName": "petrich"
+  },
+  {
+    "id": 469,
+    "name": "Петърч",
+    "englishName": "Petarch",
+    "lat": 42.8276001,
+    "lon": 23.121866,
+    "romanizedName": "petarch"
+  },
+  {
+    "id": 106,
+    "name": "Пещера",
+    "englishName": "Peshtera",
+    "lat": 42.0343627,
+    "lon": 24.3125596,
+    "romanizedName": "peshtera"
+  },
+  {
+    "id": 205,
+    "name": "Пирдоп",
+    "englishName": "Pirdop",
+    "lat": 42.7099151,
+    "lon": 24.1741102,
+    "romanizedName": "pirdop"
+  },
+  {
+    "id": 150,
+    "name": "Плачковци",
+    "englishName": "Plachkovci",
+    "lat": 42.8281559,
+    "lon": 25.4795265,
+    "romanizedName": "plachkovci"
+  },
+  {
+    "id": 6,
+    "name": "Плевен",
+    "englishName": "Pleven",
+    "lat": 43.4209425,
+    "lon": 24.6145199,
+    "romanizedName": "pleven"
+  },
+  {
+    "id": 213,
+    "name": "Плевен Запад",
+    "englishName": "Pleven Zapad",
+    "lat": 43.4298835,
+    "lon": 24.5930357,
+    "romanizedName": "pleven-zapad"
+  },
+  {
+    "id": 649,
+    "name": "Плиска",
+    "englishName": "Pliska",
+    "lat": 43.3444063,
+    "lon": 27.0946171,
+    "romanizedName": "pliska"
+  },
+  {
+    "id": 3,
+    "name": "Пловдив",
+    "englishName": "Plovdiv",
+    "lat": 42.1341703,
+    "lon": 24.7413839,
+    "romanizedName": "plovdiv"
+  },
+  {
+    "id": 691,
+    "name": "Плоска Могила",
+    "englishName": "Ploska Mogila",
+    "lat": 42.4368841,
+    "lon": 25.8128799,
+    "romanizedName": "ploska-mogila"
+  },
+  {
+    "id": 238,
+    "name": "Побит Камък",
+    "englishName": "Pobit Kamak",
+    "lat": 42.6015551,
+    "lon": 23.6378175,
+    "romanizedName": "pobit-kamak"
+  },
+  {
+    "id": 47,
+    "name": "Повеляново",
+    "englishName": "Poveljanovo",
+    "lat": 43.1942135,
+    "lon": 27.6400718,
+    "romanizedName": "poveljanovo"
+  },
+  {
+    "id": 559,
+    "name": "Подвис",
+    "englishName": "Podvis",
+    "lat": 42.801593,
+    "lon": 26.876482,
+    "romanizedName": "podvis"
+  },
+  {
+    "id": 391,
+    "name": "Подгорица",
+    "englishName": "Podgorica",
+    "lat": 43.3124369,
+    "lon": 26.4727463,
+    "romanizedName": "podgorica"
+  },
+  {
+    "id": 224,
+    "name": "Подем",
+    "englishName": "Podem",
+    "lat": 43.5397019,
+    "lon": 24.596803,
+    "romanizedName": "podem"
+  },
+  {
+    "id": 286,
+    "name": "Подкова",
+    "englishName": "Podkova",
+    "lat": 41.4107432,
+    "lon": 25.3899934,
+    "romanizedName": "podkova"
+  },
+  {
+    "id": 35,
+    "name": "Подуяне Пътническа",
+    "englishName": "Podujane Pa ssenger",
+    "lat": 42.697951,
+    "lon": 23.3548191,
+    "romanizedName": "podujane-passenger"
+  },
+  {
+    "id": 516,
+    "name": "Подуяне Разпр.ср.р.",
+    "englishName": "Podujane Razprsrr",
+    "lat": 42.6940926,
+    "lon": 23.3667387,
+    "romanizedName": "podujane-razprsrr"
+  },
+  {
+    "id": 394,
+    "name": "Поликраище",
+    "englishName": "Polikraishte",
+    "lat": 43.1675816,
+    "lon": 25.6201324,
+    "romanizedName": "polikraishte"
+  },
+  {
+    "id": 605,
+    "name": "Полски Сеновец",
+    "englishName": "Polski Senovec",
+    "lat": 43.3192284,
+    "lon": 25.6387009,
+    "romanizedName": "polski-senovec"
+  },
+  {
+    "id": 70,
+    "name": "Полски Тръмбеш",
+    "englishName": "Polski Trambesh",
+    "lat": 43.3703292,
+    "lon": 25.6343361,
+    "romanizedName": "polski-trambesh"
+  },
+  {
+    "id": 204,
+    "name": "Полско Косово",
+    "englishName": "Polsko Kosovo",
+    "lat": 43.4269642,
+    "lon": 25.6702522,
+    "romanizedName": "polsko-kosovo"
+  },
+  {
+    "id": 120,
+    "name": "Поповица",
+    "englishName": "Popovica",
+    "lat": 42.1388405,
+    "lon": 25.0598097,
+    "romanizedName": "popovica"
+  },
+  {
+    "id": 75,
+    "name": "Попово",
+    "englishName": "Popovo",
+    "lat": 43.3328549,
+    "lon": 26.232807,
+    "romanizedName": "popovo"
+  },
+  {
+    "id": 198,
+    "name": "Пордим",
+    "englishName": "Pordim",
+    "lat": 43.3863418,
+    "lon": 24.8475184,
+    "romanizedName": "pordim"
+  },
+  {
+    "id": 433,
+    "name": "Правда",
+    "englishName": "Pravda",
+    "lat": 43.1541147,
+    "lon": 25.6795607,
+    "romanizedName": "pravda"
+  },
+  {
+    "id": 666,
+    "name": "Преколница",
+    "englishName": "Prekolnica",
+    "lat": 42.2740087,
+    "lon": 22.5010556,
+    "romanizedName": "prekolnica"
+  },
+  {
+    "id": 550,
+    "name": "Преславец",
+    "englishName": "Preslavec",
+    "lat": 41.9775137,
+    "lon": 25.8899689,
+    "romanizedName": "preslavec"
+  },
+  {
+    "id": 357,
+    "name": "Прибой",
+    "englishName": "Priboj",
+    "lat": 42.4879547,
+    "lon": 22.9317828,
+    "romanizedName": "priboj"
+  },
+  {
+    "id": 584,
+    "name": "Прилеп",
+    "englishName": "Prilep",
+    "lat": 42.8226735,
+    "lon": 26.9120634,
+    "romanizedName": "prilep"
+  },
+  {
+    "id": 63,
+    "name": "Провадия",
+    "englishName": "Provadija",
+    "lat": 43.1900719,
+    "lon": 27.4382259,
+    "romanizedName": "provadija"
+  },
+  {
+    "id": 403,
+    "name": "Пролет",
+    "englishName": "Prolet",
+    "lat": 43.0717506,
+    "lon": 23.4725867,
+    "romanizedName": "prolet"
+  },
+  {
+    "id": 181,
+    "name": "Прослав",
+    "englishName": "Proslav",
+    "lat": 42.1251876,
+    "lon": 24.6859749,
+    "romanizedName": "proslav"
+  },
+  {
+    "id": 308,
+    "name": "Просторно",
+    "englishName": "Prostorno",
+    "lat": 43.6432337,
+    "lon": 26.4807189,
+    "romanizedName": "prostorno"
+  },
+  {
+    "id": 216,
+    "name": "Птичар",
+    "englishName": "Ptichar",
+    "lat": 41.4588151,
+    "lon": 25.372088,
+    "romanizedName": "ptichar"
+  },
+  {
+    "id": 45,
+    "name": "Първомай",
+    "englishName": "Parvomaj",
+    "lat": 42.1003908,
+    "lon": 25.2239927,
+    "romanizedName": "parvomaj"
+  },
+  {
+    "id": 639,
+    "name": "Равна",
+    "englishName": "Ravna",
+    "lat": 43.2346417,
+    "lon": 27.3457349,
+    "romanizedName": "ravna"
+  },
+  {
+    "id": 482,
+    "name": "Равнец",
+    "englishName": "Ravnec",
+    "lat": 43.6773064,
+    "lon": 27.989245,
+    "romanizedName": "ravnec"
+  },
+  {
+    "id": 577,
+    "name": "Равно Поле",
+    "englishName": "Ravno Pole",
+    "lat": 42.6737183,
+    "lon": 23.5152163,
+    "romanizedName": "ravno-pole"
+  },
+  {
+    "id": 214,
+    "name": "Раданово",
+    "englishName": "Radanovo",
+    "lat": 43.342438,
+    "lon": 25.638306,
+    "romanizedName": "radanovo"
+  },
+  {
+    "id": 583,
+    "name": "Радевци",
+    "englishName": "Radevci",
+    "lat": 42.7911908,
+    "lon": 25.5115763,
+    "romanizedName": "radevci"
+  },
+  {
+    "id": 388,
+    "name": "Радко Димитриев",
+    "englishName": "Radko Dimitrievo",
+    "lat": 43.1827528,
+    "lon": 27.0119834,
+    "romanizedName": "radko-dimitrievo"
+  },
+  {
+    "id": 466,
+    "name": "Радовене",
+    "englishName": "Radovene",
+    "lat": 43.1687723,
+    "lon": 23.9597263,
+    "romanizedName": "radovene"
+  },
+  {
+    "id": 44,
+    "name": "Радомир",
+    "englishName": "Radomir",
+    "lat": 42.5387449,
+    "lon": 22.9520606,
+    "romanizedName": "radomir"
+  },
+  {
+    "id": 496,
+    "name": "Радуй",
+    "englishName": "Raduj",
+    "lat": 42.7328377,
+    "lon": 23.0232334,
+    "romanizedName": "raduj"
+  },
+  {
+    "id": 454,
+    "name": "Радунци",
+    "englishName": "Radunci",
+    "lat": 42.6780304,
+    "lon": 25.5961504,
+    "romanizedName": "radunci"
+  },
+  {
+    "id": 164,
+    "name": "Раждавица",
+    "englishName": "Razhdavica",
+    "lat": 42.3797276,
+    "lon": 22.7067872,
+    "romanizedName": "razhdavica"
+  },
+  {
+    "id": 159,
+    "name": "Разград",
+    "englishName": "Razgrad",
+    "lat": 43.567298,
+    "lon": 26.5091685,
+    "romanizedName": "razgrad"
+  },
+  {
+    "id": 194,
+    "name": "Разделна",
+    "englishName": "Razdelna",
+    "lat": 43.1690323,
+    "lon": 27.6248192,
+    "romanizedName": "razdelna"
+  },
+  {
+    "id": 262,
+    "name": "Разлог",
+    "englishName": "Razlog",
+    "lat": 41.880683,
+    "lon": 23.4731711,
+    "romanizedName": "razlog"
+  },
+  {
+    "id": 596,
+    "name": "Разменна",
+    "englishName": "Razmenna",
+    "lat": 42.7109939,
+    "lon": 23.0282681,
+    "romanizedName": "razmenna"
+  },
+  {
+    "id": 674,
+    "name": "Разменна - Сп.",
+    "englishName": "Razmenna Sp",
+    "lat": 42.7430224,
+    "lon": 23.027321,
+    "romanizedName": "razmenna-sp"
+  },
+  {
+    "id": 85,
+    "name": "Ракево",
+    "englishName": "Rakevo",
+    "lat": 43.4161067,
+    "lon": 23.4258968,
+    "romanizedName": "rakevo"
+  },
+  {
+    "id": 635,
+    "name": "Раковски",
+    "englishName": "Rakovski",
+    "lat": 43.5994541,
+    "lon": 26.4855655,
+    "romanizedName": "rakovski"
+  },
+  {
+    "id": 105,
+    "name": "Реброво",
+    "englishName": "Rebrovo",
+    "lat": 42.8989494,
+    "lon": 23.3882666,
+    "romanizedName": "rebrovo"
+  },
+  {
+    "id": 323,
+    "name": "Ребърково",
+    "englishName": "Rebarkovo",
+    "lat": 43.1141241,
+    "lon": 23.675252,
+    "romanizedName": "rebarkovo"
+  },
+  {
+    "id": 595,
+    "name": "Реселец - Спирка",
+    "englishName": "Reselec Stop",
+    "lat": 43.2452758,
+    "lon": 24.0525773,
+    "romanizedName": "reselec-sp"
+  },
+  {
+    "id": 337,
+    "name": "Ресен",
+    "englishName": "Resen",
+    "lat": 43.1814953,
+    "lon": 25.5640538,
+    "romanizedName": "resen"
+  },
+  {
+    "id": 408,
+    "name": "Рогозче",
+    "englishName": "Rogozche",
+    "lat": 41.4431152,
+    "lon": 25.3625755,
+    "romanizedName": "rogozche"
+  },
+  {
+    "id": 289,
+    "name": "Розино",
+    "englishName": "Rozino",
+    "lat": 42.7157891,
+    "lon": 24.539388,
+    "romanizedName": "rozino"
+  },
+  {
+    "id": 65,
+    "name": "Роман",
+    "englishName": "Roman",
+    "lat": 43.1545279,
+    "lon": 23.9214951,
+    "romanizedName": "roman"
+  },
+  {
+    "id": 86,
+    "name": "Ромча",
+    "englishName": "Romcha",
+    "lat": 42.852124,
+    "lon": 23.3703902,
+    "romanizedName": "romcha"
+  },
+  {
+    "id": 519,
+    "name": "Руйно",
+    "englishName": "Rujno",
+    "lat": 43.8194718,
+    "lon": 27.0343207,
+    "romanizedName": "rujno"
+  },
+  {
+    "id": 458,
+    "name": "Рупите",
+    "englishName": "Rupite",
+    "lat": 41.4526088,
+    "lon": 23.2671606,
+    "romanizedName": "rupite"
+  },
+  {
+    "id": 664,
+    "name": "Рупци - Север",
+    "englishName": "Rupci Sever",
+    "lat": 43.2863819,
+    "lon": 24.1530312,
+    "romanizedName": "rupci-sever"
+  },
+  {
+    "id": 587,
+    "name": "Русаля Дичин",
+    "englishName": "Rusalja Dichin",
+    "lat": 43.1933267,
+    "lon": 25.4710831,
+    "romanizedName": "rusalja-dichin"
+  },
+  {
+    "id": 30,
+    "name": "Русе",
+    "englishName": "Ruse",
+    "lat": 43.8335589,
+    "lon": 25.9561005,
+    "romanizedName": "ruse"
+  },
+  {
+    "id": 128,
+    "name": "Русе Разпределителна",
+    "englishName": "Ruse Razpredelitelna",
+    "lat": 43.8580316,
+    "lon": 25.9976712,
+    "romanizedName": "ruse-razpredelitelna"
+  },
+  {
+    "id": 146,
+    "name": "Русе Товарна - спирка",
+    "englishName": "Ruse Tovarna Stop",
+    "lat": 43.8542755,
+    "lon": 25.9775731,
+    "romanizedName": "ruse-tovarna-sp"
+  },
+  {
+    "id": 312,
+    "name": "Руска Бяла",
+    "englishName": "Ruska Bjala",
+    "lat": 43.1616581,
+    "lon": 23.6417269,
+    "romanizedName": "ruska-bjala"
+  },
+  {
+    "id": 69,
+    "name": "Садово",
+    "englishName": "Sadovo",
+    "lat": 42.1313182,
+    "lon": 24.9388411,
+    "romanizedName": "sadovo"
+  },
+  {
+    "id": 386,
+    "name": "Самоводене",
+    "englishName": "Samovodene",
+    "lat": 43.1375571,
+    "lon": 25.6189963,
+    "romanizedName": "samovodene"
+  },
+  {
+    "id": 92,
+    "name": "Самуил",
+    "englishName": "Samuil",
+    "lat": 43.5124564,
+    "lon": 26.7392522,
+    "romanizedName": "samuil"
+  },
+  {
+    "id": 261,
+    "name": "Самуилово",
+    "englishName": "Samuilovo",
+    "lat": 42.2230056,
+    "lon": 25.5208328,
+    "romanizedName": "samuilovo"
+  },
+  {
+    "id": 206,
+    "name": "Сандански",
+    "englishName": "Sandanski",
+    "lat": 41.5426853,
+    "lon": 23.2517881,
+    "romanizedName": "sandanski"
+  },
+  {
+    "id": 655,
+    "name": "Саранци",
+    "englishName": "Saranci",
+    "lat": 42.7156308,
+    "lon": 23.7567652,
+    "romanizedName": "saranci"
+  },
+  {
+    "id": 424,
+    "name": "Сахране",
+    "englishName": "Sahrane",
+    "lat": 42.6459524,
+    "lon": 25.2230126,
+    "romanizedName": "sahrane"
+  },
+  {
+    "id": 332,
+    "name": "Сборище",
+    "englishName": "Sborishte",
+    "lat": 42.6776988,
+    "lon": 25.9686848,
+    "romanizedName": "sborishte"
+  },
+  {
+    "id": 533,
+    "name": "Свежен",
+    "englishName": "Svezhen",
+    "lat": 42.5767498,
+    "lon": 24.9454804,
+    "romanizedName": "svezhen"
+  },
+  {
+    "id": 511,
+    "name": "Света Петка",
+    "englishName": "Sveta Petka",
+    "lat": 42.0403307,
+    "lon": 23.8583529,
+    "romanizedName": "sveta-petka"
+  },
+  {
+    "id": 692,
+    "name": "Свети Георги",
+    "englishName": "Sveti Georgi",
+    "lat": 41.8299639,
+    "lon": 23.5180461,
+    "romanizedName": "sveti-georgi"
+  },
+  {
+    "id": 562,
+    "name": "Светлен",
+    "englishName": "Svetlen",
+    "lat": 43.3231163,
+    "lon": 26.2848755,
+    "romanizedName": "svetlen"
+  },
+  {
+    "id": 521,
+    "name": "Светлина - Спирка",
+    "englishName": "Svetlina Stop",
+    "lat": 42.4994579,
+    "lon": 24.8340309,
+    "romanizedName": "svetlina-sp"
+  },
+  {
+    "id": 624,
+    "name": "Световрачане",
+    "englishName": "Svetovrachane",
+    "lat": 42.7831147,
+    "lon": 23.3814234,
+    "romanizedName": "svetovrachane"
+  },
+  {
+    "id": 153,
+    "name": "Свиленград",
+    "englishName": "Svilengrad",
+    "lat": 41.774572,
+    "lon": 26.1442741,
+    "romanizedName": "svilengrad"
+  },
+  {
+    "id": 64,
+    "name": "Свищов",
+    "englishName": "Svishtov",
+    "lat": 43.6231336,
+    "lon": 25.336633,
+    "romanizedName": "svishtov"
+  },
+  {
+    "id": 369,
+    "name": "Свобода",
+    "englishName": "Svoboda",
+    "lat": 42.2392632,
+    "lon": 25.4369423,
+    "romanizedName": "svoboda"
+  },
+  {
+    "id": 18,
+    "name": "Своге",
+    "englishName": "Svoge",
+    "lat": 42.9599768,
+    "lon": 23.3489474,
+    "romanizedName": "svoge"
+  },
+  {
+    "id": 551,
+    "name": "Селиминово",
+    "englishName": "Seliminovo",
+    "lat": 42.6414874,
+    "lon": 26.148861,
+    "romanizedName": "seliminovo"
+  },
+  {
+    "id": 226,
+    "name": "Сеново",
+    "englishName": "Senovo",
+    "lat": 43.6612413,
+    "lon": 26.381005,
+    "romanizedName": "senovo"
+  },
+  {
+    "id": 24,
+    "name": "Септември",
+    "englishName": "Septemvri",
+    "lat": 42.2040862,
+    "lon": 24.1317263,
+    "romanizedName": "septemvri"
+  },
+  {
+    "id": 354,
+    "name": "Сестримо",
+    "englishName": "Sestrimo",
+    "lat": 42.2464762,
+    "lon": 23.9364917,
+    "romanizedName": "sestrimo"
+  },
+  {
+    "id": 210,
+    "name": "Силистра",
+    "englishName": "Silistra",
+    "lat": 44.1136861,
+    "lon": 27.2501945,
+    "romanizedName": "silistra"
+  },
+  {
+    "id": 200,
+    "name": "Симеоновград",
+    "englishName": "Simeonovgrad",
+    "lat": 42.0248592,
+    "lon": 25.8456568,
+    "romanizedName": "simeonovgrad"
+  },
+  {
+    "id": 317,
+    "name": "Симитли",
+    "englishName": "Simitli",
+    "lat": 41.8842411,
+    "lon": 23.1070022,
+    "romanizedName": "simitli"
+  },
+  {
+    "id": 659,
+    "name": "Синаговци-гурково",
+    "englishName": "Sinagovci Gurkovo",
+    "lat": 43.8988239,
+    "lon": 22.79853,
+    "romanizedName": "sinagovci-gurkovo"
+  },
+  {
+    "id": 88,
+    "name": "Синдел",
+    "englishName": "Sindel",
+    "lat": 43.1231248,
+    "lon": 27.5985512,
+    "romanizedName": "sindel"
+  },
+  {
+    "id": 284,
+    "name": "Синитово",
+    "englishName": "Sinitovo",
+    "lat": 42.1426876,
+    "lon": 24.373399,
+    "romanizedName": "sinitovo"
+  },
+  {
+    "id": 336,
+    "name": "Синьо Бърдо",
+    "englishName": "Sinjo Bardo",
+    "lat": 43.1346062,
+    "lon": 23.8258818,
+    "romanizedName": "sinjo-bardo"
+  },
+  {
+    "id": 552,
+    "name": "Скакавица",
+    "englishName": "Skakavica",
+    "lat": 42.4211648,
+    "lon": 22.6941538,
+    "romanizedName": "skakavica"
+  },
+  {
+    "id": 169,
+    "name": "Скобелево",
+    "englishName": "Skobelevo",
+    "lat": 42.0972193,
+    "lon": 25.3671109,
+    "romanizedName": "skobelevo"
+  },
+  {
+    "id": 604,
+    "name": "Скомля (кантон-43)",
+    "englishName": "Skomlja Kanton 43",
+    "lat": 43.6727976,
+    "lon": 22.77358,
+    "romanizedName": "skomlja-kanton-43"
+  },
+  {
+    "id": 95,
+    "name": "Скутаре",
+    "englishName": "Skutare",
+    "lat": 42.1883562,
+    "lon": 24.8511583,
+    "romanizedName": "skutare"
+  },
+  {
+    "id": 203,
+    "name": "Славяново",
+    "englishName": "Slavjanovo",
+    "lat": 43.2937351,
+    "lon": 26.1713507,
+    "romanizedName": "slavjanovo"
+  },
+  {
+    "id": 673,
+    "name": "Слана Бара",
+    "englishName": "Slana Bara",
+    "lat": 43.9575404,
+    "lon": 22.8173692,
+    "romanizedName": "slana-bara"
+  },
+  {
+    "id": 43,
+    "name": "Сливен",
+    "englishName": "Sliven",
+    "lat": 42.6667918,
+    "lon": 26.3361677,
+    "romanizedName": "sliven"
+  },
+  {
+    "id": 234,
+    "name": "Сливница",
+    "englishName": "Slivnica",
+    "lat": 42.8497237,
+    "lon": 23.0556334,
+    "romanizedName": "slivnica"
+  },
+  {
+    "id": 147,
+    "name": "Сливница - Спирка",
+    "englishName": "Slivnica Stop",
+    "lat": 42.8554301,
+    "lon": 23.0389563,
+    "romanizedName": "slivnica-sp"
+  },
+  {
+    "id": 687,
+    "name": "Смилец",
+    "englishName": "Smilec",
+    "lat": 42.4142392,
+    "lon": 24.3740625,
+    "romanizedName": "smilec"
+  },
+  {
+    "id": 157,
+    "name": "Смирненски",
+    "englishName": "Smirnenski",
+    "lat": 42.6852323,
+    "lon": 23.3800363,
+    "romanizedName": "smirnenski"
+  },
+  {
+    "id": 573,
+    "name": "Смолево",
+    "englishName": "Smolevo",
+    "lat": 42.0287672,
+    "lon": 23.7695476,
+    "romanizedName": "smolevo"
+  },
+  {
+    "id": 334,
+    "name": "Смядово",
+    "englishName": "Smjadovo",
+    "lat": 43.0761743,
+    "lon": 27.0293455,
+    "romanizedName": "smjadovo"
+  },
+  {
+    "id": 612,
+    "name": "Соволяно",
+    "englishName": "Sovoljano",
+    "lat": 42.3333379,
+    "lon": 22.6470601,
+    "romanizedName": "sovoljano"
+  },
+  {
+    "id": 292,
+    "name": "Соколово",
+    "englishName": "Sokolovo",
+    "lat": 43.020827,
+    "lon": 25.5316343,
+    "romanizedName": "sokolovo"
+  },
+  {
+    "id": 422,
+    "name": "Солна Мина",
+    "englishName": "Solna Mina",
+    "lat": 43.1349492,
+    "lon": 27.4735398,
+    "romanizedName": "solna-mina"
+  },
+  {
+    "id": 418,
+    "name": "Сомовит",
+    "englishName": "Somovit",
+    "lat": 43.6899893,
+    "lon": 24.772998,
+    "romanizedName": "somovit"
+  },
+  {
+    "id": 546,
+    "name": "Сопот",
+    "englishName": "Sopot",
+    "lat": 42.6417214,
+    "lon": 24.7423814,
+    "romanizedName": "sopot"
+  },
+  {
+    "id": 2,
+    "name": "София",
+    "englishName": "Sofia",
+    "lat": 42.7121794,
+    "lon": 23.3211294,
+    "romanizedName": "sofia"
+  },
+  {
+    "id": 54,
+    "name": "София Север",
+    "englishName": "Sofia Sever",
+    "lat": 42.7266007,
+    "lon": 23.3164881,
+    "romanizedName": "sofia-sever"
+  },
+  {
+    "id": 529,
+    "name": "Спасово",
+    "englishName": "Spasovo",
+    "lat": 42.2206481,
+    "lon": 25.3220062,
+    "romanizedName": "spasovo"
+  },
+  {
+    "id": 497,
+    "name": "Срацимир",
+    "englishName": "Sracimir",
+    "lat": 43.8210415,
+    "lon": 22.7570272,
+    "romanizedName": "sracimir"
+  },
+  {
+    "id": 568,
+    "name": "Средна Арда",
+    "englishName": "Sredna Arda",
+    "lat": 41.6380606,
+    "lon": 25.512172,
+    "romanizedName": "sredna-arda"
+  },
+  {
+    "id": 484,
+    "name": "Стайновци",
+    "englishName": "Stajnovci",
+    "lat": 42.9016417,
+    "lon": 25.4940828,
+    "romanizedName": "stajnovci"
+  },
+  {
+    "id": 340,
+    "name": "Сталево",
+    "englishName": "Stalevo",
+    "lat": 42.0960145,
+    "lon": 25.3964507,
+    "romanizedName": "stalevo"
+  },
+  {
+    "id": 108,
+    "name": "Сталийска Махала",
+    "englishName": "Stalijska Mahala",
+    "lat": 43.7422624,
+    "lon": 23.1649597,
+    "romanizedName": "stalijska-mahala"
+  },
+  {
+    "id": 14,
+    "name": "Стамболийски",
+    "englishName": "Stambolijski",
+    "lat": 42.1332185,
+    "lon": 24.5364004,
+    "romanizedName": "stambolijski"
+  },
+  {
+    "id": 349,
+    "name": "Стамболово",
+    "englishName": "Stambolovo",
+    "lat": 42.4077747,
+    "lon": 23.8147872,
+    "romanizedName": "stambolovo"
+  },
+  {
+    "id": 638,
+    "name": "Стамо Костов",
+    "englishName": "Stamo Kostov",
+    "lat": 43.3160788,
+    "lon": 26.3412815,
+    "romanizedName": "stamo-kostov"
+  },
+  {
+    "id": 11,
+    "name": "Стара Загора",
+    "englishName": "Stara Zagora",
+    "lat": 42.4160392,
+    "lon": 25.6296382,
+    "romanizedName": "stara-zagora"
+  },
+  {
+    "id": 675,
+    "name": "Стара Кресна",
+    "englishName": "Stara Kresna",
+    "lat": 41.8041934,
+    "lon": 23.1636679,
+    "romanizedName": "stara-kresna"
+  },
+  {
+    "id": 543,
+    "name": "Стойчевци",
+    "englishName": "Stojchevci",
+    "lat": 42.9383738,
+    "lon": 25.4127932,
+    "romanizedName": "stojchevci"
+  },
+  {
+    "id": 431,
+    "name": "Столник",
+    "englishName": "Stolnik",
+    "lat": 42.7055411,
+    "lon": 23.632215,
+    "romanizedName": "stolnik"
+  },
+  {
+    "id": 699,
+    "name": "Стоян Митов",
+    "englishName": "Stojan Mitov",
+    "lat": 42.0425611,
+    "lon": 23.8551828,
+    "romanizedName": "stoyan-mitov"
+  },
+  {
+    "id": 81,
+    "name": "Стражица",
+    "englishName": "Strazhitsa",
+    "lat": 43.2169009,
+    "lon": 25.9545605,
+    "romanizedName": "strazhica"
+  },
+  {
+    "id": 121,
+    "name": "Стралджа",
+    "englishName": "Straldzha",
+    "lat": 42.592256,
+    "lon": 26.6885482,
+    "romanizedName": "straldzha"
+  },
+  {
+    "id": 179,
+    "name": "Страшимирово",
+    "englishName": "Strashimirovo",
+    "lat": 43.1975796,
+    "lon": 27.74085,
+    "romanizedName": "strashimirovo"
+  },
+  {
+    "id": 685,
+    "name": "Стрелча",
+    "englishName": "Strelcha",
+    "lat": 42.4928896,
+    "lon": 24.3309607,
+    "romanizedName": "strelcha"
+  },
+  {
+    "id": 646,
+    "name": "Строител",
+    "englishName": "Stroitel",
+    "lat": null,
+    "lon": null,
+    "romanizedName": "stroitel"
+  },
+  {
+    "id": 339,
+    "name": "Струмяни",
+    "englishName": "Strumyani",
+    "lat": 41.6412324,
+    "lon": 23.1990666,
+    "romanizedName": "strumjani"
+  },
+  {
+    "id": 373,
+    "name": "Струпец",
+    "englishName": "Strupets",
+    "lat": 43.1360458,
+    "lon": 23.8655008,
+    "romanizedName": "strupec"
+  },
+  {
+    "id": 130,
+    "name": "Струя",
+    "englishName": "Struya",
+    "lat": 42.9568904,
+    "lon": 27.2706829,
+    "romanizedName": "struja"
+  },
+  {
+    "id": 499,
+    "name": "Стряма",
+    "englishName": "Stryama",
+    "lat": 42.6957498,
+    "lon": 24.421523,
+    "romanizedName": "strjama"
+  },
+  {
+    "id": 473,
+    "name": "Стърмен",
+    "englishName": "Starmen",
+    "lat": 43.4872253,
+    "lon": 25.6805666,
+    "romanizedName": "starmen"
+  },
+  {
+    "id": 170,
+    "name": "Суворово",
+    "englishName": "Suvorovo",
+    "lat": 43.33405,
+    "lon": 27.5851501,
+    "romanizedName": "suvorovo"
+  },
+  {
+    "id": 306,
+    "name": "Съботковци",
+    "englishName": "Sabotkovtsi",
+    "lat": 42.9126037,
+    "lon": 25.3965774,
+    "romanizedName": "sabotkovci"
+  },
+  {
+    "id": 463,
+    "name": "Съединение",
+    "englishName": "Saedinenie",
+    "lat": 42.2599914,
+    "lon": 24.5341758,
+    "romanizedName": "saedinenie"
+  },
+  {
+    "id": 670,
+    "name": "Табачка",
+    "englishName": "Tabachka",
+    "lat": 43.621439,
+    "lon": 25.9376592,
+    "romanizedName": "tabachka"
+  },
+  {
+    "id": 476,
+    "name": "Таню Войвода",
+    "englishName": "Tanyu Voyvoda",
+    "lat": 42.6434064,
+    "lon": 26.3839646,
+    "romanizedName": "tanju-vojvoda"
+  },
+  {
+    "id": 158,
+    "name": "Твърдица",
+    "englishName": "Tvarditsa",
+    "lat": 42.6952231,
+    "lon": 25.8984288,
+    "romanizedName": "tvardica"
+  },
+  {
+    "id": 118,
+    "name": "Телиш",
+    "englishName": "Telish",
+    "lat": 43.3305096,
+    "lon": 24.2527142,
+    "romanizedName": "telish"
+  },
+  {
+    "id": 96,
+    "name": "Тодор Каблешков",
+    "englishName": "Todor Kableshkov",
+    "lat": 42.1263791,
+    "lon": 24.6387363,
+    "romanizedName": "todor-kableshkov"
+  },
+  {
+    "id": 530,
+    "name": "Тодорово",
+    "englishName": "Todorovo",
+    "lat": 43.7329383,
+    "lon": 26.93616,
+    "romanizedName": "todorovo"
+  },
+  {
+    "id": 125,
+    "name": "Томпсън",
+    "englishName": "Thompson",
+    "lat": 42.9257555,
+    "lon": 23.3792901,
+    "romanizedName": "tompsan"
+  },
+  {
+    "id": 341,
+    "name": "Тополите",
+    "englishName": "Topolite",
+    "lat": 43.2001483,
+    "lon": 27.8105282,
+    "romanizedName": "topolite"
+  },
+  {
+    "id": 267,
+    "name": "Тополица",
+    "englishName": "Topolitsa",
+    "lat": 42.7309511,
+    "lon": 27.1270995,
+    "romanizedName": "topolica"
+  },
+  {
+    "id": 152,
+    "name": "Тополи дол",
+    "englishName": "Topolov Dol",
+    "lat": 42.3251142,
+    "lon": 24.4521415,
+    "romanizedName": "topolov-dol"
+  },
+  {
+    "id": 288,
+    "name": "Трайково",
+    "englishName": "Traykovo",
+    "lat": 43.7604543,
+    "lon": 23.1915048,
+    "romanizedName": "trajkovo"
+  },
+  {
+    "id": 110,
+    "name": "Тракия",
+    "englishName": "Trakiya",
+    "lat": 42.1332426,
+    "lon": 24.8007307,
+    "romanizedName": "trakija"
+  },
+  {
+    "id": 352,
+    "name": "Тракия (Шумен)",
+    "englishName": "Trakiya-Shumen",
+    "lat": 43.2786568,
+    "lon": 26.9585682,
+    "romanizedName": "trakija-shumen"
+  },
+  {
+    "id": 541,
+    "name": "Трапезица",
+    "englishName": "Trapezitsa",
+    "lat": 43.0872426,
+    "lon": 25.6455078,
+    "romanizedName": "trapezica"
+  },
+  {
+    "id": 266,
+    "name": "Троян",
+    "englishName": "Troyan",
+    "lat": 42.8811035,
+    "lon": 24.7140528,
+    "romanizedName": "trojan"
+  },
+  {
+    "id": 207,
+    "name": "Труд",
+    "englishName": "Trud",
+    "lat": 42.2302308,
+    "lon": 24.7239101,
+    "romanizedName": "trud"
+  },
+  {
+    "id": 149,
+    "name": "Тръстиково",
+    "englishName": "Trastikovo",
+    "lat": 43.1437431,
+    "lon": 27.6030106,
+    "romanizedName": "trastikovo"
+  },
+  {
+    "id": 55,
+    "name": "Трявна",
+    "englishName": "Tryavna",
+    "lat": 42.8733701,
+    "lon": 25.4968666,
+    "romanizedName": "trjavna"
+  },
+  {
+    "id": 72,
+    "name": "Тулово",
+    "englishName": "Tulovo",
+    "lat": 42.572114,
+    "lon": 25.5544522,
+    "romanizedName": "tulovo"
+  },
+  {
+    "id": 236,
+    "name": "Тъжа",
+    "englishName": "Tazha",
+    "lat": 42.6392187,
+    "lon": 25.0903565,
+    "romanizedName": "tazha"
+  },
+  {
+    "id": 36,
+    "name": "Търговище",
+    "englishName": "Targovishte",
+    "lat": 43.2634332,
+    "lon": 26.578084,
+    "romanizedName": "targovishte"
+  },
+  {
+    "id": 93,
+    "name": "Трънак",
+    "englishName": "Tarnak",
+    "lat": 42.9365148,
+    "lon": 27.2177471,
+    "romanizedName": "tarnak"
+  },
+  {
+    "id": 351,
+    "name": "Търничани",
+    "englishName": "Tarnicheni",
+    "lat": 42.6336003,
+    "lon": 25.1203279,
+    "romanizedName": "tarnicheni"
+  },
+  {
+    "id": 547,
+    "name": "Узунджово",
+    "englishName": "Uzundzhovo",
+    "lat": 41.9679103,
+    "lon": 25.634242,
+    "romanizedName": "uzundzhovo"
+  },
+  {
+    "id": 366,
+    "name": "Умаревци",
+    "englishName": "Umarevtsi",
+    "lat": 43.1890694,
+    "lon": 24.7751465,
+    "romanizedName": "umarevci"
+  },
+  {
+    "id": 488,
+    "name": "Усойка",
+    "englishName": "Usoyka",
+    "lat": 42.195027,
+    "lon": 23.0576158,
+    "romanizedName": "usojka"
+  },
+  {
+    "id": 82,
+    "name": "Филипово",
+    "englishName": "Filipovo",
+    "lat": 42.1668009,
+    "lon": 24.7368017,
+    "romanizedName": "filipovo"
+  },
+  {
+    "id": 208,
+    "name": "Хаджиево",
+    "englishName": "Hadzhievo",
+    "lat": 42.1328761,
+    "lon": 24.4514358,
+    "romanizedName": "hadzhievo"
+  },
+  {
+    "id": 161,
+    "name": "Хан Аспарух",
+    "englishName": "Han Asparuh",
+    "lat": 42.4447436,
+    "lon": 25.8453238,
+    "romanizedName": "han-asparuh"
+  },
+  {
+    "id": 280,
+    "name": "Хан Крум",
+    "englishName": "Han Krum",
+    "lat": 43.2036428,
+    "lon": 26.890685,
+    "romanizedName": "han-krum"
+  },
+  {
+    "id": 196,
+    "name": "Харманли",
+    "englishName": "Harmanli",
+    "lat": 41.9225246,
+    "lon": 25.9240973,
+    "romanizedName": "harmanli"
+  },
+  {
+    "id": 698,
+    "name": "Харманли Център",
+    "englishName": "Harmanli Central",
+    "lat": 41.9317036,
+    "lon": 25.9091708,
+    "romanizedName": "harmanli-central"
+  },
+  {
+    "id": 318,
+    "name": "Хасково",
+    "englishName": "Haskovo",
+    "lat": 41.9330137,
+    "lon": 25.5800402,
+    "romanizedName": "haskovo"
+  },
+  {
+    "id": 576,
+    "name": "Хераково",
+    "englishName": "Herakovo",
+    "lat": 42.8142358,
+    "lon": 23.0976875,
+    "romanizedName": "herakovo"
+  },
+  {
+    "id": 114,
+    "name": "Хисар",
+    "englishName": "Hisar",
+    "lat": 42.505329,
+    "lon": 24.700508,
+    "romanizedName": "hisar"
+  },
+  {
+    "id": 378,
+    "name": "Хитрино",
+    "englishName": "Hitrino",
+    "lat": 43.4260695,
+    "lon": 26.9092311,
+    "romanizedName": "hitrino"
+  },
+  {
+    "id": 679,
+    "name": "Хлевене",
+    "englishName": "Hlevene",
+    "lat": 43.0813136,
+    "lon": 24.7284097,
+    "romanizedName": "hlevene"
+  },
+  {
+    "id": 420,
+    "name": "Храбърско",
+    "englishName": "Hrabarsko",
+    "lat": 42.8054084,
+    "lon": 23.0618723,
+    "romanizedName": "hrabarsko"
+  },
+  {
+    "id": 338,
+    "name": "Християново",
+    "englishName": "Hristiyanovo",
+    "lat": 42.3516737,
+    "lon": 25.5953374,
+    "romanizedName": "hristijanovo"
+  },
+  {
+    "id": 427,
+    "name": "Христо Даново",
+    "englishName": "Hristo Danovo",
+    "lat": 42.7128498,
+    "lon": 24.606755,
+    "romanizedName": "hristo-danovo"
+  },
+  {
+    "id": 668,
+    "name": "Хумата",
+    "englishName": "Humata",
+    "lat": 43.2867445,
+    "lon": 24.2091449,
+    "romanizedName": "humata"
+  },
+  {
+    "id": 532,
+    "name": "Хърсово",
+    "englishName": "Harsovo",
+    "lat": 43.5565983,
+    "lon": 26.7867239,
+    "romanizedName": "harsovo"
+  },
+  {
+    "id": 686,
+    "name": "Цар Асен",
+    "englishName": "Tsar Asen",
+    "lat": 42.3673488,
+    "lon": 24.3671016,
+    "romanizedName": "car-asen"
+  },
+  {
+    "id": 677,
+    "name": "Царацово",
+    "englishName": "Tsaratsovo",
+    "lat": 42.189467,
+    "lon": 24.6795793,
+    "romanizedName": "caracovo"
+  },
+  {
+    "id": 48,
+    "name": "Царева Ливада",
+    "englishName": "Tsareva Livada",
+    "lat": 42.9328818,
+    "lon": 25.4547234,
+    "romanizedName": "careva-livada"
+  },
+  {
+    "id": 565,
+    "name": "Царева Поляна",
+    "englishName": "Tsareva Polyana",
+    "lat": 41.781404,
+    "lon": 25.590746,
+    "romanizedName": "careva-poljana"
+  },
+  {
+    "id": 218,
+    "name": "Царевци",
+    "englishName": "Tsarevci",
+    "lat": 43.0963119,
+    "lon": 27.5628509,
+    "romanizedName": "carevci"
+  },
+  {
+    "id": 291,
+    "name": "Цветино",
+    "englishName": "Tsvetino",
+    "lat": 42.0114477,
+    "lon": 23.8680613,
+    "romanizedName": "cvetino"
+  },
+  {
+    "id": 626,
+    "name": "Цепина",
+    "englishName": "Tsepina",
+    "lat": 42.1069276,
+    "lon": 24.1060917,
+    "romanizedName": "cepina"
+  },
+  {
+    "id": 265,
+    "name": "Церковски",
+    "englishName": "Tserkovski",
+    "lat": 42.6207694,
+    "lon": 26.8412813,
+    "romanizedName": "cerkovski"
+  },
+  {
+    "id": 410,
+    "name": "Церовица",
+    "englishName": "Tserovitsa",
+    "lat": 42.3417572,
+    "lon": 22.5314244,
+    "romanizedName": "cerovica"
+  },
+  {
+    "id": 68,
+    "name": "Церово",
+    "englishName": "Tserovo",
+    "lat": 43.0037444,
+    "lon": 23.3491196,
+    "romanizedName": "cerovo"
+  },
+  {
+    "id": 628,
+    "name": "Чавдарци",
+    "englishName": "Chavdartsi",
+    "lat": 43.2799256,
+    "lon": 24.995663,
+    "romanizedName": "chavdarci"
+  },
+  {
+    "id": 430,
+    "name": "Чеканчево",
+    "englishName": "Chekanchevo",
+    "lat": 42.7079099,
+    "lon": 23.7739834,
+    "romanizedName": "chekanchevo"
+  },
+  {
+    "id": 434,
+    "name": "Челопеч",
+    "englishName": "Chelopech",
+    "lat": 42.7023045,
+    "lon": 24.0851645,
+    "romanizedName": "chelopech"
+  },
+  {
+    "id": 631,
+    "name": "Червена",
+    "englishName": "Chervena",
+    "lat": 43.3779852,
+    "lon": 25.1957143,
+    "romanizedName": "chervena"
+  },
+  {
+    "id": 415,
+    "name": "Червена Вода",
+    "englishName": "Chervena Voda",
+    "lat": 43.7921898,
+    "lon": 26.0865431,
+    "romanizedName": "chervena-voda"
+  },
+  {
+    "id": 29,
+    "name": "Червен Бряг",
+    "englishName": "Cherven Bryag",
+    "lat": 43.2822393,
+    "lon": 24.0789073,
+    "romanizedName": "cherven-brjag"
+  },
+  {
+    "id": 381,
+    "name": "Черганово",
+    "englishName": "Cherganovo",
+    "lat": 42.588489,
+    "lon": 25.4747329,
+    "romanizedName": "cherganovo"
+  },
+  {
+    "id": 663,
+    "name": "Черепиш",
+    "englishName": "Cherepish",
+    "lat": 43.097811,
+    "lon": 23.609158,
+    "romanizedName": "cherepish"
+  },
+  {
+    "id": 387,
+    "name": "Черквица",
+    "englishName": "Cherkvitsa",
+    "lat": 43.7050576,
+    "lon": 24.8388405,
+    "romanizedName": "cherkvica"
+  },
+  {
+    "id": 168,
+    "name": "Черна Гора",
+    "englishName": "Cherna Gora",
+    "lat": 42.2205089,
+    "lon": 25.2273176,
+    "romanizedName": "cherna-gora"
+  },
+  {
+    "id": 501,
+    "name": "Черна Места",
+    "englishName": "Cherna Mesta",
+    "lat": 42.0495462,
+    "lon": 23.7276149,
+    "romanizedName": "cherna-mesta"
+  },
+  {
+    "id": 272,
+    "name": "Чернево",
+    "englishName": "Chernevo",
+    "lat": 43.2863434,
+    "lon": 27.5958182,
+    "romanizedName": "chernevo"
+  },
+  {
+    "id": 594,
+    "name": "Черник",
+    "englishName": "Chernik",
+    "lat": 43.8094484,
+    "lon": 27.104233,
+    "romanizedName": "chernik"
+  },
+  {
+    "id": 441,
+    "name": "Черниче",
+    "englishName": "Cherniche",
+    "lat": 41.860101,
+    "lon": 23.1288537,
+    "romanizedName": "cherniche"
+  },
+  {
+    "id": 217,
+    "name": "Черничево",
+    "englishName": "Chernichevo",
+    "lat": 42.4434789,
+    "lon": 24.7050197,
+    "romanizedName": "chernichevo"
+  },
+  {
+    "id": 629,
+    "name": "Черногорово",
+    "englishName": "Chernogorovo",
+    "lat": 42.0405265,
+    "lon": 25.6612181,
+    "romanizedName": "chernogorovo"
+  },
+  {
+    "id": 347,
+    "name": "Черноград",
+    "englishName": "Chernograd",
+    "lat": 42.7228167,
+    "lon": 27.0838909,
+    "romanizedName": "chernograd"
+  },
+  {
+    "id": 263,
+    "name": "Чернозем",
+    "englishName": "Chernozem",
+    "lat": 42.3802534,
+    "lon": 24.776834,
+    "romanizedName": "chernozem"
+  },
+  {
+    "id": 526,
+    "name": "Честово-спирка",
+    "englishName": "Chestovo Stop",
+    "lat": 43.1410184,
+    "lon": 25.7187972,
+    "romanizedName": "chestovo-sp"
+  },
+  {
+    "id": 140,
+    "name": "Чешнигирово",
+    "englishName": "Cheshnegirovo",
+    "lat": 42.132507,
+    "lon": 24.9752548,
+    "romanizedName": "cheshnegirovo"
+  },
+  {
+    "id": 537,
+    "name": "Чинтулово",
+    "englishName": "Chintulovo",
+    "lat": 42.6484724,
+    "lon": 26.2435473,
+    "romanizedName": "chintulovo"
+  },
+  {
+    "id": 84,
+    "name": "Чирпан",
+    "englishName": "Chirpan",
+    "lat": 42.2034805,
+    "lon": 25.3396624,
+    "romanizedName": "chirpan"
+  },
+  {
+    "id": 493,
+    "name": "Чифлик",
+    "englishName": "Chiflik",
+    "lat": 43.5028181,
+    "lon": 24.5592469,
+    "romanizedName": "chiflik"
+  },
+  {
+    "id": 610,
+    "name": "Чуковец",
+    "englishName": "Chukovets",
+    "lat": 42.4311818,
+    "lon": 23.0452163,
+    "romanizedName": "chukovec"
+  },
+  {
+    "id": 592,
+    "name": "Чумерна",
+    "englishName": "Chumerna",
+    "lat": 42.6777458,
+    "lon": 26.0726708,
+    "romanizedName": "chumerna"
+  },
+  {
+    "id": 215,
+    "name": "Шивачево",
+    "englishName": "Shivachevo",
+    "lat": 42.6800627,
+    "lon": 26.026891,
+    "romanizedName": "shivachevo"
+  },
+  {
+    "id": 313,
+    "name": "Широко Поле",
+    "englishName": "Shiroko Pole",
+    "lat": 41.6373892,
+    "lon": 25.4677773,
+    "romanizedName": "shiroko-pole"
+  },
+  {
+    "id": 160,
+    "name": "Шишковци",
+    "englishName": "Shishkovtsi",
+    "lat": 42.3512791,
+    "lon": 22.7178378,
+    "romanizedName": "shishkovci"
+  },
+  {
+    "id": 15,
+    "name": "Шумен",
+    "englishName": "Shumen",
+    "lat": 43.2716275,
+    "lon": 26.9437619,
+    "romanizedName": "shumen"
+  },
+  {
+    "id": 221,
+    "name": "Юнак",
+    "englishName": "Yunak",
+    "lat": 43.0891713,
+    "lon": 27.61272,
+    "romanizedName": "junak"
+  },
+  {
+    "id": 360,
+    "name": "Юруково",
+    "englishName": "Yurukovo",
+    "lat": 41.9688992,
+    "lon": 23.606211,
+    "romanizedName": "jurukovo"
+  },
+  {
+    "id": 99,
+    "name": "Ябълково",
+    "englishName": "Yabalkovo",
+    "lat": 42.0768945,
+    "lon": 25.44563,
+    "romanizedName": "jabalkovo"
+  },
+  {
+    "id": 654,
+    "name": "Яворовец",
+    "englishName": "Yavorovets",
+    "lat": 42.659977,
+    "lon": 25.6383884,
+    "romanizedName": "javorovec"
+  },
+  {
+    "id": 645,
+    "name": "Ягода",
+    "englishName": "Yagoda",
+    "lat": 42.5408502,
+    "lon": 25.5388613,
+    "romanizedName": "jagoda"
+  },
+  {
+    "id": 375,
+    "name": "Ягодово",
+    "englishName": "Yagodovo",
+    "lat": 42.1000644,
+    "lon": 24.8466674,
+    "romanizedName": "jagodovo"
+  },
+  {
+    "id": 242,
+    "name": "Якоруда",
+    "englishName": "Yakoruda",
+    "lat": 42.0231124,
+    "lon": 23.6720961,
+    "romanizedName": "jakoruda"
+  },
+  {
+    "id": 700,
+    "name": "Якорудска минерална баня",
+    "englishName": "Yakorudska Mineralna Banya",
+    "lat": 42.0128469,
+    "lon": 23.6436216,
+    "romanizedName": "yakorudska-minerala-banya"
+  },
+  {
+    "id": 25,
+    "name": "Ямбол",
+    "englishName": "Yambol",
+    "lat": 42.4956847,
+    "lon": 26.490973,
+    "romanizedName": "jambol"
+  },
+  {
+    "id": 586,
+    "name": "Яна",
+    "englishName": "Yana",
+    "lat": 42.7262344,
+    "lon": 23.5513307,
+    "romanizedName": "jana"
+  },
+  {
+    "id": 325,
+    "name": "Янтра",
+    "englishName": "Yantra",
+    "lat": 43.2070215,
+    "lon": 25.6656547,
+    "romanizedName": "jantra"
+  },
+  {
+    "id": 363,
+    "name": "Ясен",
+    "englishName": "Yasen",
+    "lat": 43.4349632,
+    "lon": 24.5311721,
+    "romanizedName": "jasen"
+  },
+  {
+    "id": 633,
+    "name": "Ясеновец",
+    "englishName": "Yasenovets",
+    "lat": 43.5490808,
+    "lon": 26.6331866,
+    "romanizedName": "jasenovec"
+  },
+  {
+    "id": 564,
+    "name": "Ястребово",
+    "englishName": "Yastrebovo",
+    "lat": 43.7478405,
+    "lon": 26.125379,
+    "romanizedName": "jastrebovo"
+  },
+  {
+    "id": 598,
+    "name": "Яхиново",
+    "englishName": "Yahinovo",
+    "lat": 42.2875721,
+    "lon": 23.1288712,
+    "romanizedName": "jahinovo"
+  },
+  {
+    "id": 1001,
+    "name": "ГОЛЕНЦИ",
+    "englishName": "Golenti (Romania)",
+    "lat": 43.9806103,
+    "lon": 23.0515667,
+    "romanizedName": "golenti"
+  },
+  {
+    "id": 1002,
+    "name": "ГЮРГЕВО СЕВЕР",
+    "englishName": "Giurgiu Nord (Romania)",
+    "lat": 43.9244305,
+    "lon": 25.9648629,
+    "romanizedName": "giurgiu-nord"
+  },
+  {
+    "id": 1003,
+    "name": "Капъкуле",
+    "englishName": "Kapikule (Turkey)",
+    "lat": 41.7190981,
+    "lon": 26.3616696,
+    "romanizedName": "kapikule"
+  }
+]

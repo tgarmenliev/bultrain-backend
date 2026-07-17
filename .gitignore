@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 
-# Environment
+# Environment — see .env.example for the required variable names
 .env
 
 # macOS system files
@@ -10,18 +10,29 @@ node_modules/
 .LSOverride
 ._*
 
-# Private texts
-gdv_texts/
-extract_train_numbers/
-mocks/
-bultrain.sqlite
-stations.json
+# Database — runtime state, never version-controlled.
+# The glob matters: -wal and -shm are separate filenames and slipped past the
+# old bare `bultrain.sqlite` pattern. Backups belong off the box, not in git.
+bultrain.sqlite*
+*.sqlite
+dump.sql
+
+# Harvested BDZ data and its archives (regenerated, large, not source)
 raw_bdz_data/
+raw_bdz_data*.zip
 failed_trains.json
 train_numbers.json
 unmapped_stations_report.json
 unmapped_stations_report_old.json
+
+# Private texts / scratch tooling
+gdv_texts/
+extract_train_numbers/
+mocks/
 guide/
 stations-converter/
 
 map.html
+
+# NOTE: stations.json is deliberately NOT ignored. liveController and
+# routeWorker require it at startup, so a clone without it cannot boot.
