@@ -1,0 +1,16 @@
+[Unit]
+Description=BulTrain SQLite backup (consistent, verified, rotated)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Path goes through the ~/bultrain-app symlink, so it always runs the current
+# release's script. Set BULTRAIN_BACKUP_REMOTE here to enable the off-box copy.
+ExecStart=/root/bultrain-app/scripts/backup.sh
+Environment=BULTRAIN_DB=/root/bultrain-app/bultrain.sqlite
+Environment=BULTRAIN_BACKUP_DIR=/root/backups
+Environment=BULTRAIN_BACKUP_RETENTION=56
+# Environment=BULTRAIN_BACKUP_REMOTE=u000000@u000000.your-storagebox.de:backups/
+Nice=10
+IOSchedulingClass=idle

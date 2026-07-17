@@ -1,0 +1,13 @@
+[Unit]
+Description=Run the BulTrain backup every 6 hours
+
+[Timer]
+# 00:00, 06:00, 12:00, 18:00 server time.
+OnCalendar=00/6:00:00
+# If the box was off at the scheduled time, run as soon as it is back.
+Persistent=true
+# Avoid every timer on the box firing at the same instant.
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
