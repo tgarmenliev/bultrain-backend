@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface Train {
     train_number: string;
@@ -306,7 +307,7 @@ export default function TrainManager() {
             </div>
 
             {/* Train Schedule Modal */}
-            {modalTrain && (
+            {modalTrain && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in-fade">
                     <div className="glass-card w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden ring-1 ring-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
 
@@ -550,11 +551,12 @@ export default function TrainManager() {
 
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Create Train Modal */}
-            {isCreateModalOpen && (
+            {isCreateModalOpen && createPortal(
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in-fade">
                     <div className="glass-card w-full max-w-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-3xl overflow-hidden ring-1 ring-white/10">
                         <div className="px-8 py-6 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/50">
@@ -625,7 +627,8 @@ export default function TrainManager() {
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

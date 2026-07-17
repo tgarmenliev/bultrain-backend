@@ -442,8 +442,8 @@ exports.importTrainSchedule = (req, res) => {
 
             stopsToInsert.push({
                 stationId,
-                arrive: stop.arrive || stop.arrival_time === '↦' ? null : (stop.arrive || stop.arrival_time),
-                depart: stop.depart || stop.departure_time === '↤' ? null : (stop.depart || stop.departure_time),
+                arrive: stop.arrive || stop.arrival_time || null,
+                depart: stop.depart || stop.departure_time || null,
             });
         }
 
@@ -706,25 +706,25 @@ exports.uploadAndImportSchedules = (req, res) => {
     const TRAIN_NUMBERS_PATH = path.join(__dirname, '..', 'stations_trains', 'train_numbers.json');
 
     try {
-        if (!req.file) {
+        const file = req.files && req.files.file ? req.files.file[0] : (req.file ? req.file : null);
+        if (!file) {
             return res.status(400).json({ error: 'No ZIP file uploaded.' });
         }
 
-        const zip = new AdmZip(req.file.buffer);
+        const zip = new AdmZip(file.buffer);
         const zipEntries = zip.getEntries();
 
         // ── Step 1: Clear the RAW_DIR ───────────────────────────────────────────
         if (fs.existsSync(RAW_DIR)) {
             const files = fs.readdirSync(RAW_DIR);
-            for (const file of files) {
-                fs.unlinkSync(path.join(RAW_DIR, file));
+            for (const f of files) {
+                fs.unlinkSync(path.join(RAW_DIR, f));
             }
         } else {
             fs.mkdirSync(RAW_DIR, { recursive: true });
         }
 
         // ── Step 2: Extract JSON files ──────────────────────────────────────────
-        // Support flat ZIP or nested folder
         let extractionCount = 0;
         zipEntries.forEach(entry => {
             if (entry.entryName.endsWith('.json') && !entry.isDirectory) {
@@ -738,18 +738,103 @@ exports.uploadAndImportSchedules = (req, res) => {
             return res.status(400).json({ error: 'No JSON files found in ZIP.' });
         }
 
-        // ── Step 3: Run the Smart Sync ──────────────────────────────────────────
+        // ── Parse failed trains file ────────────────────────────────────────────
+        let failedTrains = [];
+        const failedTrainsFile = req.files && req.files.failedTrains ? req.files.failedTrains[0] : null;
+        if (failedTrainsFile) {
+            const content = failedTrainsFile.buffer.toString('utf-8');
+            try {
+                failedTrains = JSON.parse(content);
+                if (!Array.isArray(failedTrains)) {
+                    failedTrains = [];
+                }
+            } catch (e) {
+                console.warn('Could not parse failedTrains JSON');
+            }
+        }
+
+        // ── Step 3: Run the DB Sync Transaction ─────────────────────────────────
         const allStations = db.prepare('SELECT id, name FROM stations').all();
         const stationMap = new Map();
         for (const s of allStations) {
             stationMap.set(normalizeStationName(s.name), s.id);
         }
 
-        const summary = internalBulkImportLogic(db, stationMap, RAW_DIR, TRAIN_NUMBERS_PATH);
+        let schedulesUpdated = 0;
+        let schedulesDeletedCount = 0;
+        let trainsDeletedCount = 0;
+        let deletedTrainNumbersList = [];
+
+        // Prepare statements outside any loops for performance inside transaction
+        const stmtGetValiditiesForTrain = db.prepare('SELECT validity_id, runs_monday, runs_saturday FROM train_validity WHERE train_number = ?');
+        const stmtDeleteSchedulesById = db.prepare('DELETE FROM schedules WHERE validity_id = ?');
+        const stmtDeleteValidityById = db.prepare('DELETE FROM train_validity WHERE validity_id = ?');
+        const stmtGetTrainsWithNoSchedules = db.prepare('SELECT train_number FROM trains WHERE train_number NOT IN (SELECT DISTINCT train_number FROM train_validity)');
+        const stmtDeleteTrainsWithNoSchedules = db.prepare('DELETE FROM trains WHERE train_number NOT IN (SELECT DISTINCT train_number FROM train_validity)');
+
+        const dbProcess = db.transaction(() => {
+            // Step A: Import schedules
+            const summary = internalBulkImportLogic(db, stationMap, RAW_DIR, TRAIN_NUMBERS_PATH);
+            schedulesUpdated = summary.added + summary.updated;
+
+            // Step B: Delete existing schedules for failed trains based on targeted day type
+            for (const item of failedTrains) {
+                if (!item || !item.trainNumber || !item.date) continue;
+                
+                const tNo = String(item.trainNumber).trim();
+                const dateParts = String(item.date).trim().split('.');
+                
+                let dayType = 'weekday';
+                if (dateParts.length === 3) {
+                    const year = parseInt(dateParts[2], 10);
+                    const month = parseInt(dateParts[1], 10) - 1;
+                    const day = parseInt(dateParts[0], 10);
+                    const d = new Date(year, month, day);
+                    const dayOfWeek = d.getDay(); // 0 is Sunday, 6 is Saturday
+                    if (dayOfWeek === 0 || dayOfWeek === 6) {
+                        dayType = 'weekend';
+                    }
+                }
+
+                const validities = stmtGetValiditiesForTrain.all(tNo);
+                for (const v of validities) {
+                    let shouldDelete = false;
+                    // For weekday fail, delete weekday matching schedule
+                    if (dayType === 'weekday' && v.runs_monday === 1) {
+                        shouldDelete = true;
+                    }
+                    // For weekend fail, delete weekend matching schedule
+                    if (dayType === 'weekend' && v.runs_saturday === 1) {
+                        shouldDelete = true;
+                    }
+
+                    if (shouldDelete) {
+                        const res1 = stmtDeleteSchedulesById.run(v.validity_id);
+                        const res2 = stmtDeleteValidityById.run(v.validity_id);
+                        if (res1.changes > 0 || res2.changes > 0) {
+                            schedulesDeletedCount++;
+                        }
+                    }
+                }
+            }
+
+            // Step C: Cleanup zero-schedule trains
+            const trainsToDeleteRows = stmtGetTrainsWithNoSchedules.all();
+            deletedTrainNumbersList = trainsToDeleteRows.map(t => t.train_number);
+            
+            if (deletedTrainNumbersList.length > 0) {
+                const cleanupRes = stmtDeleteTrainsWithNoSchedules.run();
+                trainsDeletedCount = cleanupRes.changes;
+            }
+        });
+
+        dbProcess();
 
         res.json({
-            message: `Successfully extracted ${extractionCount} files and performed Smart Sync.`,
-            ...summary
+            schedulesUpdated,
+            schedulesDeleted: schedulesDeletedCount,
+            trainsDeleted: trainsDeletedCount,
+            deletedTrainNumbers: deletedTrainNumbersList
         });
 
     } catch (error) {

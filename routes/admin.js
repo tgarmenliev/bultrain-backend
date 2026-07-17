@@ -23,7 +23,7 @@ router.delete('/trains/:trainNo', verifyAdmin, adminController.deleteTrain);
 router.get('/trains/:trainNo/schedule', verifyAdmin, adminController.getTrainSchedule);
 router.post('/trains/:trainNo/import', verifyAdmin, adminController.importTrainSchedule);
 router.post('/import-all', verifyAdmin, adminController.bulkImportSchedules);
-router.post('/upload-all', verifyAdmin, upload.single('file'), adminController.uploadAndImportSchedules);
+router.post('/upload-all', verifyAdmin, upload.fields([{ name: 'file', maxCount: 1 }, { name: 'failedTrains', maxCount: 1 }]), adminController.uploadAndImportSchedules);
 router.delete('/validity/:validityId', verifyAdmin, adminController.deleteValidity);
 
 // ── Schedule Exceptions (holiday / date overrides) ───────────────────────────

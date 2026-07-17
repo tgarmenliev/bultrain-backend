@@ -1,45 +1,35 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 
 interface SyncResult {
-    added: number;
-    updated: number;
-    skipped: number;
-    errors: number;
-    errorDetails: string[];
-    total: number;
-    message?: string;
+    schedulesUpdated: number;
+    schedulesDeleted: number;
+    trainsDeleted: number;
+    deletedTrainNumbers: string[];
 }
 
 export default function DataSync() {
-    const [isDragging, setIsDragging] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<SyncResult | null>(null);
-    const [showErrors, setShowErrors] = useState(false);
+    
+    const [zipFile, setZipFile] = useState<File | null>(null);
+    const [failedTrainsFile, setFailedTrainsFile] = useState<File | null>(null);
 
-    const onDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(true);
-    }, []);
-
-    const onDragLeave = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        setIsDragging(false);
-    }, []);
-
-    const processFile = async (file: File) => {
-        if (file.type !== 'application/zip' && !file.name.endsWith('.zip')) {
+    const processUpload = async () => {
+        if (!zipFile) {
             setError('Моля, прикачете валиден .zip архив.');
             return;
         }
 
         setError(null);
         setResult(null);
-        setShowErrors(false);
         setUploading(true);
 
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', zipFile);
+        if (failedTrainsFile) {
+            formData.append('failedTrains', failedTrainsFile);
+        }
 
         try {
             const response = await fetch('/api/admin/upload-all', {
@@ -57,19 +47,9 @@ export default function DataSync() {
             setError(err.message);
         } finally {
             setUploading(false);
-            setIsDragging(false);
+            setZipFile(null);
+            setFailedTrainsFile(null);
         }
-    };
-
-    const onDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        const file = e.dataTransfer.files[0];
-        if (file) processFile(file);
-    }, []);
-
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) processFile(file);
     };
 
     return (
@@ -77,11 +57,11 @@ export default function DataSync() {
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-2xl font-bold text-white">Синхронизация на данни</h2>
-                    <p className="text-slate-400 text-sm mt-1">Прикачете ZIP архив с BDZ данни за пълно обновяване на системата.</p>
+                    <p className="text-slate-400 text-sm mt-1">Прикачете ZIP архив с BDZ данни и опционално файл с невалидни влакове.</p>
                 </div>
                 {result && (
                     <button 
-                        onClick={() => { setResult(null); setShowErrors(false); }}
+                        onClick={() => setResult(null)}
                         className="text-xs font-bold text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
                     >
                         Изчисти Резултат
@@ -90,98 +70,73 @@ export default function DataSync() {
             </div>
 
             {!result ? (
-                <div
-                    onDragOver={onDragOver}
-                    onDragLeave={onDragLeave}
-                    onDrop={onDrop}
-                    className={`
-                        relative group overflow-hidden
-                        min-h-[220px] rounded-3xl border-2 border-dashed transition-all duration-500 flex flex-col items-center justify-center p-8
-                        ${isDragging 
-                            ? 'border-indigo-500 bg-indigo-500/10 shadow-[0_0_40px_rgba(99,102,241,0.2)] scale-[1.01]' 
-                            : 'border-white/10 glass-card bg-white/5 hover:border-white/20 hover:bg-white/[0.07]'}
-                    `}
-                >
-                    <input 
-                        type="file" 
-                        accept=".zip"
-                        onChange={handleFileSelect}
-                        className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                        id="zip-upload"
-                    />
-                    
-                    {uploading ? (
-                        <div className="flex flex-col items-center animate-in-fade">
-                            <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-                            <p className="text-indigo-400 font-bold tracking-wide">Обработка и синхронизация...</p>
-                            <p className="text-slate-500 text-xs mt-2">Това може да отнеме няколко секунди.</p>
+                <div className="glass-card rounded-3xl border border-white/10 p-8 space-y-6">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-white mb-2">1. ZIP Архив с разписания (задължително)</label>
+                            <input 
+                                type="file" 
+                                accept=".zip"
+                                onChange={(e) => setZipFile(e.target.files?.[0] || null)}
+                                className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-indigo-500/20 file:text-indigo-400 hover:file:bg-indigo-500/30 transition-colors"
+                            />
                         </div>
-                    ) : (
-                        <>
-                            <div className={`
-                                w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-all duration-500
-                                ${isDragging ? 'bg-indigo-500 text-white scale-110 rotate-3' : 'bg-white/5 text-slate-400 group-hover:text-white group-hover:scale-105'}
-                            `}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            </div>
-                            <h3 className="text-lg font-bold text-white mb-1">
-                                {isDragging ? 'Пуснете архива тук' : 'Плъзнете ZIP архив тук'}
-                            </h3>
-                            <p className="text-slate-400 text-sm text-center max-w-sm">
-                                или <span className="text-indigo-400 font-bold underline decoration-indigo-500/30 underline-offset-4">изберете файл</span> от вашия компютър
-                            </p>
-                        </>
-                    )}
-                </div>
-            ) : (
-                <div className="space-y-4 animate-in-slide-up">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="p-4 glass-card rounded-2xl border-emerald-500/20 bg-emerald-500/5">
-                            <p className="text-[10px] font-black tracking-widest text-emerald-500/60 uppercase mb-1">Добавени</p>
-                            <p className="text-3xl font-black text-emerald-400">{result.added}</p>
+
+                        <div>
+                            <label className="block text-sm font-bold text-white mb-2">2. Файл с невалидни влакове (опционално)</label>
+                            <input 
+                                type="file" 
+                                accept=".txt,.json"
+                                onChange={(e) => setFailedTrainsFile(e.target.files?.[0] || null)}
+                                className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-rose-500/20 file:text-rose-400 hover:file:bg-rose-500/30 transition-colors"
+                            />
+                            <p className="text-xs text-slate-500 mt-2">Текстов файл или JSON, съдържащ номерата на влакове за изтриване.</p>
                         </div>
-                        <div className="p-4 glass-card rounded-2xl border-indigo-500/20 bg-indigo-500/5">
-                            <p className="text-[10px] font-black tracking-widest text-indigo-500/60 uppercase mb-1">Обновени</p>
-                            <p className="text-3xl font-black text-indigo-400">{result.updated}</p>
-                        </div>
-                        <div className="p-4 glass-card rounded-2xl border-slate-500/20 bg-white/5">
-                            <p className="text-[10px] font-black tracking-widest text-slate-500 uppercase mb-1">Пропуснати</p>
-                            <p className="text-3xl font-black text-slate-300">{result.skipped}</p>
-                        </div>
-                        <button 
-                            onClick={() => result.errors > 0 && setShowErrors(!showErrors)}
-                            className={`p-4 glass-card rounded-2xl border-rose-500/20 transition-all duration-300 ${result.errors > 0 ? 'bg-rose-500/10 cursor-pointer hover:border-rose-500/40 hover:shadow-[0_0_20px_rgba(244,63,94,0.1)]' : 'bg-rose-500/5 opacity-50'}`}
-                        >
-                            <p className="text-[10px] font-black tracking-widest text-rose-500/60 uppercase mb-1">Грешки</p>
-                            <div className="flex justify-between items-center">
-                                <p className="text-3xl font-black text-rose-400">{result.errors}</p>
-                                {result.errors > 0 && (
-                                    <svg className={`text-rose-500/40 transition-transform duration-500 ${showErrors ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                )}
-                            </div>
-                        </button>
                     </div>
 
-                    {showErrors && result.errorDetails && result.errorDetails.length > 0 && (
-                        <div className="glass-card rounded-2xl border-rose-500/30 overflow-hidden animate-in-slide-down">
-                            <div className="bg-rose-500/10 px-6 py-3 border-b border-rose-500/20">
-                                <h4 className="text-xs font-black text-rose-400 uppercase tracking-widest">Детайли за грешките</h4>
-                            </div>
-                            <div className="max-h-60 overflow-y-auto custom-scrollbar p-4 space-y-2">
-                                {result.errorDetails.map((msg, idx) => (
-                                    <div key={idx} className="flex items-start text-xs text-rose-300/80 bg-rose-500/5 p-3 rounded-xl border border-rose-500/10">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1 mr-3 shrink-0"></div>
-                                        {msg}
-                                    </div>
+                    <button 
+                        onClick={processUpload}
+                        disabled={!zipFile || uploading}
+                        className={`w-full py-3 rounded-xl font-bold text-white transition-all duration-300 flex items-center justify-center
+                            ${(!zipFile || uploading) ? 'bg-white/5 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 hover:shadow-[0_0_20px_rgba(79,70,229,0.4)]'}`}
+                    >
+                        {uploading ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Обработка и синхронизация...
+                            </>
+                        ) : 'Стартирай импортиране'}
+                    </button>
+                </div>
+            ) : (
+                <div className="p-6 glass-card rounded-3xl border border-emerald-500/30 bg-emerald-500/5 animate-in-slide-up space-y-4">
+                    <h3 className="text-xl font-bold text-emerald-400">Успешно импортиране! Извършени действия:</h3>
+                    
+                    <ul className="space-y-3 mt-4 text-slate-300 text-sm">
+                        <li className="flex items-center">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 mr-3"></span>
+                            Обновени/Добавени разписания: <strong className="ml-2 text-white">{result.schedulesUpdated}</strong>
+                        </li>
+                        <li className="flex items-center">
+                            <span className="w-2 h-2 rounded-full bg-rose-500 mr-3"></span>
+                            Изтрити стари разписания (от файла с грешки): <strong className="ml-2 text-white">{result.schedulesDeleted}</strong>
+                        </li>
+                        <li className="flex items-center">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 mr-3"></span>
+                            Изтрити неактивни влакове (без разписания): <strong className="ml-2 text-white">{result.trainsDeleted}</strong>
+                        </li>
+                    </ul>
+
+                    {result.deletedTrainNumbers && result.deletedTrainNumbers.length > 0 && (
+                        <div className="mt-6 pt-4 border-t border-white/10">
+                            <p className="text-xs text-slate-400 mb-2">Изтрити номера на влакове:</p>
+                            <div className="flex flex-wrap gap-2">
+                                {result.deletedTrainNumbers.map((num) => (
+                                    <span key={num} className="px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-slate-300">
+                                        {num}
+                                    </span>
                                 ))}
                             </div>
-                        </div>
-                    )}
-
-                    {result.message && (
-                        <div className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs text-slate-400 flex items-center italic">
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-2 shrink-0"></div>
-                            {result.message}
                         </div>
                     )}
                 </div>
@@ -206,11 +161,11 @@ export default function DataSync() {
                     </li>
                     <li className="text-[13px] text-slate-400 flex items-start leading-relaxed">
                         <span className="text-indigo-400 font-bold mr-2">•</span>
-                        Ако бъде открита промяна в разписанието на даден влак, старата информация се изтрива и се заменя с новата.
+                        Опционалният файл за грешки изтрива стари и невалидни разписания.
                     </li>
                     <li className="text-[13px] text-slate-400 flex items-start leading-relaxed">
                         <span className="text-indigo-400 font-bold mr-2">•</span>
-                        Ако влакът е нов, той се добавя автоматично. Ако няма промени, влакът се прескача за по-бърза работа.
+                        Накрая всички влакове, които са останали без нито едно разписание, се премахват напълно.
                     </li>
                 </ul>
             </div>
