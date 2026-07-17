@@ -16,8 +16,9 @@ DB_PATH="${BULTRAIN_DB:-/root/bultrain-app/bultrain.sqlite}"
 BACKUP_DIR="${BULTRAIN_BACKUP_DIR:-/root/backups}"
 # 30 backups = 30 days of history at the daily interval.
 RETENTION="${BULTRAIN_BACKUP_RETENTION:-30}"
-# Optional off-box target, e.g. a Hetzner Storage Box:
-#   BULTRAIN_BACKUP_REMOTE="u123456@u123456.your-storagebox.de:backups/"
+# Optional off-box target: an rclone remote, e.g. a Backblaze B2 bucket:
+#   BULTRAIN_BACKUP_REMOTE="b2:my-bucket/bultrain"
+# The rclone remote (its keys) is configured on the box, never in git.
 REMOTE="${BULTRAIN_BACKUP_REMOTE:-}"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
@@ -46,9 +47,14 @@ removed="$(ls -1t "$BACKUP_DIR"/bultrain-*.sqlite.gz 2>/dev/null | tail -n +"$((
 [ "$removed" = "0" ] || log "rotated out $removed old backup(s)"
 
 # 5. Off-box copy — the step that makes it survive a dead disk.
+# `rclone copy` only uploads new files; it never deletes on the remote, so the
+# off-box side keeps full history even though the local side rotates at 30. A
+# footgun avoided: `sync` would mirror deletions, so an empty local dir would
+# wipe the remote. copy cannot.
 if [ -n "$REMOTE" ]; then
-    rsync -a --delete "$BACKUP_DIR"/ "$REMOTE" && log "synced to $REMOTE" \
-        || fail "off-box rsync to $REMOTE failed"
+    command -v rclone >/dev/null 2>&1 || fail "BULTRAIN_BACKUP_REMOTE set but rclone is not installed"
+    rclone copy "$BACKUP_DIR" "$REMOTE" --include 'bultrain-*.sqlite.gz' \
+        && log "copied to $REMOTE" || fail "off-box rclone copy to $REMOTE failed"
 else
     log "WARNING: BULTRAIN_BACKUP_REMOTE unset — backups are on the same disk as the DB"
 fi

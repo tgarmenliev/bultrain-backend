@@ -11,6 +11,7 @@ ExecStart=/root/bultrain-app/scripts/backup.sh
 Environment=BULTRAIN_DB=/root/bultrain-app/bultrain.sqlite
 Environment=BULTRAIN_BACKUP_DIR=/root/backups
 Environment=BULTRAIN_BACKUP_RETENTION=30
-# Environment=BULTRAIN_BACKUP_REMOTE=u000000@u000000.your-storagebox.de:backups/
+# Uncomment and set to your rclone remote to enable off-box copies (Backblaze B2):
+# Environment=BULTRAIN_BACKUP_REMOTE=b2:your-bucket-name/bultrain
 Nice=10
 IOSchedulingClass=idle
