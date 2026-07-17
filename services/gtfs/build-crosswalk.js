@@ -16,9 +16,27 @@
  */
 
 const Database = require('better-sqlite3');
+const fs       = require('fs');
 const path     = require('path');
 
 const DEFAULT_DB = path.join(__dirname, '..', '..', 'bultrain.sqlite');
+const ALIASES_PATH = path.join(__dirname, 'station-aliases.json');
+
+// Human-verified GTFS stop_id -> our station.id overrides (the translation
+// layer). Applied before automatic matching. station_id null = confirmed new.
+function loadAliases() {
+    try {
+        const raw = JSON.parse(fs.readFileSync(ALIASES_PATH, 'utf8'));
+        const m = new Map();
+        for (const [stopId, v] of Object.entries(raw)) {
+            if (stopId.startsWith('_')) continue; // skip _comment
+            m.set(stopId, v);
+        }
+        return m;
+    } catch (_) {
+        return new Map();
+    }
+}
 
 const HIGH_KM      = 2.0;   // name match + coords within this = high confidence
 const COORD_HIGH_KM = 0.2;  // coords this close = same point, name spelling aside → high
@@ -46,12 +64,15 @@ function build(dbPath = DEFAULT_DB) {
     db.pragma('foreign_keys = ON');
 
     const stations = db.prepare('SELECT id, name, lat, lon FROM stations').all();
+    const byId = new Map(stations.map(s => [s.id, s]));
     const byName = new Map();
     for (const s of stations) {
         const k = norm(s.name);
         if (!byName.has(k)) byName.set(k, []);
         byName.get(k).push(s);
     }
+
+    const aliases = loadAliases();
 
     const stops = db.prepare('SELECT stop_id, stop_name, stop_lat, stop_lon FROM gtfs_stops').all();
 
@@ -68,6 +89,23 @@ function build(dbPath = DEFAULT_DB) {
 
     const rows = [];
     for (const st of stops) {
+        // Human-verified override wins over any automatic guess.
+        const alias = aliases.get(String(st.stop_id));
+        if (alias) {
+            const target = alias.station_id != null ? byId.get(alias.station_id) : null;
+            rows.push({
+                gtfs_stop_id: st.stop_id,
+                station_id: alias.station_id ?? null,
+                gtfs_stop_name: st.stop_name,
+                station_name: target ? target.name : null,
+                method: 'manual',
+                confidence: alias.station_id != null ? 'high' : 'none',
+                coord_dist_km: null,
+                reviewed: 1,
+            });
+            continue;
+        }
+
         const nameMatches = byName.get(norm(st.stop_name)) || [];
         const near = nearest(st.stop_lat, st.stop_lon);
 
@@ -105,6 +143,7 @@ function build(dbPath = DEFAULT_DB) {
             station_name: station ? station.name : null,
             method, confidence,
             coord_dist_km: dist != null ? Math.round(dist * 1000) / 1000 : null,
+            reviewed: 0,
         });
     }
 
@@ -112,8 +151,8 @@ function build(dbPath = DEFAULT_DB) {
         db.prepare('DELETE FROM station_map').run();
         const ins = db.prepare(`
             INSERT INTO station_map
-              (gtfs_stop_id, station_id, gtfs_stop_name, station_name, method, confidence, coord_dist_km)
-            VALUES (@gtfs_stop_id, @station_id, @gtfs_stop_name, @station_name, @method, @confidence, @coord_dist_km)
+              (gtfs_stop_id, station_id, gtfs_stop_name, station_name, method, confidence, coord_dist_km, reviewed)
+            VALUES (@gtfs_stop_id, @station_id, @gtfs_stop_name, @station_name, @method, @confidence, @coord_dist_km, @reviewed)
         `);
         for (const r of rows) ins.run(r);
     });

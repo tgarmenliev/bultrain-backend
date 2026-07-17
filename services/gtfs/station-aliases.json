@@ -1,0 +1,20 @@
+{
+  "_comment": "Human-verified crosswalk overrides: GTFS stop_id -> our station.id. This is the translation layer that lets GTFS names differ from our (frozen) station names. build-crosswalk.js applies these before automatic matching. station_id null = confirmed genuinely new (no counterpart yet; decide at materialisation). Keyed by GTFS stop_id, which is stable across feed republishes.",
+
+  "110239": { "station_id": 180, "gtfs_name": "Надежда",                       "our_name": "Надежда - Сп." },
+  "160010": { "station_id": 35,  "gtfs_name": "Подуяне",                       "our_name": "Подуяне Пътническа" },
+  "180075": { "station_id": 115, "gtfs_name": "Вагоно-ремонтно Депо Пловдив",  "our_name": "Вр.депо Пловдив - спирка" },
+  "164111": { "station_id": 467, "gtfs_name": "Велинград - Юг",                "our_name": "Велинград Юг" },
+  "164125": { "station_id": 467, "gtfs_name": "Велинград - Юг",                "our_name": "Велинград Юг" },
+  "230276": { "station_id": 348, "gtfs_name": "Мездра - Юг",                    "our_name": "Мездра Юг" },
+  "230169": { "station_id": 436, "gtfs_name": "Жп Школа",                       "our_name": "Жп.школа - Лакатник" },
+  "410019": { "station_id": 637, "gtfs_name": "Димитровград - Север",           "our_name": "Димитровград Север" },
+  "510099": { "station_id": 31,  "gtfs_name": "Перник - Разпределителна",       "our_name": "Перник Разпределит." },
+  "560375": { "station_id": 588, "gtfs_name": "Бело Поле",                      "our_name": "Бяло поле" },
+  "812180": { "station_id": 521, "gtfs_name": "Светлина",                       "our_name": "Светлина - Спирка" },
+  "941260": { "station_id": 658, "gtfs_name": "Бръмча",                         "our_name": "Бръчма" },
+
+  "124990": { "station_id": null, "gtfs_name": "Цариброд",           "note": "genuinely new — Serbian border, not in our stations" },
+  "703":    { "station_id": null, "gtfs_name": "- (Капитан Андреево)","note": "genuinely new — Turkish border, not in our stations" },
+  "164087": { "station_id": null, "gtfs_name": "Пампорово",          "note": "genuinely new — resort; our 'Лазар Пампоров' is a different place" }
+}
