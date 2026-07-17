@@ -17,6 +17,9 @@ bultrain.sqlite*
 *.sqlite
 dump.sql
 
+# Downloaded GTFS feed archives (fetched, versioned, large — not source)
+data/
+
 # Harvested BDZ data and its archives (regenerated, large, not source)
 raw_bdz_data/
 raw_bdz_data*.zip
