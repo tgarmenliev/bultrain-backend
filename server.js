@@ -5,6 +5,11 @@ const cookieParser = require('cookie-parser');
 
 require('dotenv').config();
 
+// ── Database bootstrap ──────────────────────────────────────────────────────
+// Must run before any route module below, because they open the database
+// readonly at require() time and readonly connections cannot set WAL mode.
+require('./database/ensureWal')();
+
 // ── Middleware ──────────────────────────────────────────────────────────────
 const verifyMobileClient = require('./middleware/verifyMobileClient');
 

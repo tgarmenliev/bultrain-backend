@@ -3,8 +3,7 @@ const path = require('path');
 
 // ── Database ────────────────────────────────────────────────────────────────
 const DB_PATH = path.join(__dirname, '..', 'bultrain.sqlite');
-const db = new Database(DB_PATH, { readonly: true });
-db.pragma('journal_mode = WAL');
+const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
 
 // ── Prepared statement ──────────────────────────────────────────────────────
 const stmtAllTopics = db.prepare(`

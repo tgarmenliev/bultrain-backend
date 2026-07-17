@@ -291,8 +291,7 @@ function findRoutes(trainRuns, stationDepartures, fromStationId, toStationId, st
 
 // ── Main execution ────────────────────────────────────────────────────────────
 try {
-    const db           = new Database(dbPath, { readonly: true });
-    db.pragma('journal_mode = WAL');
+    const db           = new Database(dbPath, { readonly: true, fileMustExist: true });
 
     const stationCoords = loadStationCoords(stationsJsonPath);
     const { trainRuns, stationDepartures } = loadDayData(db, dayColumn, targetDate);

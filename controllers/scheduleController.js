@@ -10,8 +10,7 @@ const STATIONS_JSON     = path.join(__dirname, '..', 'stations.json');
 const WORKER_PATH       = path.join(__dirname, '..', 'workers', 'routeWorker.js');
 
 // ── Database (main thread – used only for station name lookups) ───────────────
-const db = new Database(DB_PATH, { readonly: true });
-db.pragma('journal_mode = WAL');
+const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
 
 // ── Category abbreviation maps ────────────────────────────────────────────────
 const CATEGORY_EN = {
