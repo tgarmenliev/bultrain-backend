@@ -17,5 +17,5 @@
   "240358": { "station_id": 1004, "gtfs_name": "Тракия",              "our_name": "Тракия (Шумен)", "note": "NE-Bulgaria Тракия, distinct from the Plovdiv Тракия (id 110); added in migration 005" },
   "124990": { "station_id": 1005, "gtfs_name": "Цариброд",            "our_name": "Цариброд",         "note": "Serbian border; added in migration 005" },
   "703":    { "station_id": 1006, "gtfs_name": "- (Капитан Андреево)","our_name": "Капитан Андреево", "note": "Turkish border; added in migration 005" },
-  "164087": { "station_id": null, "gtfs_name": "Пампорово",           "note": "UNRESOLVED — GTFS point is 2.9km from our 'Лазар Пампоров' (404); user to confirm same station or new" }
+  "164087": { "station_id": 404, "gtfs_name": "Пампорово", "our_name": "Лазар Пампоров", "note": "same station; GTFS coord is wrong (БДЖ error, like Враца) — our coord kept. Name-mismatch means reconcile-coords leaves 404 untouched." }
 }
