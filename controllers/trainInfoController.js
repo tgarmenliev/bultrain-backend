@@ -1,9 +1,14 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const { buildTrainInfo } = require('../services/gtfs/serving');
 
 // ── Database ────────────────────────────────────────────────────────────────
 const DB_PATH = path.join(__dirname, '..', 'bultrain.sqlite');
 const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
+
+// Serve from the GTFS date-based tables when SCHEDULE_SOURCE=gtfs; otherwise
+// the legacy day-of-week path below. The JSON shape is identical either way.
+const USE_GTFS = process.env.SCHEDULE_SOURCE === 'gtfs';
 
 // ── Category translation maps ───────────────────────────────────────────────
 const CATEGORY_BG = {
@@ -112,6 +117,14 @@ exports.getTrainInfo = (req, res) => {
             }
         } else {
             dateObj = new Date();
+        }
+
+        // ── GTFS date-based path (behind flag; identical JSON shape) ─────
+        if (USE_GTFS) {
+            const r = buildTrainInfo(db, { language, trainNo, dateObj });
+            if (r.error) return res.status(r.status).json({ error: r.error });
+            res.header('Content-Type', 'application/json');
+            return res.send(JSON.stringify(r.result, null, 4));
         }
 
         const dayIndex = dateObj.getDay();          // 0-6
