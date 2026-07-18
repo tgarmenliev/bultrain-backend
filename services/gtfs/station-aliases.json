@@ -14,7 +14,8 @@
   "812180": { "station_id": 521, "gtfs_name": "Светлина",                       "our_name": "Светлина - Спирка" },
   "941260": { "station_id": 658, "gtfs_name": "Бръмча",                         "our_name": "Бръчма" },
 
-  "124990": { "station_id": null, "gtfs_name": "Цариброд",           "note": "genuinely new — Serbian border, not in our stations" },
-  "703":    { "station_id": null, "gtfs_name": "- (Капитан Андреево)","note": "genuinely new — Turkish border, not in our stations" },
-  "164087": { "station_id": null, "gtfs_name": "Пампорово",          "note": "genuinely new — resort; our 'Лазар Пампоров' is a different place" }
+  "240358": { "station_id": 1004, "gtfs_name": "Тракия",              "our_name": "Тракия (Шумен)", "note": "NE-Bulgaria Тракия, distinct from the Plovdiv Тракия (id 110); added in migration 005" },
+  "124990": { "station_id": 1005, "gtfs_name": "Цариброд",            "our_name": "Цариброд",         "note": "Serbian border; added in migration 005" },
+  "703":    { "station_id": 1006, "gtfs_name": "- (Капитан Андреево)","our_name": "Капитан Андреево", "note": "Turkish border; added in migration 005" },
+  "164087": { "station_id": null, "gtfs_name": "Пампорово",           "note": "UNRESOLVED — GTFS point is 2.9km from our 'Лазар Пампоров' (404); user to confirm same station or new" }
 }
