@@ -25,7 +25,7 @@ const TIMEOUT_MS       = 7000;       // 7 s hard execution cap inside worker
 const GEO_PRUNE_FACTOR = 1.5;        // prune if next station is >1.5× further from dest
 
 // ── Destructure workerData ────────────────────────────────────────────────────
-const { fromStationId, toStationId, dayColumn, targetDate, dbPath, stationsJsonPath } = workerData;
+const { fromStationId, toStationId, dayColumn, targetDate, dbPath, stationsJsonPath, useGtfs } = workerData;
 
 // ── Haversine distance (km) ───────────────────────────────────────────────────
 function haversine(lat1, lon1, lat2, lon2) {
@@ -65,6 +65,43 @@ function waitMinutes(arriveTime, departTime) {
     let diff = timeToMin(departTime) - timeToMin(arriveTime);
     if (diff < 0) diff += 24 * 60;
     return diff;
+}
+
+// ── Load train data for a date from the GTFS date-based tables ───────────────
+// Produces the same { trainRuns, stationDepartures } shape the BFS consumes, so
+// findRoutes is unchanged. Each GTFS trip is a run (keyed by trip_id in the
+// `validityId` slot); a train leg and its replacement-bus leg are separate runs,
+// so the planner naturally chains them as a transfer with per-leg category.
+function loadDayDataGtfs(db, targetDate) {
+    const rows = db.prepare(`
+        SELECT t.trip_id, t.train_number, t.category,
+               ts.station_id, ts.arrive, ts.depart, ts.seq
+        FROM   trip       t
+        JOIN   trip_date  td ON td.trip_id = t.trip_id AND td.date = ?
+        JOIN   trip_stop  ts ON ts.trip_id = t.trip_id
+        ORDER  BY t.trip_id, ts.seq
+    `).all(targetDate);
+
+    const trainRuns = new Map();
+    for (const row of rows) {
+        if (!trainRuns.has(row.trip_id)) {
+            trainRuns.set(row.trip_id, { trainNumber: row.train_number, category: row.category, stops: [] });
+        }
+        trainRuns.get(row.trip_id).stops.push({
+            stationId: row.station_id, arrive: row.arrive, depart: row.depart, seq: row.seq,
+        });
+    }
+
+    const stationDepartures = new Map();
+    for (const [tripId, run] of trainRuns) {
+        for (let i = 0; i < run.stops.length; i++) {
+            if (!run.stops[i].depart || run.stops[i].stationId == null) continue;
+            const sid = run.stops[i].stationId;
+            if (!stationDepartures.has(sid)) stationDepartures.set(sid, []);
+            stationDepartures.get(sid).push({ validityId: tripId, stopIndex: i });
+        }
+    }
+    return { trainRuns, stationDepartures };
 }
 
 // ── Load train data for the given day (Steps B & C priority) ─────────────────
@@ -294,7 +331,9 @@ try {
     const db           = new Database(dbPath, { readonly: true, fileMustExist: true });
 
     const stationCoords = loadStationCoords(stationsJsonPath);
-    const { trainRuns, stationDepartures } = loadDayData(db, dayColumn, targetDate);
+    const { trainRuns, stationDepartures } = useGtfs
+        ? loadDayDataGtfs(db, targetDate)
+        : loadDayData(db, dayColumn, targetDate);
     const { paths, timedOut } = findRoutes(
         trainRuns, stationDepartures,
         fromStationId, toStationId,

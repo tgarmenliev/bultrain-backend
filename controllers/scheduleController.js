@@ -12,6 +12,9 @@ const WORKER_PATH       = path.join(__dirname, '..', 'workers', 'routeWorker.js'
 // ── Database (main thread – used only for station name lookups) ───────────────
 const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
 
+// Build the route graph from the GTFS date-based tables when SCHEDULE_SOURCE=gtfs.
+const USE_GTFS = process.env.SCHEDULE_SOURCE === 'gtfs';
+
 // ── Category abbreviation maps ────────────────────────────────────────────────
 const CATEGORY_EN = {
     'ПВ':   'PT',
@@ -124,6 +127,7 @@ function runRouteWorker(fromStationId, toStationId, dayColumn, targetDate) {
                 targetDate,         // ISO-8601, used by worker for Steps B & C
                 dbPath:           DB_PATH,
                 stationsJsonPath: STATIONS_JSON,
+                useGtfs:          USE_GTFS,
             },
         });
 
