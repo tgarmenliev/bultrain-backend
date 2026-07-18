@@ -53,24 +53,27 @@ function reconcile(dbPath = DEFAULT_DB, { apply = false, exportPath = null } = {
         WHERE g.stop_lat IS NOT NULL
     `).all();
 
-    // station_id -> best GTFS coord (prefer an exact normalised name match).
+    // station_id -> the name-matching GTFS stop CLOSEST to our current coord.
+    // Picking the closest matters when GTFS has two stops with the same name (a
+    // station and its nearby спирка/платформа, or a same-named halt): if our
+    // coord already sits on one of them it is correct and must be kept. Picking
+    // "any" name-match would wrongly drag a correct coord onto the other point.
     const pick = new Map();
     for (const r of rows) {
-        const nameMatch = norm(r.name) === norm(r.gname);
+        if (norm(r.name) !== norm(r.gname)) continue;   // name must match
+        const d = (r.olat != null) ? haversine(r.olat, r.olon, r.glat, r.glon) : Infinity;
         const cur = pick.get(r.id);
-        if (!cur || (nameMatch && !cur.nameMatch)) {
-            pick.set(r.id, { ...r, nameMatch });
-        }
+        if (!cur || d < cur.dist) pick.set(r.id, { ...r, dist: d });
     }
 
     const updates = [];
     for (const r of pick.values()) {
         if (r.olat == null || r.olon == null) {
             updates.push({ ...r, dist: null, reason: 'missing coord' });
-            continue;
+        } else if (r.dist > THRESHOLD_KM) {
+            // Our coord is far from even the closest same-named GTFS stop → suspect.
+            updates.push(r);
         }
-        const dist = haversine(r.olat, r.olon, r.glat, r.glon);
-        if (dist > THRESHOLD_KM) updates.push({ ...r, dist });
     }
     updates.sort((a, b) => (b.dist || 1e9) - (a.dist || 1e9));
 
