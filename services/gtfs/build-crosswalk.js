@@ -64,7 +64,8 @@ function computeSiblingHalts(stations, stops) {
     // normalised base name → { base, halt }
     const pairs = new Map();
     for (const s of stations) {
-        const m = /^(.*?)\s*-\s*спирка$/i.exec(s.name);
+        // "X - Спирка" and the abbreviated "X - Сп."
+        const m = /^(.*?)\s*-\s*(?:спирка|сп\.?)$/i.exec(s.name);
         if (!m) continue;
         const baseName = m[1].trim();
         const base = stations.find(b => b.name === baseName);
