@@ -1,19 +1,18 @@
 -- 005_new_stations.sql
 --
--- Stations present in the GTFS feed but missing from our list, confirmed by the
--- user. New non-colliding ids (existing max was 1003); ids are frozen from here
--- on, like every other station id. Coordinates come from the GTFS feed.
+-- Stations present in the GTFS feed but genuinely missing from our list,
+-- confirmed by the user. New non-colliding ids (existing max was 1003); ids are
+-- frozen from here on, like every other station id. Coordinates from GTFS.
 --
--- Тракия (Шумен) is the important one: we had a single "Тракия" (id 110, the
--- Plovdiv station), but BDZ also runs a "Тракия (Шумен)" ~217km away in the
--- north-east. Both GTFS stops were collapsing onto id 110, which corrupted
--- routing. This gives the Шумen station its own id; the alias file points GTFS
--- stop 240358 at it.
+-- NOTE: Тракия (Шумен) is NOT added here — it already existed as id 352. The
+-- Plovdiv Тракия (110) and the Шумен Тракия (352) were both collapsing onto 110
+-- because GTFS names both stops just "Тракия"; the alias file now points GTFS
+-- stop 240358 at the existing 352. (An earlier version wrongly added a duplicate
+-- id 1004 for it — removed.)
 --
 -- NOTE for the app: these stations must also be added to the app's bundled
 -- station list (for the alarm) in a client update.
 
 INSERT OR IGNORE INTO stations (id, name, english_name, lat, lon) VALUES
-    (1004, 'Тракия (Шумен)',   'Trakiya (Shumen)', 43.27862467, 26.95867508),
-    (1005, 'Цариброд',         'Tsaribrod',        43.011129,   22.764883),
-    (1006, 'Капитан Андреево', 'Kapitan Andreevo', 41.716669,   26.321096);
+    (1005, 'Цариброд',         'Tsaribrod',        43.011129, 22.764883),
+    (1006, 'Капитан Андреево', 'Kapitan Andreevo', 41.716669, 26.321096);

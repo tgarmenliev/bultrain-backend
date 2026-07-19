@@ -59,6 +59,39 @@ function haversine(a, b, c, d) {
     return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
+// gtfs_stop_id → station_id for the station/halt ("X" / "X - Спирка") pairs.
+function computeSiblingHalts(stations, stops) {
+    // normalised base name → { base, halt }
+    const pairs = new Map();
+    for (const s of stations) {
+        const m = /^(.*?)\s*-\s*спирка$/i.exec(s.name);
+        if (!m) continue;
+        const baseName = m[1].trim();
+        const base = stations.find(b => b.name === baseName);
+        if (base && base.lat != null) pairs.set(norm(baseName), { base, halt: s });
+    }
+
+    const byNorm = new Map();
+    for (const st of stops) {
+        const k = norm(st.stop_name);
+        if (!byNorm.has(k)) byNorm.set(k, []);
+        byNorm.get(k).push(st);
+    }
+
+    const forced = new Map();
+    for (const [k, { base, halt }] of pairs) {
+        const gstops = (byNorm.get(k) || []).filter(g => g.stop_lat != null);
+        if (gstops.length < 2) continue; // need two GTFS points to split
+        const ranked = gstops
+            .map(g => ({ g, d: haversine(base.lat, base.lon, g.stop_lat, g.stop_lon) }))
+            .sort((a, b) => a.d - b.d);
+        forced.set(ranked[0].g.stop_id, base.id);              // closest → station
+        forced.set(ranked[1].g.stop_id, halt.id);              // next → halt
+        for (let i = 2; i < ranked.length; i++) forced.set(ranked[i].g.stop_id, base.id);
+    }
+    return forced;
+}
+
 function build(dbPath = DEFAULT_DB) {
     const db = new Database(dbPath);
     db.pragma('foreign_keys = ON');
@@ -75,6 +108,15 @@ function build(dbPath = DEFAULT_DB) {
     const aliases = loadAliases();
 
     const stops = db.prepare('SELECT stop_id, stop_name, stop_lat, stop_lon FROM gtfs_stops').all();
+
+    // ── Sibling-halt resolution ──────────────────────────────────────────────
+    // Our data splits many places into a station "X" and its halt "X - Спирка"
+    // (often at an identical placeholder coord). GTFS instead ships two stops
+    // BOTH named "X" at their true, distinct coordinates. Matching by name alone
+    // sends both onto "X" and the materialiser then collapses them, deleting the
+    // halt. Here we pair them up: the GTFS stop closest to our "X" coord is the
+    // station, the next one is the halt.
+    const siblingHalt = computeSiblingHalts(stations, stops);
 
     const nearest = (lat, lon) => {
         if (lat == null || lon == null) return { s: null, km: null };
@@ -102,6 +144,25 @@ function build(dbPath = DEFAULT_DB) {
                 confidence: alias.station_id != null ? 'high' : 'none',
                 coord_dist_km: null,
                 reviewed: 1,
+            });
+            continue;
+        }
+
+        // Station/halt pair: send the two same-named GTFS points to "X" and
+        // "X - Спирка" respectively instead of collapsing both onto "X".
+        if (siblingHalt.has(st.stop_id)) {
+            const sid = siblingHalt.get(st.stop_id);
+            const target = byId.get(sid);
+            rows.push({
+                gtfs_stop_id: st.stop_id,
+                station_id: sid,
+                gtfs_stop_name: st.stop_name,
+                station_name: target ? target.name : null,
+                method: 'sibling-halt',
+                confidence: 'high',
+                coord_dist_km: (target && target.lat != null && st.stop_lat != null)
+                    ? Math.round(haversine(st.stop_lat, st.stop_lon, target.lat, target.lon) * 1000) / 1000 : null,
+                reviewed: 0,
             });
             continue;
         }
