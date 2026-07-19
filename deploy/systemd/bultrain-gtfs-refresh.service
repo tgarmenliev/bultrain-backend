@@ -1,0 +1,13 @@
+[Unit]
+Description=BulTrain GTFS static refresh (download, crosswalk, materialize)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Path goes through the ~/bultrain-app symlink, so it always runs the current
+# release's script against the live database.
+ExecStart=/root/bultrain-app/scripts/gtfs-refresh.sh
+Environment=BULTRAIN_DB=/root/bultrain-app/bultrain.sqlite
+Nice=10
+IOSchedulingClass=idle

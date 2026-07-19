@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh the GTFS static feed once a day
+
+[Timer]
+# The NAP republishes the feed daily around 14:25 UTC; refresh after that.
+OnCalendar=*-*-* 15:00:00
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target
