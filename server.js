@@ -22,6 +22,7 @@ const guide = require('./routes/guide');
 const guideTopics = require('./routes/guide-topics');
 const translator = require('./routes/translator');
 const stats = require('./routes/stats');
+const stationsRoutes = require('./routes/stations');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
@@ -64,6 +65,7 @@ app.use('/api/guide', verifyMobileClient, guide);
 app.use('/api/guide', verifyMobileClient, guideTopics);
 app.use('/api/translator', verifyMobileClient, translator);
 app.use('/api/stats', verifyMobileClient, stats);
+app.use('/api/stations', verifyMobileClient, stationsRoutes);
 
 // ── Admin routes (JWT-protected via route-level middleware) ─────────────────
 app.use('/api/admin', adminRoutes);
