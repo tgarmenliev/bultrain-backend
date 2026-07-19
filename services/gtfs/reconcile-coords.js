@@ -49,19 +49,25 @@ function reconcile(dbPath = DEFAULT_DB, { apply = false, exportPath = null } = {
     // placeholder they inherited from the main station.
     const rows = db.prepare(`
         SELECT st.id, st.name, st.lat AS olat, st.lon AS olon,
-               g.stop_name AS gname, g.stop_lat AS glat, g.stop_lon AS glon
+               g.stop_name AS gname, g.stop_lat AS glat, g.stop_lon AS glon, sm.method
         FROM station_map sm
         JOIN stations st  ON st.id = sm.station_id
         JOIN gtfs_stops g ON g.stop_id = sm.gtfs_stop_id
         WHERE g.stop_lat IS NOT NULL AND sm.station_id IS NOT NULL
     `).all();
 
-    // station_id -> the mapped GTFS stop CLOSEST to our current coord. Closest
-    // matters when a station has several mapped points: if our coord already
-    // sits on one it is correct and kept; only when it is far from ALL of them
-    // (a placeholder or a geocode error) do we adopt the nearest GTFS coord.
+    // A GTFS stop is a valid coord source for a station when it name-matches, OR
+    // when the crosswalk paired it as this station's halt (sibling-halt) — that
+    // is how "X - Спирка" halts, whose name never matches, get their true coord.
+    // 'manual' aliases are deliberately excluded: some exist precisely because
+    // the GTFS coord is wrong (e.g. Пампорово→Лазар Пампоров), so we keep ours.
+    // Among the eligible stops we take the one CLOSEST to our current coord, so a
+    // station already sitting on a correct point is kept and only a placeholder /
+    // geocode error (far from all of them) gets moved.
     const pick = new Map();
     for (const r of rows) {
+        const eligible = norm(r.name) === norm(r.gname) || r.method === 'sibling-halt' || r.method === 'manual-coord';
+        if (!eligible) continue;
         const d = (r.olat != null) ? haversine(r.olat, r.olon, r.glat, r.glon) : Infinity;
         const cur = pick.get(r.id);
         if (!cur || d < cur.dist) pick.set(r.id, { ...r, dist: d });

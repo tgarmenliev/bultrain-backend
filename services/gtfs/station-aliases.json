@@ -4,7 +4,7 @@
   "110239": { "station_id": 180, "gtfs_name": "Надежда",                       "our_name": "Надежда - Сп." },
   "160010": { "station_id": 35,  "gtfs_name": "Подуяне",                       "our_name": "Подуяне Пътническа" },
   "160028": { "station_id": 516, "gtfs_name": "Подуяне Разпр.-среден Район",   "our_name": "Подуяне Разпр.ср.р.", "note": "irregular twin — coord-matched onto Пътническа(35) otherwise" },
-  "510081": { "station_id": 701, "gtfs_name": "Горна баня",                    "our_name": "спирка Горна баня - метростанция", "note": "metro halt; irregular name so the sibling-halt rule can't pair it; 701's coord is a bad placeholder" },
+  "510081": { "station_id": 701, "adopt_coord": true, "gtfs_name": "Горна баня", "our_name": "спирка Горна баня - метростанция", "note": "metro halt; irregular name so the sibling-halt rule can't pair it; 701 had a bad Plovdiv placeholder coord — adopt the GTFS one" },
   "180075": { "station_id": 115, "gtfs_name": "Вагоно-ремонтно Депо Пловдив",  "our_name": "Вр.депо Пловдив - спирка" },
   "164111": { "station_id": 467, "gtfs_name": "Велинград - Юг",                "our_name": "Велинград Юг" },
   "164125": { "station_id": 467, "gtfs_name": "Велинград - Юг",                "our_name": "Велинград Юг" },

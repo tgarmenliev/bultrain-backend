@@ -141,7 +141,9 @@ function build(dbPath = DEFAULT_DB) {
                 station_id: alias.station_id ?? null,
                 gtfs_stop_name: st.stop_name,
                 station_name: target ? target.name : null,
-                method: 'manual',
+                // 'manual-coord' opts this alias in as a coord source for
+                // reconcile-coords; plain 'manual' keeps our coordinate.
+                method: alias.adopt_coord ? 'manual-coord' : 'manual',
                 confidence: alias.station_id != null ? 'high' : 'none',
                 coord_dist_km: null,
                 reviewed: 1,
