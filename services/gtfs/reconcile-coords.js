@@ -42,25 +42,26 @@ function haversine(a, b, c, d) {
 function reconcile(dbPath = DEFAULT_DB, { apply = false, exportPath = null } = {}) {
     const db = new Database(dbPath);
 
-    // Each station with the GTFS stop whose name matches ours (so multi-point
-    // cities don't pull a station toward a secondary point).
+    // Every station with the GTFS stop(s) the crosswalk mapped to it. Using the
+    // crosswalk (not name matching) as the coord source means halts — "X - Спирка"
+    // stations mapped to their own GTFS point via the sibling-halt rule, whose
+    // name never matches — also get their true coordinate, instead of the
+    // placeholder they inherited from the main station.
     const rows = db.prepare(`
         SELECT st.id, st.name, st.lat AS olat, st.lon AS olon,
                g.stop_name AS gname, g.stop_lat AS glat, g.stop_lon AS glon
         FROM station_map sm
         JOIN stations st  ON st.id = sm.station_id
         JOIN gtfs_stops g ON g.stop_id = sm.gtfs_stop_id
-        WHERE g.stop_lat IS NOT NULL
+        WHERE g.stop_lat IS NOT NULL AND sm.station_id IS NOT NULL
     `).all();
 
-    // station_id -> the name-matching GTFS stop CLOSEST to our current coord.
-    // Picking the closest matters when GTFS has two stops with the same name (a
-    // station and its nearby спирка/платформа, or a same-named halt): if our
-    // coord already sits on one of them it is correct and must be kept. Picking
-    // "any" name-match would wrongly drag a correct coord onto the other point.
+    // station_id -> the mapped GTFS stop CLOSEST to our current coord. Closest
+    // matters when a station has several mapped points: if our coord already
+    // sits on one it is correct and kept; only when it is far from ALL of them
+    // (a placeholder or a geocode error) do we adopt the nearest GTFS coord.
     const pick = new Map();
     for (const r of rows) {
-        if (norm(r.name) !== norm(r.gname)) continue;   // name must match
         const d = (r.olat != null) ? haversine(r.olat, r.olon, r.glat, r.glon) : Infinity;
         const cur = pick.get(r.id);
         if (!cur || d < cur.dist) pick.set(r.id, { ...r, dist: d });
