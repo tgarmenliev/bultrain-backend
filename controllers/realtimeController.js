@@ -33,17 +33,24 @@ exports.getTrain = (req, res) => {
     // and would just show as an unnamed stop to the user.
     const named = rt.stops.filter(s => s.stationId != null);
 
+    // The feed carries the WHOLE trip — stops the train has already passed
+    // (with their actual times) and the ones still ahead. Flag which is which
+    // so the app can show just the upcoming ones or the full progress.
+    const nowSec = Date.now() / 1000;
     const stops = named.map(s => ({
         station:           s.station,
         stationId:         s.stationId,
         predictedArrival:  hhmm(s.arrivalTime),
         arrivalDelayMin:   toMin(s.arrivalDelay),
         departureDelayMin: toMin(s.departureDelay),
+        passed:            s.arrivalTime ? (s.arrivalTime < nowSec) : null,
     }));
 
-    // A single headline number: the delay at the next stop that carries one.
-    const next = named.find(s => s.arrivalDelay != null || s.departureDelay != null);
-    const delayMinutes = next ? toMin(next.arrivalDelay ?? next.departureDelay) : null;
+    // Headline = the CURRENT delay: the delay at the next stop still ahead,
+    // falling back to the last stop if the train is finishing.
+    const upcoming = named.filter(s => s.arrivalTime && s.arrivalTime >= nowSec);
+    const ref = upcoming[0] || named[named.length - 1];
+    const delayMinutes = ref ? toMin(ref.arrivalDelay ?? ref.departureDelay) : null;
 
     res.json({ trainNumber: num, delayMinutes, stops });
 };
