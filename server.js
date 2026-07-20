@@ -54,6 +54,10 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// ── Health check (public — for external uptime monitoring) ──────────────────
+const healthController = require('./controllers/healthController');
+app.get('/health', healthController.getHealth);
+
 // ── Serve static guide images ──────────────────────────────────────────────
 app.use('/guide/images', express.static(path.join(__dirname, 'guide', 'images')));
 
