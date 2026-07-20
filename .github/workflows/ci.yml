@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 24 (matches production)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Backend checks (native module, syntax, migrations, routes)
+        run: bash scripts/ci-check.sh
+
+      - name: Build the admin UI
+        working-directory: admin-ui
+        run: |
+          npm ci
+          npm run build
