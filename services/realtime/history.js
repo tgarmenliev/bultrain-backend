@@ -17,10 +17,13 @@ const Database = require('better-sqlite3');
 
 const DB_PATH           = path.join(__dirname, '..', '..', 'bultrain.sqlite');
 const FLUSH_INTERVAL_MS = 10 * 60 * 1000;
-// GTFS-RT occasionally reports absurd delays for day-boundary/overnight trips
-// (e.g. ~12h, the schedule off by a day). No BDZ train is that late — discard
-// so the statistics stay honest.
-const MAX_ABS_DELAY_SEC = 4 * 3600;
+// Only a guard against a hypothetical multi-day feed glitch — NOT against big
+// delays. International transit trains (route MBV, e.g. Optima Express) really
+// do run 700-1000+ min late due to border checks / upstream delays, and those
+// extremes are exactly the data that makes this valuable. The feed shows no
+// day-boundary anomalies in practice; the stats use MEDIAN, so rare outliers
+// wash out anyway. 20h keeps every plausible real delay.
+const MAX_ABS_DELAY_SEC = 20 * 3600;
 
 let db = null;
 let started = false;

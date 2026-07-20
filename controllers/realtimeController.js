@@ -10,8 +10,10 @@ function hhmm(epochSec) {
     });
 }
 
-// Delays beyond this are GTFS-RT day-boundary anomalies, not real — hide them.
-const MAX_ABS_DELAY_SEC = 4 * 3600;
+// Guard only against a hypothetical multi-day feed glitch. Real delays can be
+// huge — international transit trains (Optima Express etc.) genuinely run 700+
+// min late — and showing that accurately is a feature, not a bug.
+const MAX_ABS_DELAY_SEC = 20 * 3600;
 const toMin = (sec) =>
     (sec == null || Math.abs(sec) > MAX_ABS_DELAY_SEC) ? null : Math.round(sec / 60);
 
