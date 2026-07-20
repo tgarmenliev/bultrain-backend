@@ -23,6 +23,7 @@ const guideTopics = require('./routes/guide-topics');
 const translator = require('./routes/translator');
 const stats = require('./routes/stats');
 const stationsRoutes = require('./routes/stations');
+const realtimeRoutes = require('./routes/realtime');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
@@ -66,6 +67,7 @@ app.use('/api/guide', verifyMobileClient, guideTopics);
 app.use('/api/translator', verifyMobileClient, translator);
 app.use('/api/stats', verifyMobileClient, stats);
 app.use('/api/stations', verifyMobileClient, stationsRoutes);
+app.use('/api/realtime', verifyMobileClient, realtimeRoutes);
 
 // ── Admin routes (JWT-protected via route-level middleware) ─────────────────
 app.use('/api/admin', adminRoutes);
@@ -87,3 +89,10 @@ app.get('/admin/*splat', (req, res) => {
 app.listen(port, () => {
   console.log(`Server is listening at http://localhost:${port}`);
 });
+
+// ── Realtime poller ──────────────────────────────────────────────────────────
+// Gated behind REALTIME=on so the code can be deployed and verified before the
+// poller starts fetching. Isolated: if it fails, the rest of the API is fine.
+if (process.env.REALTIME === 'on') {
+  require('./services/realtime/poller').start();
+}
