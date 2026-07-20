@@ -10,7 +10,10 @@ function hhmm(epochSec) {
     });
 }
 
-const toMin = (sec) => (sec == null ? null : Math.round(sec / 60));
+// Delays beyond this are GTFS-RT day-boundary anomalies, not real — hide them.
+const MAX_ABS_DELAY_SEC = 4 * 3600;
+const toMin = (sec) =>
+    (sec == null || Math.abs(sec) > MAX_ABS_DELAY_SEC) ? null : Math.round(sec / 60);
 
 /**
  * GET /api/realtime/train/:trainNo

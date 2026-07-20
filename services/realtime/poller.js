@@ -16,8 +16,11 @@ const path     = require('path');
 const Database = require('better-sqlite3');
 const B        = require('gtfs-realtime-bindings');
 
-const cfg   = require('../gtfs/config');
-const cache = require('./cache');
+const cfg     = require('../gtfs/config');
+const cache   = require('./cache');
+const history = require('./history');
+
+const HISTORY_ON = process.env.RT_HISTORY === 'on';
 
 const DB_PATH     = path.join(__dirname, '..', '..', 'bultrain.sqlite');
 const FeedMessage = B.transit_realtime.FeedMessage;
@@ -63,6 +66,12 @@ function numberOf(tripId) {
     return tripToNumber.get(tripId) || String(tripId).split('-')[0] || null;
 }
 
+// Service date from the trip_id's trailing YYYYMMDD → YYYY-MM-DD.
+function serviceDate(tripId) {
+    const d = String(tripId || '').split('-').pop();
+    return /^\d{8}$/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : null;
+}
+
 async function fetchFeed(url) {
     const res = await axios.get(url, { responseType: 'arraybuffer', timeout: HTTP_TIMEOUT_MS });
     return FeedMessage.decode(Buffer.from(res.data));
@@ -80,15 +89,25 @@ async function pollTripUpdates() {
             if (!tu || !tu.trip) continue;
             const num = numberOf(tu.trip.tripId);
             if (!num) continue;
+            const date = HISTORY_ON ? serviceDate(tu.trip.tripId) : null;
 
             const stops = (tu.stopTimeUpdate || []).map(su => {
                 const st = stopToStation.get(su.stopId);
+                const arrivalDelay   = su.arrival   ? (su.arrival.delay   ?? null) : null;
+                const departureDelay = su.departure ? (su.departure.delay ?? null) : null;
+
+                // Quiet history: latest observed delay at this stop (arrival, or
+                // departure at the origin) for this train on its service date.
+                if (HISTORY_ON && st && st.station_id != null) {
+                    history.record(num, st.station_id, date, arrivalDelay ?? departureDelay);
+                }
+
                 return {
                     stationId:      st ? st.station_id : null,
                     station:        st ? st.name : null,
-                    arrivalDelay:   su.arrival   ? (su.arrival.delay   ?? null) : null,
+                    arrivalDelay,
                     arrivalTime:    su.arrival   && su.arrival.time   ? Number(su.arrival.time)   : null,
-                    departureDelay: su.departure ? (su.departure.delay ?? null) : null,
+                    departureDelay,
                     departureTime:  su.departure && su.departure.time ? Number(su.departure.time) : null,
                 };
             });

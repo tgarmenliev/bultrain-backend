@@ -95,4 +95,8 @@ app.listen(port, () => {
 // poller starts fetching. Isolated: if it fails, the rest of the API is fine.
 if (process.env.REALTIME === 'on') {
   require('./services/realtime/poller').start();
+  // Quiet delay-history accumulation (independent flag).
+  if (process.env.RT_HISTORY === 'on') {
+    require('./services/realtime/history').start();
+  }
 }
