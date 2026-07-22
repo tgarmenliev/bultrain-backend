@@ -1,8 +1,24 @@
 /**
- * Middleware: verifyMobileClient (Updated for E-ink Screen)
+ * Middleware: verifyMobileClient
  *
  * Ensures requests come from the official BulTrain mobile apps OR the E-ink Screen.
+ *
+ * Each *_API_KEY may hold a COMMA-SEPARATED list of keys, which is what makes
+ * key rotation possible without breaking anyone: put the new key alongside the
+ * old one, ship an app update, wait for users to upgrade, then drop the old key.
+ *   IOS_API_KEY=<new>,<old>
+ *
+ * Note on threat model: a key baked into a mobile binary is extractable by
+ * anyone who downloads the app, so this is a casual gate, not a secret. It
+ * guards free-riding on the API — there is no user data behind it.
  */
+
+const splitKeys = (value) =>
+    String(value || '')
+        .split(',')
+        .map(k => k.trim())
+        .filter(Boolean);
+
 module.exports = (req, res, next) => {
     const apiKey = req.headers['x-bultrain-api-key'];
     const userAgent = req.headers['user-agent'] || '';
@@ -12,23 +28,22 @@ module.exports = (req, res, next) => {
         return res.status(401).json({ error: 'Unauthorized. Missing API key.' });
     }
 
-    // 1. ДОБАВЯМЕ КЛЮЧА ЗА ЕКРАНЧЕТО ТУК
+    const screenKeys = splitKeys(process.env.SCREEN_API_KEY);
     const validKeys = [
-        process.env.IOS_API_KEY,
-        process.env.ANDROID_API_KEY,
-        process.env.SCREEN_API_KEY,
-    ].filter(Boolean); // ignore undefined env vars
+        ...splitKeys(process.env.IOS_API_KEY),
+        ...splitKeys(process.env.ANDROID_API_KEY),
+        ...screenKeys,
+    ];
 
     if (!validKeys.includes(apiKey)) {
         return res.status(401).json({ error: 'Unauthorized. Invalid API key.' });
     }
 
     // ── User-Agent check ────────────────────────────────────────────────
-    // 2. ПРОМЕНЯМЕ ЛОГИКАТА ЗА УСТРОЙСТВАТА
-    const isScreen = (apiKey === process.env.SCREEN_API_KEY);
+    // The E-ink screen can't set a custom User-Agent, so its key is exempt.
+    const isScreen = screenKeys.includes(apiKey);
     const isMobile = userAgent.includes('BulTrainMobile');
 
-    // Ако не е мобилното приложение и не е екранчето -> режем достъпа
     if (!isMobile && !isScreen) {
         return res.status(401).json({ error: 'Unauthorized. Invalid client.' });
     }
