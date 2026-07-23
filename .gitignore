@@ -4,6 +4,12 @@ node_modules/
 # Environment — see .env.example for the required variable names
 .env
 
+# APNs signing keys. Apple lets you download a .p8 exactly once and it never
+# expires, so one committed here is a permanent leak that must be revoked in
+# the developer portal. Keep it outside the repo; APNS_KEY_P8 takes a path.
+*.p8
+secrets/
+
 # macOS system files
 .DS_Store
 .AppleDouble

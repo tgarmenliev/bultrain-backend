@@ -24,6 +24,7 @@ const translator = require('./routes/translator');
 const stats = require('./routes/stats');
 const stationsRoutes = require('./routes/stations');
 const realtimeRoutes = require('./routes/realtime');
+const liveActivityRoutes = require('./routes/liveActivity');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
@@ -72,6 +73,7 @@ app.use('/api/translator', verifyMobileClient, translator);
 app.use('/api/stats', verifyMobileClient, stats);
 app.use('/api/stations', verifyMobileClient, stationsRoutes);
 app.use('/api/realtime', verifyMobileClient, realtimeRoutes);
+app.use('/api/live-activity', verifyMobileClient, liveActivityRoutes);
 
 // ── Admin routes (JWT-protected via route-level middleware) ─────────────────
 app.use('/api/admin', adminRoutes);
@@ -103,4 +105,15 @@ if (process.env.REALTIME === 'on') {
   if (process.env.RT_HISTORY === 'on') {
     require('./services/realtime/history').start();
   }
+}
+
+// ── Live Activity push worker ────────────────────────────────────────────────
+// Diffs the in-memory realtime state and pushes ActivityKit updates over APNs.
+// Needs the realtime cache to be populated, so it only runs alongside the
+// poller. Registration endpoints work regardless — they only touch the DB.
+if (process.env.LIVE_ACTIVITY === 'on') {
+  if (process.env.REALTIME !== 'on') {
+    console.warn('[la] LIVE_ACTIVITY=on but REALTIME is off — there is no realtime data to push');
+  }
+  require('./services/liveactivity/worker').start();
 }
