@@ -13,8 +13,23 @@ const apns    = require('../services/liveactivity/apns');
 const metrics = require('../services/liveactivity/metrics');
 
 const MAX_TOKENS_PER_JOURNEY = 5;
-const HEX64 = /^[0-9a-fA-F]{64}$/;
 const ENVIRONMENTS = new Set(['sandbox', 'production']);
+
+// ActivityKit push tokens are NOT the 32-byte (64-hex) device tokens used for
+// standard notifications. They are variable-length and much longer — commonly
+// 100–160 bytes (≈200–320 hex chars) — so an exact-length rule rejects every
+// real token. Validate the shape and a generous range instead, and accept both
+// hex cases (the app may format with %02x or %02X). The token is stored as text
+// and handed to APNs verbatim; nothing downstream assumes a length.
+const HEX = /^[0-9a-fA-F]+$/;
+const TOKEN_MIN = 32;
+const TOKEN_MAX = 512;
+const isValidToken = (t) =>
+    typeof t === 'string' &&
+    t.length >= TOKEN_MIN && t.length <= TOKEN_MAX &&
+    t.length % 2 === 0 &&
+    HEX.test(t);
+const TOKEN_ERROR = `token must be an even-length hex string (${TOKEN_MIN}–${TOKEN_MAX} chars).`;
 
 const bad = (res, message) => res.status(400).json({ error: message });
 
@@ -36,9 +51,7 @@ exports.register = (req, res) => {
     try {
         const b = req.body || {};
 
-        if (!b.token || typeof b.token !== 'string' || !HEX64.test(b.token)) {
-            return bad(res, 'token must be a 64-character hex string.');
-        }
+        if (!isValidToken(b.token)) return bad(res, TOKEN_ERROR);
         if (!ENVIRONMENTS.has(b.environment)) {
             return bad(res, "environment must be either 'sandbox' or 'production'.");
         }
@@ -100,9 +113,7 @@ exports.register = (req, res) => {
 exports.unregister = (req, res) => {
     try {
         const token = req.body?.token;
-        if (!token || typeof token !== 'string' || !HEX64.test(token)) {
-            return bad(res, 'token must be a 64-character hex string.');
-        }
+        if (!isValidToken(token)) return bad(res, TOKEN_ERROR);
         const removed = store.remove(token);
         res.json({ ok: true, removed });
     } catch (err) {
@@ -125,7 +136,7 @@ exports.testPush = async (req, res) => {
     }
 
     const { token, environment, contentState } = req.body || {};
-    if (!token || !HEX64.test(String(token))) return bad(res, 'token must be a 64-character hex string.');
+    if (!isValidToken(token)) return bad(res, TOKEN_ERROR);
     if (!ENVIRONMENTS.has(environment)) return bad(res, "environment must be either 'sandbox' or 'production'.");
     if (!contentState || typeof contentState !== 'object') return bad(res, 'contentState object is required.');
 
@@ -151,3 +162,7 @@ exports.getMetrics = (req, res) => {
         apns_configured: apns.isConfigured(),
     }));
 };
+
+// Exported for unit testing the token-shape rule directly — this validator was
+// the source of a bug that silently rejected every real ActivityKit token.
+exports.isValidToken = isValidToken;

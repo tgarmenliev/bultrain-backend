@@ -287,6 +287,41 @@ test('token pruning keeps live journeys and drops finished ones', async (t) => {
     });
 });
 
+// ── 5. Token-shape validation ────────────────────────────────────────────────
+// The register endpoint once required exactly 64 hex chars — the length of a
+// standard device token. ActivityKit push tokens are far longer, so that rule
+// silently rejected every real token. These pin the corrected shape.
+
+test('token validation accepts real ActivityKit tokens, not just 64-char ones', async (t) => {
+    const { isValidToken } = require('../controllers/liveActivityController');
+
+    await t.test('a long (160-byte) token is accepted', () => {
+        assert.strictEqual(isValidToken('a'.repeat(320)), true);
+    });
+    await t.test('the old 64-char device token still validates', () => {
+        assert.strictEqual(isValidToken('a'.repeat(64)), true);
+    });
+    await t.test('uppercase hex is accepted (app may format with %02X)', () => {
+        assert.strictEqual(isValidToken('AbCdEf'.repeat(20)), true);
+    });
+    await t.test('odd length is rejected (hex comes in byte pairs)', () => {
+        assert.strictEqual(isValidToken('a'.repeat(65)), false);
+    });
+    await t.test('non-hex characters are rejected', () => {
+        assert.strictEqual(isValidToken('z'.repeat(64)), false);
+        assert.strictEqual(isValidToken(`${'a'.repeat(62)}  `), false);
+    });
+    await t.test('too short and too long are rejected', () => {
+        assert.strictEqual(isValidToken('ab'), false);
+        assert.strictEqual(isValidToken('a'.repeat(514)), false);
+    });
+    await t.test('non-strings are rejected without throwing', () => {
+        assert.strictEqual(isValidToken(null), false);
+        assert.strictEqual(isValidToken(undefined), false);
+        assert.strictEqual(isValidToken(12345678), false);
+    });
+});
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function makeRow(over = {}) {

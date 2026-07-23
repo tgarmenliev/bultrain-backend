@@ -152,14 +152,14 @@ activity it cannot end.
 Register the token the app printed:
 
 ```bash
-curl -s -X POST https://api.bultrain.eu/api/live-activity/register -H 'Content-Type: application/json' -H 'User-Agent: BulTrainMobile' -H "X-Bultrain-Api-Key: $IOS_API_KEY" -d '{"token":"<64 hex chars>","environment":"sandbox","journeyId":"test-1","trainNumber":"2612","boardingStation":"София","destinationStation":"Пловдив","directionStation":"Бургас","scheduledDeparture":"2026-07-23T14:30:00Z","scheduledArrival":"2026-07-23T16:45:00Z","currentLegIndex":0}'
+curl -s -X POST https://api.bultrain.eu/api/live-activity/register -H 'Content-Type: application/json' -H 'User-Agent: BulTrainMobile' -H "X-Bultrain-Api-Key: $IOS_API_KEY" -d '{"token":"<the activity push token, hex>","environment":"sandbox","journeyId":"test-1","trainNumber":"2612","boardingStation":"София","destinationStation":"Пловдив","directionStation":"Бургас","scheduledDeparture":"2026-07-23T14:30:00Z","scheduledArrival":"2026-07-23T16:45:00Z","currentLegIndex":0}'
 ```
 
 Set `ENABLE_LIVE_ACTIVITY_TEST_PUSH=on`, restart, and push a hand-written state
 straight at the device. The two `Date` fields below are 2001-epoch seconds:
 
 ```bash
-curl -s -X POST https://api.bultrain.eu/api/live-activity/test-push -H 'Content-Type: application/json' -H 'User-Agent: BulTrainMobile' -H "X-Bultrain-Api-Key: $IOS_API_KEY" -d '{"token":"<64 hex chars>","environment":"sandbox","contentState":{"progressPercentage":0.42,"isDelayed":true,"delayMinutes":7,"lastUpdated":775000000,"phase":"inTransit","directionStation":"Бургас","currentLegIndex":0,"isNextTransportBus":false,"isCurrentTransportBus":false,"predictedArrival":775004500}}'
+curl -s -X POST https://api.bultrain.eu/api/live-activity/test-push -H 'Content-Type: application/json' -H 'User-Agent: BulTrainMobile' -H "X-Bultrain-Api-Key: $IOS_API_KEY" -d '{"token":"<the activity push token, hex>","environment":"sandbox","contentState":{"progressPercentage":0.42,"isDelayed":true,"delayMinutes":7,"lastUpdated":775000000,"phase":"inTransit","directionStation":"Бургас","currentLegIndex":0,"isNextTransportBus":false,"isCurrentTransportBus":false,"predictedArrival":775004500}}'
 ```
 
 `{"outcome":"ok"}` means Apple accepted it. If the card does not change, the
