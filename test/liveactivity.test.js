@@ -184,6 +184,48 @@ test('progress covers the passenger segment, not the whole train', async (t) => 
         assert.strictEqual(late, 1);
     });
 
+    await t.test('geometry segment progress is scoped to boarding→destination', () => {
+        // Straight west→east line; five stops A..E evenly spaced.
+        const geoStops = [
+            { name: 'A', lat: 42.0, lon: 25.00 },
+            { name: 'B', lat: 42.0, lon: 25.10 },
+            { name: 'C', lat: 42.0, lon: 25.20 },
+            { name: 'D', lat: 42.0, lon: 25.30 },
+            { name: 'E', lat: 42.0, lon: 25.40 },
+        ];
+        const shape = geoStops.map(s => ({ lat: s.lat, lon: s.lon }));
+        const call = (lon) => contentState.geometrySegmentProgress({
+            geoStops, shape, vehicle: { lat: 42.0, lon }, boardingName: 'B', destName: 'D',
+        });
+
+        // A passenger riding B→D: at C (the midpoint of that segment) → ~0.5,
+        // NOT ~0.5 of the whole A→E route by coincidence — check the ends too.
+        assert.ok(Math.abs(call(25.20) - 0.5) < 0.02, `mid-segment ${call(25.20)}`);
+        assert.ok(call(25.10) < 0.02, 'at boarding B → ~0');
+        assert.ok(call(25.30) > 0.98, 'at destination D → ~1');
+        // Standing at A (before boarding) clamps to 0, does not go negative.
+        assert.strictEqual(call(25.00), 0);
+    });
+
+    await t.test('geometry progress returns null when the position is off the route', () => {
+        const geoStops = [{ name: 'A', lat: 42.0, lon: 25.0 }, { name: 'B', lat: 42.0, lon: 25.4 }];
+        const p = contentState.geometrySegmentProgress({
+            geoStops, shape: [], vehicle: { lat: 43.0, lon: 25.2 }, boardingName: 'A', destName: 'B',
+        });
+        assert.strictEqual(p, null, 'a position 100+ km off the line must not yield progress');
+    });
+
+    await t.test('build prefers geometry progress over the clock when a position exists', () => {
+        const row = makeRow({ boarding_station: 'B', destination_station: 'D' });
+        const geo = { stops: [
+            { name: 'A', lat: 42.0, lon: 25.00 }, { name: 'B', lat: 42.0, lon: 25.10 },
+            { name: 'C', lat: 42.0, lon: 25.20 }, { name: 'D', lat: 42.0, lon: 25.30 },
+        ], shape: [] };
+        const vehicle = { lat: 42.0, lon: 25.20 }; // at C, midway B→D
+        const { state } = contentState.build(row, null, new Date('2026-07-23T13:00:00Z'), vehicle, geo);
+        assert.ok(Math.abs(state.progressPercentage - 0.5) < 0.02, `geometry-based ${state.progressPercentage}`);
+    });
+
     await t.test('matches stations tolerantly (dashes, dots, case)', () => {
         const list = [{ station: 'Ловеч - Север' }, { station: 'Вр.депо Пловдив' }];
         assert.strictEqual(contentState.findStopIndex(list, 'Ловеч-север'), 0);

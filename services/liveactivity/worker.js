@@ -23,6 +23,7 @@
 const crypto = require('crypto');
 
 const cache        = require('../realtime/cache');
+const geometryOf   = require('../gtfs/tripGeometry');
 const store        = require('./store');
 const apns         = require('./apns');
 const contentState = require('./contentState');
@@ -142,14 +143,17 @@ async function tick(now = new Date()) {
 
     for (const [trainNumber, tokens] of byTrain) {
         const rt = cache.getTrain(trainNumber);     // in-memory only, no network
-        const v  = cache.getVehicle(trainNumber);   // for the GPS-tracked flag
+        const v  = cache.getVehicle(trainNumber);   // for the GPS-tracked flag + progress
+        // Static geometry for segment progress, by whichever trip_id we have.
+        const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
+        const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
         const built = new Map();                  // contextKey -> { state, meta, body, hash }
 
         for (const row of tokens) {
             const key = contextKey(row);
 
             if (!built.has(key)) {
-                const { state, meta } = contentState.build(row, rt, now, v);
+                const { state, meta } = contentState.build(row, rt, now, v, geo);
                 built.set(key, { state, meta, body: null, hash: null, endBody: null });
             }
             const ctx = built.get(key);
@@ -252,8 +256,10 @@ function scheduleDepartures(now = new Date()) {
                 if (!fresh) return;
                 const rt = cache.getTrain(fresh.train_number);
                 const v  = cache.getVehicle(fresh.train_number);
+                const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
+                const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
                 const nowSec = Math.floor(Date.now() / 1000);
-                const { state, meta } = contentState.build(fresh, rt, new Date(), v);
+                const { state, meta } = contentState.build(fresh, rt, new Date(), v, geo);
                 const body = buildBody(state, { nowSec, predictedArrivalUnix: meta.predictedArrivalUnix });
                 // Phase change: worth priority 10 and worth bypassing the
                 // per-minute throttle, which exists for feed noise, not this.

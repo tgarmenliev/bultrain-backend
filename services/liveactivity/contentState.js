@@ -16,6 +16,8 @@
  *     as JSON numbers — not ISO strings, not Unix epochs.
  */
 
+const progress = require('../realtime/progress');
+
 // 2001-01-01T00:00:00Z expressed in Unix seconds.
 const SWIFT_EPOCH_OFFSET = 978307200;
 
@@ -54,17 +56,48 @@ function normalizeStation(name) {
 const toMin = (sec) =>
     (sec == null || Math.abs(sec) > MAX_ABS_DELAY_SEC) ? null : Math.round(sec / 60);
 
-function findStopIndex(stops, stationName) {
+function findStopIndex(stops, stationName, getName = (s) => s.station) {
     const target = normalizeStation(stationName);
     if (!target) return -1;
     let exact = -1, partial = -1;
     for (let i = 0; i < stops.length; i++) {
-        const s = normalizeStation(stops[i].station);
+        const s = normalizeStation(getName(stops[i]));
         if (!s) continue;
         if (s === target) { exact = i; break; }
         if (partial === -1 && (s.startsWith(target) || target.startsWith(s))) partial = i;
     }
     return exact !== -1 ? exact : partial;
+}
+
+/**
+ * Progress along the PASSENGER'S segment (boarding → destination), from the live
+ * GPS position projected onto the trip's route geometry. Smooth and honest: it
+ * reflects where the train actually is, and is correct for a late train (unlike
+ * a clock estimate). Returns null when it can't be trusted — no position, the
+ * segment ends aren't on the route, or the position sits far off the line — so
+ * the caller falls back to the feed/clock estimate.
+ */
+function geometrySegmentProgress({ geoStops, shape, vehicle, boardingName, destName }) {
+    if (!vehicle || !Array.isArray(geoStops) || geoStops.length < 2) return null;
+
+    const bIdx = findStopIndex(geoStops, boardingName, (s) => s.name);
+    const dIdx = findStopIndex(geoStops, destName,     (s) => s.name);
+    if (bIdx < 0 || dIdx < 0 || dIdx <= bIdx) return null;
+
+    const stopPts = geoStops.map((s) => ({ lat: s.lat, lon: s.lon }));
+    const linePts = (Array.isArray(shape) && shape.length >= 2) ? shape : stopPts;
+
+    let line;
+    try { line = progress.prepareLine(linePts); } catch { return null; }
+
+    const alongB = progress.project(line, stopPts[bIdx]).along;
+    const alongD = progress.project(line, stopPts[dIdx]).along;
+    if (alongD <= alongB) return null; // stations out of order on the shape
+
+    const here = progress.project(line, { lat: vehicle.lat, lon: vehicle.lon });
+    if (here.offset > 3000) return null; // position off this route ⇒ don't trust
+
+    return Math.min(1, Math.max(0, (here.along - alongB) / (alongD - alongB)));
 }
 
 /**
@@ -101,7 +134,7 @@ function computeProgress({ stops, bIdx, dIdx, nowSec, schedDepSec, schedArrSec }
  * @returns {{ state: object, meta: object }}
  *          `meta` carries the values the worker diffs against the stored ones.
  */
-function build(tokenRow, rt, now = new Date(), vehicle = null) {
+function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
     const nowSec = Math.floor(now.getTime() / 1000);
     const schedDepSec = Math.floor(new Date(tokenRow.scheduled_departure).getTime() / 1000);
     const schedArrSec = Math.floor(new Date(tokenRow.scheduled_arrival).getTime() / 1000);
@@ -135,7 +168,19 @@ function build(tokenRow, rt, now = new Date(), vehicle = null) {
     const hasFeed = !!(stops && stops.length);
     const isGPSTracked = !hasFeed && !!vehicle;
 
-    const progress = computeProgress({ stops, bIdx, dIdx, nowSec, schedDepSec, schedArrSec });
+    // Progress along the PASSENGER'S segment (boarding → destination), one value
+    // with one owner. Prefer GPS-on-geometry when we have a position — smooth,
+    // and right for a late train; else the feed's passed-stops fraction; else a
+    // clock estimate. The client is expected to render this pushed value rather
+    // than recompute, so there is a single source of truth.
+    const progressFraction =
+        geometrySegmentProgress({
+            geoStops: geo && geo.stops,
+            shape: geo && geo.shape,
+            vehicle,
+            boardingName: tokenRow.boarding_station,
+            destName: tokenRow.destination_station,
+        }) ?? computeProgress({ stops, bIdx, dIdx, nowSec, schedDepSec, schedArrSec });
 
     const predictedDepartureUnix = (stops && bIdx >= 0)
         ? (stops[bIdx].departureTime ?? stops[bIdx].arrivalTime ?? null) : null;
@@ -144,7 +189,7 @@ function build(tokenRow, rt, now = new Date(), vehicle = null) {
 
     // ── Mandatory fields: present on every single push, no exceptions ────────
     const state = {
-        progressPercentage:    Number(progress.toFixed(4)),
+        progressPercentage:    Number(progressFraction.toFixed(4)),
         isDelayed:             delayMinutes != null && delayMinutes >= DELAY_THRESHOLD_MIN,
         lastUpdated:           toSwiftDate(nowSec),
         phase,
@@ -182,5 +227,5 @@ function build(tokenRow, rt, now = new Date(), vehicle = null) {
 
 module.exports = {
     build, toSwiftDate, fromSwiftDate, normalizeStation, findStopIndex,
-    computeProgress, SWIFT_EPOCH_OFFSET, DELAY_THRESHOLD_MIN,
+    computeProgress, geometrySegmentProgress, SWIFT_EPOCH_OFFSET, DELAY_THRESHOLD_MIN,
 };
