@@ -101,7 +101,7 @@ function computeProgress({ stops, bIdx, dIdx, nowSec, schedDepSec, schedArrSec }
  * @returns {{ state: object, meta: object }}
  *          `meta` carries the values the worker diffs against the stored ones.
  */
-function build(tokenRow, rt, now = new Date()) {
+function build(tokenRow, rt, now = new Date(), vehicle = null) {
     const nowSec = Math.floor(now.getTime() / 1000);
     const schedDepSec = Math.floor(new Date(tokenRow.scheduled_departure).getTime() / 1000);
     const schedArrSec = Math.floor(new Date(tokenRow.scheduled_arrival).getTime() / 1000);
@@ -128,6 +128,13 @@ function build(tokenRow, rt, now = new Date()) {
 
     const phase = nowSec < schedDepSec ? 'preDeparture' : 'inTransit';
 
+    // GPS-tracked = we have a live position but no TripUpdate (the same case
+    // /api/realtime/train reports as progressSource:'position'). The card then
+    // says "GPS tracked" instead of "no live data", and — critically — does not
+    // claim the train is on time, because we have no delay for it.
+    const hasFeed = !!(stops && stops.length);
+    const isGPSTracked = !hasFeed && !!vehicle;
+
     const progress = computeProgress({ stops, bIdx, dIdx, nowSec, schedDepSec, schedArrSec });
 
     const predictedDepartureUnix = (stops && bIdx >= 0)
@@ -148,6 +155,9 @@ function build(tokenRow, rt, now = new Date()) {
     };
 
     // ── Optional fields: omitted entirely when unknown, never sent as null ───
+    // isGPSTracked is optional on the iOS side, so it is only ever sent as true;
+    // omitting it (the feed case) is safe and reads as "not GPS-only".
+    if (isGPSTracked) state.isGPSTracked = true;
     if (delayMinutes != null) state.delayMinutes = delayMinutes;
     if (predictedDepartureUnix != null) state.predictedDeparture = toSwiftDate(predictedDepartureUnix);
     if (predictedArrivalUnix != null) state.predictedArrival = toSwiftDate(predictedArrivalUnix);
@@ -163,7 +173,7 @@ function build(tokenRow, rt, now = new Date()) {
             delayMinutes,
             nextStop,
             phase,
-            hasFeed: !!stops,
+            hasFeed,
             // Unix seconds; the worker uses it to decide when to end the activity.
             predictedArrivalUnix: predictedArrivalUnix ?? schedArrSec,
         },

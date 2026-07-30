@@ -227,6 +227,25 @@ test('content-state satisfies the Swift decoder', async (t) => {
         assert.strictEqual(contentState.build(makeRow(), rt(120), now).state.isDelayed, true, '2 min is delayed');
     });
 
+    await t.test('isGPSTracked is set only when a position exists without a feed', () => {
+        const now = new Date('2026-07-23T13:00:00Z');
+        const nowSec = Math.floor(now.getTime() / 1000);
+        const feed = { stops: [{ station: 'София', arrivalTime: nowSec + 900, arrivalDelay: 0 }] };
+        const vehicle = { lat: 42.7, lon: 23.3, bearing: 90 };
+
+        // Position but no feed → GPS-tracked.
+        const gps = contentState.build(makeRow(), null, now, vehicle).state;
+        assert.strictEqual(gps.isGPSTracked, true, 'position-only train must be flagged');
+
+        // Has a feed → omitted (never claim GPS-only when we have real delay data).
+        const withFeed = contentState.build(makeRow(), feed, now, vehicle).state;
+        assert.ok(!('isGPSTracked' in withFeed), 'a fed train must not be flagged GPS-tracked');
+
+        // Neither feed nor position → omitted (optional, never null/false).
+        const neither = contentState.build(makeRow(), null, now, null).state;
+        assert.ok(!('isGPSTracked' in neither), 'omit when there is no position either');
+    });
+
     await t.test('phase is preDeparture before the scheduled departure', () => {
         const row = makeRow({
             scheduled_departure: '2026-07-23T14:00:00.000Z',

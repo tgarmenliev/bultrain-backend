@@ -141,14 +141,15 @@ async function tick(now = new Date()) {
     let skipped = 0;
 
     for (const [trainNumber, tokens] of byTrain) {
-        const rt = cache.getTrain(trainNumber);   // in-memory only, no network
+        const rt = cache.getTrain(trainNumber);     // in-memory only, no network
+        const v  = cache.getVehicle(trainNumber);   // for the GPS-tracked flag
         const built = new Map();                  // contextKey -> { state, meta, body, hash }
 
         for (const row of tokens) {
             const key = contextKey(row);
 
             if (!built.has(key)) {
-                const { state, meta } = contentState.build(row, rt, now);
+                const { state, meta } = contentState.build(row, rt, now, v);
                 built.set(key, { state, meta, body: null, hash: null, endBody: null });
             }
             const ctx = built.get(key);
@@ -250,8 +251,9 @@ function scheduleDepartures(now = new Date()) {
                 const fresh = store.getByToken(row.token);
                 if (!fresh) return;
                 const rt = cache.getTrain(fresh.train_number);
+                const v  = cache.getVehicle(fresh.train_number);
                 const nowSec = Math.floor(Date.now() / 1000);
-                const { state, meta } = contentState.build(fresh, rt, new Date());
+                const { state, meta } = contentState.build(fresh, rt, new Date(), v);
                 const body = buildBody(state, { nowSec, predictedArrivalUnix: meta.predictedArrivalUnix });
                 // Phase change: worth priority 10 and worth bypassing the
                 // per-minute throttle, which exists for feed noise, not this.
