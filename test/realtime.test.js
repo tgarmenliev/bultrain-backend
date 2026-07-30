@@ -29,7 +29,7 @@ function mockRes() {
 // Clears the vehicle cache too, so a test that seeds only trips has no stale
 // position bleeding in from an earlier test.
 function seed(num, stops) {
-    const map = new Map([[num, { tripId: `${num}-BV-20260730`, stops }]]);
+    const map = new Map([[num, [{ tripId: `${num}-BV-20260730`, stops }]]]);
     cache.setTrips(map, Date.now());
     cache.setVehicles(new Map(), Date.now());
 }
@@ -90,4 +90,28 @@ test('a delayed train reports its delay (control case)', () => {
     controller.getTrain({ params: { trainNo: '8611' } }, res);
     assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.body.delayMinutes, 6);
+});
+
+test('two trips sharing a number: both kept, the in-progress one is returned', () => {
+    const now  = Math.floor(Date.now() / 1000);
+    const past = now - 3600;
+    const soon = now + 600;
+
+    // Overnight run: one stop already passed, one still ahead → in progress.
+    const overnight = { tripId: '16102-PV-20260729', stops: [
+        { stationId: 1, station: 'Русе',   arrivalDelay: 120, arrivalTime: past, departureDelay: 120, departureTime: past + 60 },
+        { stationId: 2, station: 'Горна',  arrivalDelay: 120, arrivalTime: soon, departureDelay: 120, departureTime: soon + 60 },
+    ] };
+    // Today's run of the same number: departs this evening → not yet started.
+    const daytime = { tripId: '16102-PV-20260730', stops: [
+        { stationId: 3, station: 'София',   arrivalDelay: 0, arrivalTime: now + 36000, departureDelay: 0, departureTime: now + 36060 },
+    ] };
+
+    cache.setTrips(new Map([['16102', [daytime, overnight]]]), Date.now());
+    cache.setVehicles(new Map(), Date.now());
+
+    // getTrain must return the in-progress overnight run, not silently drop one.
+    const picked = cache.getTrain('16102');
+    assert.strictEqual(picked.tripId, '16102-PV-20260729', 'the mid-route run must win');
+    assert.strictEqual(cache.getTrips('16102').length, 2, 'both runs must be retained');
 });

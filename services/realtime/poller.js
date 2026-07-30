@@ -111,7 +111,12 @@ async function pollTripUpdates() {
                     departureTime:  su.departure && su.departure.time ? Number(su.departure.time) : null,
                 };
             });
-            map.set(num, { tripId: tu.trip.tripId, stops });
+            // Append, don't overwrite: two trips can share a train number at
+            // once (an overnight run plus the same-numbered daytime one). The
+            // cache keeps both; getTrain picks the one in progress.
+            const arr = map.get(num) || [];
+            arr.push({ tripId: tu.trip.tripId, stops });
+            map.set(num, arr);
         }
         cache.setTrips(map, feedTs);
     } catch (err) {
