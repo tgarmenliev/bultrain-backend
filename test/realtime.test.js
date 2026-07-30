@@ -26,9 +26,19 @@ function mockRes() {
 }
 
 // Inject a trip into the cache with a feed timestamp of "now" so it reads fresh.
+// Clears the vehicle cache too, so a test that seeds only trips has no stale
+// position bleeding in from an earlier test.
 function seed(num, stops) {
     const map = new Map([[num, { tripId: `${num}-BV-20260730`, stops }]]);
     cache.setTrips(map, Date.now());
+    cache.setVehicles(new Map(), Date.now());
+}
+
+// Inject a vehicle position with no TripUpdate — the "running but no delay
+// data" case that NAP's two-feed split produces.
+function seedVehicleOnly(num, position) {
+    cache.setTrips(new Map(), Date.now());
+    cache.setVehicles(new Map([[num, { tripId: `${num}-BV-20260730`, ...position }]]), Date.now());
 }
 
 test('an on-time train (delay 0) returns 200 with delayMinutes: 0 and stops', () => {
@@ -46,12 +56,26 @@ test('an on-time train (delay 0) returns 200 with delayMinutes: 0 and stops', ()
 
     assert.strictEqual(res.statusCode, 200, 'on-time train must not 404');
     assert.strictEqual(res.body.delayMinutes, 0, 'headline delay must be 0, not null');
+    assert.strictEqual(res.body.hasLiveDelay, true, 'a TripUpdate means live delay data');
     assert.ok(Array.isArray(res.body.stops) && res.body.stops.length === 1, 'stops must be populated');
     assert.strictEqual(res.body.stops[0].arrivalDelayMin, 0, 'per-stop delay must be 0, not null');
 });
 
-test('a genuinely absent train still 404s', () => {
-    seed('2612', []); // fresh feed, but this number not in it
+test('a train with only a position (no TripUpdate) is 200, running, delay unknown', () => {
+    seedVehicleOnly('28202', { lat: 42.5, lon: 25.6, bearing: 90 });
+    const res = mockRes();
+    controller.getTrain({ params: { trainNo: '28202' } }, res);
+
+    assert.strictEqual(res.statusCode, 200, 'a train we can see moving must not 404');
+    assert.strictEqual(res.body.hasLiveDelay, false, 'no TripUpdate ⇒ no live delay');
+    assert.strictEqual(res.body.delayMinutes, null, 'delay is unknown, reported as null');
+    assert.deepStrictEqual(res.body.stops, [], 'no stops without a TripUpdate');
+    assert.deepStrictEqual(res.body.position, { lat: 42.5, lon: 25.6, bearing: 90 });
+});
+
+test('a train absent from BOTH feeds still 404s', () => {
+    seed('2612', []);                              // trips fresh but empty for 9999
+    cache.setVehicles(new Map(), Date.now());      // vehicles empty too
     const res = mockRes();
     controller.getTrain({ params: { trainNo: '9999' } }, res);
     assert.strictEqual(res.statusCode, 404);

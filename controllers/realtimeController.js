@@ -19,40 +19,64 @@ const toMin = (sec) =>
 
 /**
  * GET /api/realtime/train/:trainNo
- * Live delay + predicted arrival per stop for a running train.
- * 404 when the train has no live data (not running, or feed stale) — the app
- * then falls back to the static schedule.
+ * Live status for a running train, merged from the two realtime feeds.
+ *
+ * NAP publishes TripUpdates (delay + per-stop times) and VehiclePositions (GPS)
+ * as SEPARATE feeds with different coverage — there are consistently more trains
+ * with a position than with a TripUpdate. So a train can be visibly running (we
+ * have its position) yet have no delay data. We report it as running with
+ * `delayMinutes: null` rather than 404, so the app shows "on the move, delay
+ * unknown" instead of falling all the way back to the static timetable.
+ *
+ * 404 only when the train is in NEITHER feed (not running, or both stale).
+ *
+ * Response is additive over the old shape: `trainNumber`, `delayMinutes`,
+ * `stops` are unchanged; `hasLiveDelay` and `position` are new.
  */
 exports.getTrain = (req, res) => {
     const num = req.params.trainNo;
     const rt = cache.getTrain(num);
-    if (!rt) return res.status(404).json({ error: 'No live data for this train.' });
+    const v  = cache.getVehicle(num);
 
-    // Keep only stops that map to one of our passenger stations. The ~2% that
-    // don't are technical points (junctions/yards) absent from the static feed,
-    // and would just show as an unnamed stop to the user.
-    const named = rt.stops.filter(s => s.stationId != null);
+    if (!rt && !v) return res.status(404).json({ error: 'No live data for this train.' });
 
-    // The feed carries the WHOLE trip — stops the train has already passed
-    // (with their actual times) and the ones still ahead. Flag which is which
-    // so the app can show just the upcoming ones or the full progress.
-    const nowSec = Date.now() / 1000;
-    const stops = named.map(s => ({
-        station:           s.station,
-        stationId:         s.stationId,
-        predictedArrival:  hhmm(s.arrivalTime),
-        arrivalDelayMin:   toMin(s.arrivalDelay),
-        departureDelayMin: toMin(s.departureDelay),
-        passed:            s.arrivalTime ? (s.arrivalTime < nowSec) : null,
-    }));
+    let stops = [];
+    let delayMinutes = null;
+    if (rt) {
+        // Keep only stops that map to one of our passenger stations. The ~2% that
+        // don't are technical points (junctions/yards) absent from the static feed,
+        // and would just show as an unnamed stop to the user.
+        const named = rt.stops.filter(s => s.stationId != null);
 
-    // Headline = the CURRENT delay: the delay at the next stop still ahead,
-    // falling back to the last stop if the train is finishing.
-    const upcoming = named.filter(s => s.arrivalTime && s.arrivalTime >= nowSec);
-    const ref = upcoming[0] || named[named.length - 1];
-    const delayMinutes = ref ? toMin(ref.arrivalDelay ?? ref.departureDelay) : null;
+        // The feed carries the WHOLE trip — stops the train has already passed
+        // (with their actual times) and the ones still ahead. Flag which is which
+        // so the app can show just the upcoming ones or the full progress.
+        const nowSec = Date.now() / 1000;
+        stops = named.map(s => ({
+            station:           s.station,
+            stationId:         s.stationId,
+            predictedArrival:  hhmm(s.arrivalTime),
+            arrivalDelayMin:   toMin(s.arrivalDelay),
+            departureDelayMin: toMin(s.departureDelay),
+            passed:            s.arrivalTime ? (s.arrivalTime < nowSec) : null,
+        }));
 
-    res.json({ trainNumber: num, delayMinutes, stops });
+        // Headline = the CURRENT delay: the delay at the next stop still ahead,
+        // falling back to the last stop if the train is finishing.
+        const upcoming = named.filter(s => s.arrivalTime && s.arrivalTime >= nowSec);
+        const ref = upcoming[0] || named[named.length - 1];
+        delayMinutes = ref ? toMin(ref.arrivalDelay ?? ref.departureDelay) : null;
+    }
+
+    const position = v ? { lat: v.lat, lon: v.lon, bearing: v.bearing } : null;
+
+    res.json({
+        trainNumber:  num,
+        delayMinutes,              // null when only a position is available
+        hasLiveDelay: !!rt,        // false ⇒ running on position alone
+        stops,                     // [] when there's no TripUpdate
+        position,                  // null when there's no VehiclePosition
+    });
 };
 
 /**
