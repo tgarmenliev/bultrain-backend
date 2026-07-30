@@ -92,6 +92,60 @@ test('a delayed train reports its delay (control case)', () => {
     assert.strictEqual(res.body.delayMinutes, 6);
 });
 
+test('position-only train: progress + next stop derived from geometry, no delay', () => {
+    const geo = {
+        stops: [
+            { seq: 1, stationId: 1, name: 'A', lat: 42.0, lon: 25.00, arrive: null,    depart: '10:00' },
+            { seq: 2, stationId: 2, name: 'B', lat: 42.0, lon: 25.20, arrive: '10:30', depart: '10:32' },
+            { seq: 3, stationId: 3, name: 'C', lat: 42.0, lon: 25.40, arrive: '11:00', depart: null },
+        ],
+        shape: [
+            { lat: 42.0, lon: 25.00 }, { lat: 42.0, lon: 25.10 }, { lat: 42.0, lon: 25.20 },
+            { lat: 42.0, lon: 25.30 }, { lat: 42.0, lon: 25.40 },
+        ],
+    };
+    const v = { lat: 42.0, lon: 25.30, bearing: 90, tripId: '28202-PV-20260730' };
+
+    const { status, body } = controller._buildTrainStatus({ num: '28202', rt: null, v, geo });
+
+    assert.strictEqual(status, 200);
+    assert.strictEqual(body.progressSource, 'position');
+    assert.strictEqual(body.hasLiveDelay, false, 'no TripUpdate ⇒ no live delay');
+    assert.strictEqual(body.delayMinutes, null, 'we must never invent a delay');
+    assert.ok(body.progressPercentage > 0.5 && body.progressPercentage < 1, `progress ${body.progressPercentage}`);
+    assert.strictEqual(body.nextStation, 'C');
+    assert.strictEqual(body.stops[1].passed, true, 'B is behind the train');
+    assert.strictEqual(body.stops[2].isNext, true, 'C is the next stop');
+    assert.strictEqual(body.stops[2].scheduledArrival, '11:00', 'scheduled time shown, labelled as such');
+});
+
+test('position far off the trip route: no fabricated stops, just the dot', () => {
+    const geo = {
+        stops: [
+            { seq: 1, stationId: 1, name: 'A', lat: 42.0, lon: 25.00 },
+            { seq: 2, stationId: 2, name: 'B', lat: 42.0, lon: 25.40 },
+        ],
+        shape: [],
+    };
+    // 100+ km north of the line — a gross mismatch (wrong trip / bad fix).
+    const v = { lat: 43.0, lon: 25.20, bearing: 0, tripId: 'x' };
+    const { body } = controller._buildTrainStatus({ num: '28202', rt: null, v, geo });
+    assert.strictEqual(body.progressSource, null, 'do not derive progress from a position off the route');
+    assert.deepStrictEqual(body.stops, []);
+    assert.ok(body.position, 'the position is still returned');
+});
+
+test('feed train keeps progressSource feed and its own delay', () => {
+    const soon = Math.floor(Date.now() / 1000) + 600;
+    const rt = { tripId: '8651-PV-20260730', stops: [
+        { stationId: 5, station: 'Мездра', arrivalDelay: 120, arrivalTime: soon, departureDelay: 120, departureTime: soon + 60 },
+    ] };
+    const { body } = controller._buildTrainStatus({ num: '8651', rt, v: null, geo: null });
+    assert.strictEqual(body.progressSource, 'feed');
+    assert.strictEqual(body.hasLiveDelay, true);
+    assert.strictEqual(body.delayMinutes, 2);
+});
+
 test('two trips sharing a number: both kept, the in-progress one is returned', () => {
     const now  = Math.floor(Date.now() / 1000);
     const past = now - 3600;
