@@ -56,9 +56,13 @@ function delayOf(evt) {
     return { present: has, value: has ? Number(evt.delay) : null };
 }
 
+async function fetchFeed(url) {
+    const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 20000 });
+    return FeedMessage.decode(Buffer.from(res.data));
+}
+
 (async () => {
-    const res  = await axios.get(cfg.RT.tripUpdates, { responseType: 'arraybuffer', timeout: 20000 });
-    const feed = FeedMessage.decode(Buffer.from(res.data));
+    const feed = await fetchFeed(cfg.RT.tripUpdates);
 
     const headerTs = Number(feed.header.timestamp) * 1000;
     const ageSec   = headerTs ? Math.round((Date.now() - headerTs) / 1000) : null;
@@ -137,20 +141,52 @@ function delayOf(evt) {
         console.log('');
     }
 
+    // ── Cross-reference with the VehiclePositions feed ───────────────────────
+    // These are two SEPARATE feeds with different coverage. /api/realtime/train
+    // reads only TripUpdates, so a train that has a live position but no
+    // TripUpdate returns 404 even though we can see it moving. Quantify that.
+    const tripNums = new Set(resolved.map(e => numberOf(e.tripUpdate.trip.tripId)));
+    const vehNums  = new Set();
+    let vehTotal = 0;
+    try {
+        const vfeed = await fetchFeed(cfg.RT.vehiclePositions);
+        for (const e of vfeed.entity) {
+            if (!e.vehicle || !e.vehicle.trip) continue;
+            vehTotal++;
+            const n = numberOf(e.vehicle.trip.tripId);
+            if (n !== '(none)') vehNums.add(n);
+        }
+    } catch (e) {
+        console.log(`(could not fetch VehiclePositions: ${e.message})`);
+    }
+
+    const inVehNotTrip = [...vehNums].filter(n => !tripNums.has(n)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const inTripNotVeh = [...tripNums].filter(n => !vehNums.has(n)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    console.log('── TripUpdates vs VehiclePositions ─────');
+    console.log(`unique numbers in TripUpdates    : ${tripNums.size}`);
+    console.log(`unique numbers in VehiclePositions: ${vehNums.size}  (of ${vehTotal} vehicle entities)`);
+    console.log(`moving but NO delay data (veh-only): ${inVehNotTrip.length}`);
+    if (inVehNotTrip.length) console.log(`   ${inVehNotTrip.join(', ')}`);
+    console.log(`have delay but no position         : ${inTripNotVeh.length}`);
+    if (inTripNotVeh.length) console.log(`   ${inTripNotVeh.join(', ')}`);
+    console.log('');
+
     console.log('── summary ─────────────────────────────');
     console.log(`trips with a non-zero delay somewhere : ${hasDeviation}`);
     console.log(`trips entirely on time (all 0/absent) : ${allOnTime}`);
     console.log(`trips carrying an explicit delay of 0 : ${anyPresentZero}`);
-    console.log('');
-    console.log(allOnTime === 0
-        ? 'VERDICT: the feed only publishes deviating trips. On-time trains are\n'
-          + '         absent from the feed itself — this is NOT a backend bug. Whether\n'
-          + '         to synthesise an "on time, running" record from KIS is a product\n'
-          + '         decision.'
-        : 'VERDICT: the feed DOES carry on-time trips, so a 404 for one is a backend\n'
-          + '         bug — run this with that train number and trace where it drops.');
 
-    if (wanted && !entities.some(e => numberOf(e.tripUpdate.trip.tripId) === wanted)) {
-        console.log(`\nNOTE: train ${wanted} has NO TripUpdate in this feed snapshot.`);
+    if (wanted) {
+        const inTrip = tripNums.has(wanted);
+        const inVeh  = vehNums.has(wanted);
+        console.log(`\n── train ${wanted}: TripUpdate ${inTrip ? 'YES' : 'no'} · VehiclePosition ${inVeh ? 'YES' : 'no'}`);
+        if (!inTrip && inVeh) {
+            console.log('   → running (we have its position) but /api/realtime/train 404s,');
+            console.log('     because NAP publishes no TripUpdate for it. Backend reads the');
+            console.log('     wrong feed for this case — a product/architecture decision.');
+        } else if (!inTrip && !inVeh) {
+            console.log('   → absent from BOTH feeds — NAP is not publishing this train at all.');
+        }
     }
 })().catch(err => { console.error('failed:', err.message); process.exit(1); });
