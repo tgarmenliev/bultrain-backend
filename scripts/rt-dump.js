@@ -64,8 +64,35 @@ function delayOf(evt) {
     const ageSec   = headerTs ? Math.round((Date.now() - headerTs) / 1000) : null;
     console.log(`feed header timestamp: ${headerTs ? new Date(headerTs).toISOString() : '(none)'}  (age ${ageSec}s)`);
 
-    const entities = feed.entity.filter(e => e.tripUpdate && e.tripUpdate.trip);
-    console.log(`TripUpdate entities: ${entities.length}\n`);
+    // Where entities are lost between the raw feed and what we cache. The live
+    // poller drops the same two ways: no tripUpdate.trip, and no resolvable
+    // number. If the raw count matches KISS but our resolved count doesn't, the
+    // trains are lost HERE (our filters), not at the source.
+    const raw          = feed.entity;
+    const withTU       = raw.filter(e => e.tripUpdate);
+    const withTrip     = withTU.filter(e => e.tripUpdate.trip);
+    const withTripId   = withTrip.filter(e => e.tripUpdate.trip.tripId);
+    const noTripId     = withTrip.filter(e => !e.tripUpdate.trip.tripId);
+    const entities     = withTrip;
+    const resolved     = entities.filter(e => numberOf(e.tripUpdate.trip.tripId) !== '(none)');
+    const uniqueNums   = new Set(resolved.map(e => numberOf(e.tripUpdate.trip.tripId)));
+
+    console.log('── entity breakdown (where trains drop out) ──');
+    console.log(`raw feed entities            : ${raw.length}`);
+    console.log(`  have a tripUpdate          : ${withTU.length}`);
+    console.log(`  have tripUpdate.trip       : ${withTrip.length}`);
+    console.log(`  have a trip_id             : ${withTripId.length}`);
+    console.log(`  trip WITHOUT a trip_id     : ${noTripId.length}  ← we drop these (route+time only)`);
+    console.log(`resolved to a train number   : ${resolved.length}`);
+    console.log(`UNIQUE train numbers         : ${uniqueNums.size}  ← what the cache actually holds`);
+    if (noTripId.length) {
+        console.log('\n  entities with no trip_id (route_id / start):');
+        for (const e of noTripId.slice(0, 20)) {
+            const t = e.tripUpdate.trip;
+            console.log(`    route=${t.routeId ?? '?'}  start=${t.startDate ?? '?'} ${t.startTime ?? ''}  stops=${(e.tripUpdate.stopTimeUpdate || []).length}`);
+        }
+    }
+    console.log('');
 
     let allOnTime = 0;   // every stop delay is present-and-0 or absent
     let hasDeviation = 0; // at least one stop with a non-zero delay
