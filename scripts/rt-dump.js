@@ -12,20 +12,42 @@
  * Usage:
  *   node scripts/rt-dump.js            # feed-wide summary
  *   node scripts/rt-dump.js 2612       # + every TripUpdate for train 2612
+ *   node scripts/rt-dump.js --list     # every resolved train number in the feed
+ *
+ * Resolves trip_id → train_number exactly like the poller (DB mapping first,
+ * prefix fallback), so "not in the feed" here means the same as it does to the
+ * live cache — no false negative from a trip_id whose prefix isn't the number.
  *
  * Distinguishes a delay of 0 (present, on time) from an ABSENT delay field —
  * the whole point of the investigation — so don't collapse them.
  */
 
-const axios = require('axios');
-const B     = require('gtfs-realtime-bindings');
-const cfg   = require('../services/gtfs/config');
+const path     = require('path');
+const axios    = require('axios');
+const Database = require('better-sqlite3');
+const B        = require('gtfs-realtime-bindings');
+const cfg      = require('../services/gtfs/config');
 
 const FeedMessage = B.transit_realtime.FeedMessage;
-const wanted = process.argv[2] ? String(process.argv[2]) : null;
+const args   = process.argv.slice(2);
+const doList = args.includes('--list');
+const wanted = args.find(a => !a.startsWith('--')) || null;
 
-// prefix of "{number}-{cat}-{date}" — no DB needed for a diagnostic
-const numberOf = (tripId) => String(tripId || '').split('-')[0] || '(none)';
+// Same resolution as services/realtime/poller.js: DB trip mapping, then the
+// "{number}-{cat}-{date}" prefix as a fallback.
+const DB_PATH = path.join(__dirname, '..', 'bultrain.sqlite');
+let tripToNumber = new Map();
+try {
+    const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
+    for (const r of db.prepare('SELECT trip_id, train_number FROM trip').all()) {
+        tripToNumber.set(r.trip_id, r.train_number);
+    }
+    db.close();
+} catch (e) {
+    console.warn(`(could not load DB trip mapping: ${e.message} — prefix fallback only)\n`);
+}
+const numberOf = (tripId) =>
+    String(tripToNumber.get(tripId) || String(tripId || '').split('-')[0] || '(none)');
 
 // null → absent field; a number (incl. 0) → present
 function delayOf(evt) {
@@ -48,6 +70,7 @@ function delayOf(evt) {
     let allOnTime = 0;   // every stop delay is present-and-0 or absent
     let hasDeviation = 0; // at least one stop with a non-zero delay
     let anyPresentZero = 0; // trips that carry an explicit delay of exactly 0
+    const present = [];   // { num, onTime } for --list
 
     for (const e of entities) {
         const tu = e.tripUpdate;
@@ -66,6 +89,7 @@ function delayOf(evt) {
         }
         if (maxAbs > 0) hasDeviation++; else allOnTime++;
         if (sawPresentZero) anyPresentZero++;
+        present.push({ num: numberOf(tu.trip.tripId), onTime: maxAbs === 0 });
 
         if (wanted && numberOf(tu.trip.tripId) === wanted) {
             console.log(`── train ${wanted}  trip_id=${tu.trip.tripId}  stops=${stus.length}`);
@@ -77,6 +101,13 @@ function delayOf(evt) {
             }
             console.log('');
         }
+    }
+
+    if (doList) {
+        console.log('── train numbers in the feed (● on time · ▲ delayed) ──');
+        present.sort((a, b) => a.num.localeCompare(b.num, undefined, { numeric: true }));
+        for (const p of present) console.log(`   ${p.onTime ? '●' : '▲'} ${p.num}`);
+        console.log('');
     }
 
     console.log('── summary ─────────────────────────────');
