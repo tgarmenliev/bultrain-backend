@@ -35,6 +35,44 @@ function isoDate(dateObj) {
     return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
 }
 
+// Replacement-bus legs carry category АВТ; everything else is a rail service.
+const BUS_CATEGORY = 'АВТ';
+const modeOf = (category) => (category === BUS_CATEGORY ? 'bus' : 'train');
+
+/**
+ * Chain the (time-ordered) legs into one stop list, merging the shared transfer
+ * station, and tag each stop with the mode of the leg DEPARTING it — so the app
+ * can mark where the route switches to a bus and back, even mid-route. The final
+ * stop has no onward leg, so it keeps its arriving mode (a bus-ending route thus
+ * still reads as bus at its last stop). Additive: station/arrive/depart are
+ * exactly as before; `mode` sits alongside them.
+ *
+ * @param {Array<{category:string, stops:object[]}>} legs
+ * @param {(row:object)=>string} nameOf  language-aware station name
+ */
+function buildStations(legs, nameOf) {
+    const merged = [];
+    for (const leg of legs) {
+        const legMode = modeOf(leg.category);
+        for (const s of leg.stops) {
+            const prev = merged[merged.length - 1];
+            if (prev && prev._name === nameOf(s)) {
+                // Transfer point: keep the arrival, take the onward departure —
+                // and the onward mode is THIS (the next) leg's.
+                prev.depart = s.depart || prev.depart;
+                prev.mode = legMode;
+                continue;
+            }
+            merged.push({ _name: nameOf(s), station: nameOf(s), arrive: s.arrive, depart: s.depart, mode: legMode });
+        }
+    }
+
+    // Endpoints use the same ↦ / ↤ markers as the legacy output.
+    merged[0].arrive = '↦';
+    merged[merged.length - 1].depart = '↤';
+    return merged.map(({ _name, ...rest }) => rest);
+}
+
 /**
  * Legacy-identical train-info from the GTFS trip tables.
  * @returns {{result:object}|{error:string,status:number}}
@@ -77,23 +115,7 @@ function buildTrainInfo(db, { language, trainNo, dateObj }) {
 
     const nameOf = row => (language === 'en' ? (row.english_name || row.bg_name) : row.bg_name);
 
-    // Chain legs into one stop list, merging the shared transfer station.
-    const merged = [];
-    for (const leg of legs) {
-        for (const s of leg.stops) {
-            const prev = merged[merged.length - 1];
-            if (prev && prev._name === nameOf(s)) {
-                prev.depart = s.depart || prev.depart;  // transfer point: keep arrival, take onward departure
-                continue;
-            }
-            merged.push({ _name: nameOf(s), station: nameOf(s), arrive: s.arrive, depart: s.depart });
-        }
-    }
-
-    // Endpoints use the same ↦ / ↤ markers as the legacy output.
-    merged[0].arrive = '↦';
-    merged[merged.length - 1].depart = '↤';
-    const stations = merged.map(({ _name, ...rest }) => rest);
+    const stations = buildStations(legs, nameOf);
 
     const categoryMap = language === 'bg' ? CATEGORY_BG : CATEGORY_EN;
     const trainType = categoryMap[legs[0].category] || legs[0].category;
@@ -108,4 +130,4 @@ function buildTrainInfo(db, { language, trainNo, dateObj }) {
     };
 }
 
-module.exports = { buildTrainInfo };
+module.exports = { buildTrainInfo, buildStations, modeOf };

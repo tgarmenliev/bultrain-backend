@@ -1,6 +1,6 @@
 const Database = require('better-sqlite3');
 const path = require('path');
-const { buildTrainInfo } = require('../services/gtfs/serving');
+const { buildTrainInfo, modeOf } = require('../services/gtfs/serving');
 
 // ── Database ────────────────────────────────────────────────────────────────
 const DB_PATH = path.join(__dirname, '..', 'bultrain.sqlite');
@@ -171,6 +171,9 @@ exports.getTrainInfo = (req, res) => {
                 station: stationName,
                 arrive: row.arrival_time === null ? '↦' : row.arrival_time,
                 depart: row.departure_time === null ? '↤' : row.departure_time,
+                // Legacy path is a single service with no bus legs, so every
+                // stop is the same mode. Kept for shape parity with the GTFS path.
+                mode: modeOf(train.category),
             };
         });
 
