@@ -1,13 +1,45 @@
 const express = require('express');
+const path = require('path');
 const router = express.Router();
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
 const verifyAdmin = require('../middleware/verifyAdmin');
+const verifyRole = require('../middleware/verifyRole');
 const adminController = require('../controllers/adminController');
+const mediaController = require('../controllers/mediaController');
+
+// ── Image uploads for the article/guide editor ──────────────────────────────
+// Server-generated filename from the MIME type (no client-controlled path or
+// extension); saved into guide/images/ (already served at /guide/images/).
+mediaController.ensureDir();
+const mediaUpload = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, mediaController.MEDIA_DIR),
+        filename:    (req, file, cb) => {
+            const name = mediaController.makeFilename(file.mimetype);
+            cb(name ? null : new Error('Unsupported image type. Use JPEG, PNG or WebP.'), name);
+        },
+    }),
+    limits: { fileSize: mediaController.MAX_BYTES },
+    fileFilter: (req, file, cb) => cb(null, !!mediaController.extForMime(file.mimetype)),
+}).single('file');
 
 // ── Public (no auth) ────────────────────────────────────────────────────────
 router.post('/login', adminController.login);
 router.post('/logout', adminController.logout);
+
+// ── Media (admin OR author) ─────────────────────────────────────────────────
+router.post('/media', verifyRole('admin', 'author'), (req, res) => {
+    mediaUpload(req, res, (err) => {
+        if (err) {
+            const msg = err.code === 'LIMIT_FILE_SIZE'
+                ? 'Image is too large (max 6 MB).'
+                : err.message || 'Upload failed.';
+            return res.status(400).json({ error: msg });
+        }
+        mediaController.uploadMedia(req, res);
+    });
+});
 
 // ── Protected (requires valid admin JWT) ────────────────────────────────────
 router.get('/stats', verifyAdmin, adminController.getStats);
