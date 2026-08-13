@@ -49,7 +49,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
                         Админ Панел
                     </h1>
                     <p className="text-slate-400 text-sm font-medium">
-                        Въведете главната парола за достъп до системата.
+                        Влезте с потребител и парола, или само с главната парола (админ).
                     </p>
                 </div>
 
