@@ -1,140 +1,174 @@
 # BulTrain backend
 
-Express 5 API behind nginx, serving the BulTrain iOS app, the Android app and an
-E-ink station display. Data lives in a single SQLite database (`better-sqlite3`,
-WAL mode); schedules come from the national GTFS feed and live delays from its
-GTFS-Realtime companion.
+The API behind **BulTrain** — the iOS app, the Android app and an E-ink station
+display. It turns Bulgaria's national GTFS schedule and its GTFS-Realtime feed
+into clean endpoints for train info, live delays and positions, journey Live
+Activities, a guide, and author-written travel articles — plus a web admin panel
+to manage it all.
+
+Express 5 (CommonJS) · Node 24 · a single SQLite database (`better-sqlite3`, WAL)
+· pm2 fork mode behind nginx. **No ORM, and dependencies are kept few on
+purpose** — auth hashing, APNs and JWTs all use Node built-ins.
 
 ```bash
-npm start        # node server.js
+npm start     # node server.js
+npm test      # scripts/ci-check.sh — native module, syntax, migrations, route load, unit tests
 ```
 
-```bash
-npm test         # scripts/ci-check.sh — native module, syntax, migrations, routes, unit tests
-```
-
-Configuration is entirely environment variables — copy `.env.example` to `.env`
+Configuration is entirely environment variables: copy `.env.example` to `.env`
 and fill it in. Nothing secret is ever committed.
 
-Background jobs are each behind a flag (`REALTIME`, `RT_HISTORY`,
-`LIVE_ACTIVITY`) so code can be deployed and inspected on the server before it
-starts doing work.
+---
+
+## Contents
+
+- [Architecture at a glance](#architecture-at-a-glance)
+- [Data & schedules](#data--schedules)
+- [Realtime: delays & positions](#realtime-delays--positions)
+- [Live Activity push updates](#live-activity-push-updates)
+- [Articles — the author portal](#articles--the-author-portal)
+- [Admin panel & accounts](#admin-panel--accounts)
+- [Configuration](#configuration)
+- [Deployment](#deployment)
+- [Testing & CI](#testing--ci)
+- [Operations](#operations)
+
+---
+
+## Architecture at a glance
+
+```
+  iOS / Android / E-ink                     Admin panel (React, /admin)
+        │  X-Bultrain-Api-Key                       │  admin_token cookie (JWT)
+        ▼                                           ▼
+  ┌───────────────────────────── Express (server.js) ─────────────────────────┐
+  │  /api/*  (verifyMobileClient)          /api/admin/*  (verifyRole)          │
+  │  live · train-info · schedule · stations · realtime · live-activity ·      │
+  │  articles · guide                       login · articles · media · trains  │
+  └───────────────┬───────────────────────────────┬──────────────────────────┘
+                  │                                 │
+        in-memory realtime cache            SQLite (bultrain.sqlite, WAL)
+                  ▲                                 ▲
+     GTFS-Realtime poller (30s/15s)      daily GTFS refresh → materialize
+                  ▲                                 ▲
+             NAP GTFS-RT feeds              NAP GTFS static feed
+```
+
+- **Clients** authenticate with an API key (`X-Bultrain-Api-Key`) **and** a
+  `User-Agent` containing `BulTrainMobile` (the E-ink screen key is exempt from
+  the UA check). See `middleware/verifyMobileClient.js`.
+- **Background jobs** are each behind a flag (`REALTIME`, `RT_HISTORY`,
+  `LIVE_ACTIVITY`) so code can be deployed and inspected before it starts working.
+- **The admin panel** is a React/Vite app served from `admin-ui/dist` at `/admin`,
+  protected by a JWT cookie with a role.
+
+---
+
+## Data & schedules
+
+Schedules come from the **national GTFS static feed** (published on NAP). A daily
+refresh (`scripts/gtfs-refresh.sh`) downloads and imports it, then materialises a
+date-based serving model:
+
+- `trip` — a train number resolves to one or more trips on a date, each with its
+  own category (`ПВ/БВ/КПВ/МБВ/АВТ`). A single number can be a train leg **plus a
+  replacement-bus leg** (route "A" = Автобус), presented as one journey.
+- `trip_date` — which dates a trip runs (calendar-dates model).
+- `trip_stop` — the ordered stops of a trip, with scheduled times and coordinates.
+- `stations` — our canonical station list; `station_map` maps GTFS stop ids to it.
+
+`stations.json` (repo root) is the **source of truth for coordinates** — the
+refresh re-applies it onto the DB (`reconcile-coords.js`). Station names live in
+both `stations` (DB) and `stations.json`; fix both, and use a migration for the
+DB (see `migrations/008` for the pattern).
+
+**`GET /api/train-info/:lang/:no/:date`** returns a train's full route. Where a
+journey switches to a replacement bus, each stop carries `mode: "train" | "bus"`
+(the mode of the leg departing that stop), so a train → bus → train journey reads
+correctly. `trainType`, `stations[].{station,arrive,depart}` are unchanged; `mode`
+is additive.
+
+---
+
+## Realtime: delays & positions
+
+NAP publishes **two separate** GTFS-Realtime feeds with different coverage:
+**TripUpdates** (delays + per-stop times, ~40 trains) and **VehiclePositions**
+(GPS, ~60 trains). A single poller (`services/realtime/poller.js`, behind
+`REALTIME=on`) fetches both every 30s / 15s and keeps an in-memory cache — it
+never writes to SQLite.
+
+**`GET /api/realtime/train/:trainNo`** (no language segment) merges the two
+feeds. It returns `progressSource` to say what kind of data you got:
+
+| `progressSource` | meaning |
+|---|---|
+| `"feed"` | full data: real delay + predicted per-stop times |
+| `"position"` | GPS only — progress derived from geometry, **delay unknown** |
+| `null` | running but no usable progress; show the map dot only |
+
+404 means the train is in neither feed (not running / feed stale) → fall back to
+the static timetable. Key rule for clients: `delayMinutes` is **nullable** and a
+missing delay is *unknown*, never `0` — do not render it as "on time". For a
+position-only train, progress and next stop are computed honestly from the live
+GPS projected onto the route geometry (never from assuming on-time), and only
+scheduled times are shown, labelled as such.
+
+Other endpoints (same auth): `/api/realtime/vehicle/:trainNo`,
+`/api/realtime/vehicles` (all positions), `/api/realtime/status` (poller health).
+
+A quiet `RT_HISTORY=on` job accumulates observed delays for future statistics.
 
 ---
 
 ## Live Activity push updates
 
 The iOS app shows a Live Activity for the journey in progress. While the app is
-suspended or terminated it cannot refresh that card itself, so the server pushes
-updates to it over APNs.
+suspended or terminated it can't refresh that card itself, so the server pushes
+updates over APNs. Behind `LIVE_ACTIVITY=on`; needs `REALTIME=on` for data.
 
-### How it works
+The worker ticks every 30s, reads the realtime cache the poller already maintains
+(**it adds no polling of its own**), and pushes only when something a passenger
+would notice changed — phase, next stop, or delay crossing a 2-minute threshold
+in either direction. `apns-priority` is 5 by default; 10 only for phase changes
+and threshold/large-jump delay changes (priority 10 spends the activity's update
+budget faster and Apple throttles it).
 
-The app registers its ActivityKit push token together with the journey context.
-A worker ticks every 30 seconds, reads the realtime cache the GTFS-RT poller
-already maintains — **it adds no polling of its own** — and pushes only when
-something a passenger would actually notice has changed:
+### Three rules that fail SILENTLY
 
-| Trigger | Priority |
-|---|---|
-| First push for a token | 5 |
-| Phase change (`preDeparture` → `inTransit`) | 10 |
-| Delay crosses the 2-minute threshold, in either direction | 10 |
-| Delay jumps by 5 minutes or more | 10 |
-| Delay appears or disappears (feed gained/lost the train) | 5 |
-| Next stop changes | 5 |
-
-Steady state sends nothing at all. `apns-priority: 10` is deliberately the
-exception: it consumes the activity's update budget faster and Apple throttles
-accordingly, so a train wobbling between 3 and 4 minutes late must not spend it.
-
-Ten minutes after the predicted arrival the worker sends an `end` event with a
-dismissal date, so the card disappears on its own even if the app never comes
-back to the foreground. An hourly cleanup drops tokens whose journey ended more
-than two hours ago.
-
-### Modules
-
-| File | Role |
-|---|---|
-| `database/migrations/007_live_activity_tokens.sql` | the table |
-| `services/liveactivity/store.js` | the only module that touches it |
-| `services/liveactivity/contentState.js` | builds the payload the Swift decoder reads |
-| `services/liveactivity/apns.js` | HTTP/2 sender, cached JWT, persistent sessions |
-| `services/liveactivity/worker.js` | change detection, scheduling, cleanup |
-| `controllers/liveActivityController.js` | register / unregister / test-push / metrics |
-
-### Three rules that fail silently
-
-If any of these is wrong, APNs still returns `200`, the device drops the update,
-and nothing is logged anywhere. They are covered by unit tests for that reason.
+If any is wrong, APNs returns `200`, the device drops the update, and nothing is
+logged. Covered by unit tests for exactly that reason.
 
 1. **Dates are seconds since the 2001 reference date**, sent as JSON *numbers*:
-   `swiftSeconds = unixSeconds - 978307200`. Not ISO strings, not Unix epochs.
-2. **Every non-optional Swift property is present on every push.** The
-   synthesized `Decodable` throws on a missing key rather than defaulting, and
-   one missing key discards the whole update.
+   `swiftSeconds = unixSeconds - 978307200`. Not ISO, not Unix epoch.
+2. **Every non-optional Swift property is present on every push** — the
+   synthesized decoder throws on a missing key, discarding the whole update.
 3. **Unknown optionals are omitted, never sent as `null`.**
 
-### Setup
+### APNs setup
 
-Apple Developer portal, once:
+Apple Developer portal, once: create an **APNs Auth Key** (`.p8`, downloadable
+only once), note the **Key ID** and **Team ID**, confirm the bundle id has the
+**Push Notifications** capability and `NSSupportsLiveActivities` in `Info.plist`.
 
-1. **Keys → +**, enable **Apple Push Notifications service (APNs)**, register,
-   and download the `.p8`. Apple allows that download **exactly once**.
-2. Note the **Key ID** (10 characters, also in the filename) and your **Team ID**
-   (10 characters, top right of the portal).
-3. Confirm the app's bundle identifier has the **Push Notifications** capability.
-   Live Activities need no separate entitlement, but the app target must have
-   `NSSupportsLiveActivities` set in `Info.plist`.
-
-On the server:
+On the server, keep the key outside the repo (`*.p8` and `secrets/` are
+gitignored — a leaked key must be revoked in the portal, it doesn't expire):
 
 ```bash
 install -d -m 700 /root/secrets
 install -m 600 AuthKey_XXXXXXXXXX.p8 /root/secrets/
 ```
 
-Then in `.env`:
+Then set `APNS_KEY_P8` (path), `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`,
+`APNS_DEFAULT_ENV` and `LIVE_ACTIVITY=on` (see `.env.example`), and
+`pm2 restart bultrain --update-env`.
 
-```
-APNS_KEY_P8=/root/secrets/AuthKey_XXXXXXXXXX.p8
-APNS_KEY_ID=XXXXXXXXXX
-APNS_TEAM_ID=YYYYYYYYYY
-APNS_BUNDLE_ID=eu.bultrain.app
-APNS_DEFAULT_ENV=sandbox
-LIVE_ACTIVITY=on
-```
+**Sandbox vs production:** a token from one host is rejected by the other
+(`400 BadDeviceToken`). Xcode builds are `sandbox`; TestFlight / App Store are
+`production`. The app declares its own environment when it registers, so one
+server pushes to both at once.
 
-```bash
-pm2 restart bultrain --update-env
-```
-
-`--update-env` is not optional: without it pm2 reuses the old environment and
-the new variables are silently ignored.
-
-The `.p8` is never committed — `*.p8` and `secrets/` are in `.gitignore`, and a
-leaked key must be revoked in the portal because it does not expire on its own.
-
-### Sandbox vs production
-
-APNs has two hosts, and a token from one is meaningless to the other —
-the wrong host returns `400 BadDeviceToken`.
-
-| Build | Host |
-|---|---|
-| Run from Xcode on a device | `api.sandbox.push.apple.com` |
-| TestFlight, App Store | `api.push.apple.com` |
-
-The same key and Team ID work for both. The app declares its own environment
-when it registers (`"sandbox"` or `"production"`), which is why a TestFlight
-build and a debug build can be pushed to from one server at the same time.
-`APNS_DEFAULT_ENV` is only the fallback.
-
-### Endpoints
-
-All are behind the mobile API key (`X-Bultrain-Api-Key` plus a
-`BulTrainMobile` User-Agent).
+### Endpoints & testing
 
 ```
 POST /api/live-activity/register     20/min per client
@@ -143,47 +177,149 @@ POST /api/live-activity/test-push    404 unless ENABLE_LIVE_ACTIVITY_TEST_PUSH=o
 GET  /api/live-activity/metrics
 ```
 
-Neither `register` nor `unregister` talks to APNs. A misconfigured key or an
-Apple outage must never stop a device from registering, or trap it in an
-activity it cannot end.
+Register / unregister are pure DB work — a bad key or an Apple outage never stops
+a device from registering or trap it in an activity. Set
+`ENABLE_LIVE_ACTIVITY_TEST_PUSH=on` to push a hand-written content-state at a
+device while wiring up. Tokens are masked in every log line.
 
-### Testing against a real device
+---
 
-Register the token the app printed:
+## Articles — the author portal
 
-```bash
-curl -s -X POST https://api.bultrain.eu/api/live-activity/register -H 'Content-Type: application/json' -H 'User-Agent: BulTrainMobile' -H "X-Bultrain-Api-Key: $IOS_API_KEY" -d '{"token":"<the activity push token, hex>","environment":"sandbox","journeyId":"test-1","trainNumber":"2612","boardingStation":"София","destinationStation":"Пловдив","directionStation":"Бургас","scheduledDeparture":"2026-07-23T14:30:00Z","scheduledArrival":"2026-07-23T16:45:00Z","currentLegIndex":0}'
+Author-written **"travel ideas"** (day trips by train) that the app pulls from
+the server. Built on the same tables as the guide (`handbook_topics` +
+`handbook_content`), with `category = 'travel_idea'`, so the app renders them with
+the block engine it already has.
+
+### Content model — blocks
+
+An article is a title + cover + metadata + an ordered list of **blocks**. Each
+block is one of six types: `heading · paragraph · image · quote · tip · route`.
+This is deliberate over free-form HTML — the app renders blocks natively and
+identically on iOS/Android, and the author styles by choosing block types, not
+raw markup. Metadata (`region`, `season`, `duration_min`, `related_train`,
+`featured`, `language`) powers filters and a "see this train" deep link.
+
+### Editor
+
+In the admin panel under **Идеи за пътуване**: a list plus a full editor with a
+block builder (add / reorder / delete), cover and per-block image upload, the
+metadata fields, a **live app-style preview**, and save-draft / publish /
+unpublish / preview-link. Images upload to `POST /api/admin/media` (author or
+admin) and are stored in `guide/images/` (served at `/guide/images/`); the
+server generates the filename from the MIME type, so nothing client-controlled
+reaches disk. JPEG/PNG/WebP, 6 MB max.
+
+### Admin CRUD (author or admin)
+
+```
+GET/POST      /api/admin/articles                list / create (draft)
+GET/PUT/DELETE /api/admin/articles/:id           read (with blocks) / update / delete
+POST          /api/admin/articles/:id/publish    ·/unpublish
+POST          /api/admin/articles/:id/preview-token   short-lived token for app preview
 ```
 
-Set `ENABLE_LIVE_ACTIVITY_TEST_PUSH=on`, restart, and push a hand-written state
-straight at the device. The two `Date` fields below are 2001-epoch seconds:
+### App-facing (published only)
 
-```bash
-curl -s -X POST https://api.bultrain.eu/api/live-activity/test-push -H 'Content-Type: application/json' -H 'User-Agent: BulTrainMobile' -H "X-Bultrain-Api-Key: $IOS_API_KEY" -d '{"token":"<the activity push token, hex>","environment":"sandbox","contentState":{"progressPercentage":0.42,"isDelayed":true,"delayMinutes":7,"lastUpdated":775000000,"phase":"inTransit","directionStation":"Бургас","currentLegIndex":0,"isNextTransportBus":false,"isCurrentTransportBus":false,"predictedArrival":775004500}}'
+```
+GET /api/articles?category=travel_idea&limit=&offset=
+GET /api/articles/:id
 ```
 
-`{"outcome":"ok"}` means Apple accepted it. If the card does not change, the
-payload decoded badly on the device — check the three rules above first.
+Read-only, behind `verifyMobileClient`. The detail uses the guide's envelope
+(`{ title, subtitle, image, content:[{ type, text, image? }] }`) with `type` per
+block and metadata on top. A **draft** is 404 to the app unless a valid
+`?preview=<token>` (minted by the author) is supplied — so an unpublished idea
+can be viewed in the real app before publishing.
 
-Check what the worker is doing:
+---
+
+## Admin panel & accounts
+
+The React panel (`admin-ui/`, served at `/admin`) is JWT-cookie protected. Two
+roles:
+
+- **admin** — everything (trains, schedules, guide, exceptions, articles). Logs
+  in with the main `ADMIN_PASSWORD` (username left blank), or as a table account.
+- **author** — only the articles section. Logs in with a username + password.
+
+Accounts live in the `users` table (passwords hashed with the built-in
+`crypto.scrypt`). Create one on the server:
 
 ```bash
-curl -s https://api.bultrain.eu/api/live-activity/metrics -H 'User-Agent: BulTrainMobile' -H "X-Bultrain-Api-Key: $IOS_API_KEY"
+node scripts/create-user.js <username> author   # prompts for a hidden password
 ```
 
-```bash
-pm2 logs bultrain --lines 100 | grep '\[la\]'
-```
+Roles are enforced by `middleware/verifyRole(...roles)`; `verifyAdmin` is
+`verifyRole('admin')`. A legacy token with no role counts as admin, so existing
+sessions keep working. `GET /api/admin/me` reports the caller's role (used by the
+panel to scope its UI without hitting an admin-only endpoint).
 
-Tokens are masked in every log line — never paste a full one into an issue.
+> **Rotating the mobile API keys:** `IOS_API_KEY` / `ANDROID_API_KEY` accept a
+> comma-separated list, so a new key can run alongside the old one. **Keep the old
+> key until old app versions retire** — dropping it 401s every un-updated install.
 
-### Troubleshooting
+---
 
-| Symptom | Cause |
+## Configuration
+
+All via `.env` (see `.env.example` for the full annotated list). Highlights:
+
+| var | purpose |
 |---|---|
-| `400 BadDeviceToken` | token registered against the wrong environment |
-| `403 InvalidProviderToken` | wrong Key ID, Team ID, or a `.p8` that has been revoked |
-| `403 ExpiredProviderToken` | clock skew on the server — the JWT is refreshed every 50 min |
-| `410 Unregistered` | activity ended; the worker deletes the row itself |
-| `429 TooManyRequests` | too many pushes for one token — check what keeps changing |
-| Accepted, but nothing on screen | decode failure: 2001-epoch dates, a missing key, or a `null` optional |
+| `PORT` | Express port (nginx proxies to it) |
+| `IOS_API_KEY` / `ANDROID_API_KEY` / `SCREEN_API_KEY` | client keys (comma-separated lists) |
+| `ADMIN_PASSWORD` / `JWT_SECRET` | admin bootstrap login + cookie signing |
+| `SCHEDULE_SOURCE` | `gtfs` (date-based) or `legacy` |
+| `REALTIME` / `RT_HISTORY` / `LIVE_ACTIVITY` | background-job flags |
+| `APNS_*` | Live Activity push credentials |
+
+---
+
+## Deployment
+
+Releases are a plain `git pull` on the server, then a migration if the schema
+changed, then a pm2 restart if code changed:
+
+```bash
+bash /root/bultrain-app/scripts/backup.sh                 # snapshot the DB first
+git -C /root/bultrain-app pull origin main
+node /root/bultrain-app/database/migrate.js /root/bultrain-app/bultrain.sqlite
+pm2 restart bultrain --update-env
+```
+
+- `--update-env` is **not optional** — without it pm2 reuses the old environment.
+  If a value still looks stale after a restart, pm2 has cached it: `pm2 delete
+  bultrain && pm2 start server.js --name bultrain && pm2 save`.
+- The migration runner is idempotent (applied migrations are skipped); a
+  schema-only change needs no restart, a code change does.
+- **The admin panel** ships as committed `admin-ui/dist` (no secrets — the same
+  bundle already served publicly). After changing `admin-ui/src`, rebuild and
+  commit it: `cd admin-ui && npm run build`, then commit `admin-ui/dist`.
+
+---
+
+## Testing & CI
+
+`npm test` runs `scripts/ci-check.sh`, six fast, fixture-free checks: the native
+module loads (the thing the Node 24 upgrade once broke), every source file parses,
+migrations apply from empty, `station-aliases.json` is valid, every route module
+loads, and the unit tests (`node --test test/*.test.js`). The same script runs in
+GitHub Actions on every push.
+
+Tests favour the surfaces where a mistake is **invisible** — the 2001-epoch date
+conversion, the realtime feed-merge and delay-zero handling, GPS progress
+geometry, the article/auth logic. They run against throwaway databases via
+`BULTRAIN_DB`, so they need no fixtures and never touch dev data.
+
+---
+
+## Operations
+
+- **Backups:** `scripts/backup.sh` (daily via systemd timer) gzips the DB and
+  rotates old copies. Set `BULTRAIN_BACKUP_REMOTE` to push them off the box.
+- **Migrations:** forward-only `.sql` files in `database/migrations/`, each in a
+  transaction, recorded in `schema_version`. Additive and idempotent-friendly.
+- **Logs:** `pm2 logs bultrain`; subsystem lines are prefixed (`[rt]`, `[la]`).
+- **The realtime cache is memory-only** — a restart clears it; the poller refills
+  it within a tick. Nothing is lost.

@@ -193,6 +193,12 @@ export default function ArticlesManager() {
                     <div className="glass-card rounded-2xl p-5 space-y-4">
                         <Field label="Заглавие"><input className="input-premium w-full" value={ed.title} onChange={e => setEd({ ...ed, title: e.target.value })} /></Field>
                         <Field label="Подзаглавие"><input className="input-premium w-full" value={ed.subtitle} onChange={e => setEd({ ...ed, subtitle: e.target.value })} /></Field>
+                        <Field label="Език">
+                            <select className="input-premium w-full" value={ed.language} onChange={e => setEd({ ...ed, language: e.target.value as 'bg' | 'en' })}>
+                                <option value="bg">Български</option>
+                                <option value="en">English</option>
+                            </select>
+                        </Field>
                         <ImageField label="Корица" value={ed.cover_image} onUpload={async f => setEd({ ...ed, cover_image: await uploadImage(f) })} onClear={() => setEd({ ...ed, cover_image: null })} setError={setError} />
                         <div className="grid grid-cols-2 gap-3">
                             <Field label="Регион"><input className="input-premium w-full" value={ed.region} onChange={e => setEd({ ...ed, region: e.target.value })} /></Field>
