@@ -8,7 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# dist is committed so the admin panel deploys with a plain `git pull` (it holds
+# no secrets — it's the same client bundle already served publicly at /admin).
+# Rebuild it (npm run build) and commit whenever admin-ui/src changes.
 dist-ssr
 *.local
 
