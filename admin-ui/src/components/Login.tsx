@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }) {
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -11,12 +12,17 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
         setLoading(true);
 
         try {
+            // A username means an account login (authors); empty falls back to the
+            // legacy admin main-password login.
+            const body = username.trim()
+                ? { username: username.trim(), password }
+                : { password };
             const response = await fetch('/api/admin/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ password }),
+                body: JSON.stringify(body),
             });
 
             if (!response.ok) {
@@ -50,14 +56,32 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                         <label
+                            htmlFor="username"
+                            className="text-sm font-bold text-slate-300 uppercase tracking-wider"
+                        >
+                            Потребител <span className="text-slate-500 normal-case font-medium">(за автори; празно за админ)</span>
+                        </label>
+                        <input
+                            id="username"
+                            type="text"
+                            autoComplete="username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="input-premium w-full"
+                            placeholder="напр. rali_kostadinova"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label
                             htmlFor="password"
                             className="text-sm font-bold text-slate-300 uppercase tracking-wider"
                         >
-                            Главна Парола
+                            Парола
                         </label>
                         <input
                             id="password"
                             type="password"
+                            autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="input-premium w-full text-lg tracking-widest text-center"

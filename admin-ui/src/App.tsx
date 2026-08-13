@@ -4,32 +4,47 @@ import GuideManager from './components/GuideManager';
 import TrainManager from './components/TrainManager';
 import DataSync from './components/DataSync';
 import ExceptionsManager from './components/ExceptionsManager';
+import ArticlesManager from './components/ArticlesManager';
 
-type View = 'dashboard' | 'guide' | 'trains' | 'exceptions';
+type View = 'dashboard' | 'guide' | 'trains' | 'exceptions' | 'articles';
+type Role = 'admin' | 'author';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [role, setRole] = useState<Role>('admin');
   const [stats, setStats] = useState<{ trains: number; stations: number; guideTopics: number } | null>(null);
   const [currentView, setCurrentView] = useState<View>('dashboard');
+  const [checking, setChecking] = useState(true);
 
-  // Check auth status on mount by attempting to fetch stats
   useEffect(() => {
-    fetchStats();
+    checkAuth();
   }, []);
+
+  // Auth is decided by /me (any account), NOT the admin-only /stats — so an
+  // author passes the gate. Admins additionally pull the dashboard stats.
+  const checkAuth = async () => {
+    try {
+      const res = await fetch('/api/admin/me');
+      if (!res.ok) { setIsAuthenticated(false); return; }
+      const me = await res.json();
+      const r: Role = me.role === 'author' ? 'author' : 'admin';
+      setRole(r);
+      setIsAuthenticated(true);
+      setCurrentView(r === 'author' ? 'articles' : 'dashboard');
+      if (r === 'admin') fetchStats();
+    } catch {
+      setIsAuthenticated(false);
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const fetchStats = async () => {
     try {
       const response = await fetch('/api/admin/stats');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-        setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(false);
-      }
+      if (response.ok) setStats(await response.json());
     } catch (error) {
       console.error('Failed to fetch stats:', error);
-      setIsAuthenticated(false);
     }
   };
 
@@ -43,51 +58,40 @@ function App() {
     }
   };
 
-  if (!isAuthenticated) {
-    return <Login onLoginSuccess={fetchStats} />;
-  }
+  if (checking) return null;
+  if (!isAuthenticated) return <Login onLoginSuccess={checkAuth} />;
+
+  const isAdmin = role === 'admin';
+  // Fixed classes only — Tailwind can't generate class names built from variables.
+  const navBtn = (view: View, label: string) => (
+    <button
+      onClick={() => setCurrentView(view)}
+      className={`w-full text-left px-4 py-3 rounded-xl font-bold tracking-wide transition-all duration-300 ${currentView === view
+        ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+        : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border border-transparent'}`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="h-screen w-full flex overflow-hidden text-slate-100 font-sans animate-in-fade">
-      {/* Sidebar */}
       <aside className="w-72 h-full glassmorphism border-r border-white/5 flex flex-col z-20 shrink-0">
         <div className="p-6 pb-4">
           <h1 className="text-2xl font-black text-gradient-brand tracking-tight">Админ Панел</h1>
-          <p className="text-slate-400 text-sm mt-1 font-medium">Система за Управление</p>
+          <p className="text-slate-400 text-sm mt-1 font-medium">
+            {isAdmin ? 'Система за Управление' : 'Автор на статии'}
+          </p>
         </div>
 
         <nav className="flex-1 space-y-2 px-6">
-          <button
-            onClick={() => setCurrentView('dashboard')}
-            className={`w-full text-left px-4 py-3 rounded-xl font-bold tracking-wide transition-all duration-300 ${currentView === 'dashboard' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border border-transparent'
-              }`}
-          >
-            Общ изглед
-          </button>
-          <button
-            onClick={() => setCurrentView('trains')}
-            className={`w-full text-left px-4 py-3 rounded-xl font-bold tracking-wide transition-all duration-300 ${currentView === 'trains' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border border-transparent'
-              }`}
-          >
-            Влакове и Разписания
-          </button>
-          <button
-            onClick={() => setCurrentView('guide')}
-            className={`w-full text-left px-4 py-3 rounded-xl font-bold tracking-wide transition-all duration-300 ${currentView === 'guide' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border border-transparent'
-              }`}
-          >
-            Справочник
-          </button>
-          <button
-            onClick={() => setCurrentView('exceptions')}
-            className={`w-full text-left px-4 py-3 rounded-xl font-bold tracking-wide transition-all duration-300 ${currentView === 'exceptions' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.15)]' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border border-transparent'
-              }`}
-          >
-            Празници / Изключения
-          </button>
+          {isAdmin && navBtn('dashboard', 'Общ изглед')}
+          {isAdmin && navBtn('trains', 'Влакове и Разписания')}
+          {isAdmin && navBtn('guide', 'Справочник')}
+          {navBtn('articles', 'Идеи за пътуване')}
+          {isAdmin && navBtn('exceptions', 'Празници / Изключения')}
         </nav>
 
-        {/* Sidebar Stats Area */}
         {stats && (
           <div className="px-6 pb-6 mt-4">
             <div className="p-4 bg-slate-900/40 rounded-2xl border border-white/5 shadow-inner">
@@ -118,13 +122,12 @@ function App() {
 
       <main className="flex-1 overflow-y-auto w-full relative z-10 custom-scrollbar">
         <div className="p-8 md:p-12 max-w-6xl mx-auto animate-in-fade" style={{ animationDelay: '0.1s' }}>
-          {currentView === 'dashboard' && (
+          {isAdmin && currentView === 'dashboard' && (
             <div className="space-y-8">
               <div>
                 <h2 className="text-3xl font-bold text-gradient">Общ изглед</h2>
                 <p className="text-slate-400 text-sm mt-2">Системна статистика и обобщение.</p>
               </div>
-
               <DataSync />
               <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-8 glass-card rounded-2xl cursor-default group hover:shadow-indigo-500/10 hover:border-indigo-500/30">
@@ -143,9 +146,10 @@ function App() {
             </div>
           )}
 
-          {currentView === 'guide' && <GuideManager />}
-          {currentView === 'trains' && <TrainManager />}
-          {currentView === 'exceptions' && <ExceptionsManager />}
+          {isAdmin && currentView === 'guide' && <GuideManager />}
+          {isAdmin && currentView === 'trains' && <TrainManager />}
+          {isAdmin && currentView === 'exceptions' && <ExceptionsManager />}
+          {currentView === 'articles' && <ArticlesManager />}
         </div>
       </main>
     </div>

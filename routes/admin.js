@@ -29,6 +29,9 @@ const mediaUpload = multer({
 router.post('/login', adminController.login);
 router.post('/logout', adminController.logout);
 
+// Any authenticated account — used by the panel to learn its own role.
+router.get('/me', verifyRole(), adminController.getMe);
+
 // ── Media (admin OR author) ─────────────────────────────────────────────────
 router.post('/media', verifyRole('admin', 'author'), (req, res) => {
     mediaUpload(req, res, (err) => {

@@ -203,6 +203,18 @@ exports.logout = (req, res) => {
     res.json({ message: 'Logged out.' });
 };
 
+/**
+ * GET /api/admin/me — who am I (any authenticated account).
+ * Lets the panel decide what to show without hitting an admin-only endpoint, so
+ * an author can pass the auth gate that /stats (admin-only) would refuse.
+ */
+exports.getMe = (req, res) => {
+    res.json({
+        role: (req.admin && req.admin.role) || 'admin',
+        username: (req.admin && req.admin.username) || null,
+    });
+};
+
 // ── Stats ───────────────────────────────────────────────────────────────────
 
 /**
