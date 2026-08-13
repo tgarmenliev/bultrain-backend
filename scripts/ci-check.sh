@@ -34,7 +34,7 @@ if [ ! -f bultrain.sqlite ]; then
 fi
 
 echo "5/6 · every route module loads without throwing"
-node -e "['./routes/live','./routes/trainInfo','./routes/schedule','./routes/stations','./routes/realtime','./routes/liveActivity','./routes/guide','./routes/admin'].forEach(r=>require(r)); console.log('    ok')"
+node -e "['./routes/live','./routes/trainInfo','./routes/schedule','./routes/stations','./routes/realtime','./routes/liveActivity','./routes/articles','./routes/guide','./routes/admin'].forEach(r=>require(r)); console.log('    ok')"
 
 if [ "$CREATED_DB" = 1 ]; then rm -f bultrain.sqlite bultrain.sqlite-* 2>/dev/null || true; fi
 

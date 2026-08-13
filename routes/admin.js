@@ -49,6 +49,7 @@ router.get('/articles/:id',          authorOrAdmin, articlesController.getOne);
 router.post('/articles',             authorOrAdmin, articlesController.create);
 router.put('/articles/:id',          authorOrAdmin, articlesController.update);
 router.post('/articles/:id/publish', authorOrAdmin, articlesController.publish);
+router.post('/articles/:id/preview-token', authorOrAdmin, articlesController.previewToken);
 router.post('/articles/:id/unpublish', authorOrAdmin, articlesController.unpublish);
 router.delete('/articles/:id',       authorOrAdmin, articlesController.remove);
 

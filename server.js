@@ -25,6 +25,7 @@ const stats = require('./routes/stats');
 const stationsRoutes = require('./routes/stations');
 const realtimeRoutes = require('./routes/realtime');
 const liveActivityRoutes = require('./routes/liveActivity');
+const articlesAppRoutes = require('./routes/articles');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
@@ -74,6 +75,7 @@ app.use('/api/stats', verifyMobileClient, stats);
 app.use('/api/stations', verifyMobileClient, stationsRoutes);
 app.use('/api/realtime', verifyMobileClient, realtimeRoutes);
 app.use('/api/live-activity', verifyMobileClient, liveActivityRoutes);
+app.use('/api/articles', verifyMobileClient, articlesAppRoutes);
 
 // ── Admin routes (JWT-protected via route-level middleware) ─────────────────
 app.use('/api/admin', adminRoutes);
