@@ -7,6 +7,7 @@ const verifyAdmin = require('../middleware/verifyAdmin');
 const verifyRole = require('../middleware/verifyRole');
 const adminController = require('../controllers/adminController');
 const mediaController = require('../controllers/mediaController');
+const articlesController = require('../controllers/articlesController');
 
 // ── Image uploads for the article/guide editor ──────────────────────────────
 // Server-generated filename from the MIME type (no client-controlled path or
@@ -40,6 +41,16 @@ router.post('/media', verifyRole('admin', 'author'), (req, res) => {
         mediaController.uploadMedia(req, res);
     });
 });
+
+// ── Articles (admin OR author) ──────────────────────────────────────────────
+const authorOrAdmin = verifyRole('admin', 'author');
+router.get('/articles',              authorOrAdmin, articlesController.list);
+router.get('/articles/:id',          authorOrAdmin, articlesController.getOne);
+router.post('/articles',             authorOrAdmin, articlesController.create);
+router.put('/articles/:id',          authorOrAdmin, articlesController.update);
+router.post('/articles/:id/publish', authorOrAdmin, articlesController.publish);
+router.post('/articles/:id/unpublish', authorOrAdmin, articlesController.unpublish);
+router.delete('/articles/:id',       authorOrAdmin, articlesController.remove);
 
 // ── Protected (requires valid admin JWT) ────────────────────────────────────
 router.get('/stats', verifyAdmin, adminController.getStats);
