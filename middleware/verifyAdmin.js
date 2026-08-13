@@ -1,23 +1,10 @@
-const jwt = require('jsonwebtoken');
+'use strict';
 
 /**
- * Middleware: verifyAdmin
+ * verifyAdmin — the admin-only gate for /api/admin/* (except login/logout).
  *
- * Validates the admin_token HttpOnly JWT cookie.
- * Must be applied to all /api/admin/* routes (except login/logout).
+ * Now a thin specialisation of verifyRole('admin') so the many routes that
+ * already `require` it keep working unchanged, while an 'author' token (articles
+ * only) is correctly refused from the train/schedule endpoints.
  */
-module.exports = (req, res, next) => {
-    const token = req.cookies && req.cookies.admin_token;
-
-    if (!token) {
-        return res.status(401).json({ error: 'Unauthorized. No admin token.' });
-    }
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.admin = decoded; // attach decoded payload to request
-        next();
-    } catch (err) {
-        return res.status(401).json({ error: 'Unauthorized. Invalid or expired token.' });
-    }
-};
+module.exports = require('./verifyRole')('admin');

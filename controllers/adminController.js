@@ -1,6 +1,8 @@
 const Database = require('better-sqlite3');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const users = require('../services/auth/users');
+const passwordHash = require('../services/auth/password');
 
 // ── Database ────────────────────────────────────────────────────────────────
 const DB_PATH = path.join(__dirname, '..', 'bultrain.sqlite');
@@ -148,25 +150,36 @@ function stationsAreIdentical(stationsA, stationsB) {
 
 /**
  * POST /api/admin/login
- * Body: { "password": "..." }
+ * Body: { "password": "..." }              → admin, via ADMIN_PASSWORD (legacy)
+ *   or  { "username": "...", "password": "..." } → any users-table account
  */
 exports.login = (req, res) => {
     try {
-        const { password } = req.body;
+        const { username, password } = req.body;
 
         if (!password) {
             return res.status(400).json({ error: 'Password is required.' });
         }
 
-        if (password !== process.env.ADMIN_PASSWORD) {
-            return res.status(401).json({ error: 'Invalid password.' });
+        let payload = null;
+        if (username) {
+            // Account-based login (authors, and any admins created in the table).
+            const user = users.findByUsername(username);
+            if (user && passwordHash.verify(password, user.password_hash, user.salt)) {
+                payload = { role: user.role, username: user.username, uid: user.id };
+            }
+        } else if (password === process.env.ADMIN_PASSWORD) {
+            // Bootstrap admin — unchanged, so the existing admin UI keeps working.
+            payload = { role: 'admin', username: 'admin' };
         }
 
-        const token = jwt.sign(
-            { role: 'admin', iat: Math.floor(Date.now() / 1000) },
-            process.env.JWT_SECRET,
-            { expiresIn: '8h' }
-        );
+        if (!payload) {
+            // One message for every failure — don't reveal whether the user exists.
+            return res.status(401).json({ error: 'Invalid credentials.' });
+        }
+
+        payload.iat = Math.floor(Date.now() / 1000);
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
 
         res.cookie('admin_token', token, {
             httpOnly: true,
@@ -175,7 +188,7 @@ exports.login = (req, res) => {
             maxAge: 8 * 60 * 60 * 1000, // 8 hours
         });
 
-        res.json({ message: 'Login successful.' });
+        res.json({ message: 'Login successful.', role: payload.role });
     } catch (error) {
         console.error('adminController login error:', error);
         res.status(500).json({ error: 'Internal server error' });
