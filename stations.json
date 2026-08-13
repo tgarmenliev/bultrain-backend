@@ -667,8 +667,8 @@
     "id": 133,
     "name": "Варна - Спирка",
     "englishName": "Varna Stop",
-    "lat": 43.1980013,
-    "lon": 27.9122585,
+    "lat": 43.209106,
+    "lon": 27.886526,
     "romanizedName": "varna-sp"
   },
   {
@@ -1242,7 +1242,7 @@
   {
     "id": 515,
     "name": "Дебели Лаг",
-    "englishName": "Debeli Laг",
+    "englishName": "Debeli Lag",
     "lat": 42.4633873,
     "lon": 22.8845654,
     "romanizedName": "debeli-lak"
@@ -3603,8 +3603,8 @@
     "id": 31,
     "name": "Перник Разпределит.",
     "englishName": "Pernik Razpredelit",
-    "lat": 42.6012693,
-    "lon": 23.0306531,
+    "lat": 42.604833,
+    "lon": 23.061442,
     "romanizedName": "pernik-razpredelit"
   },
   {
