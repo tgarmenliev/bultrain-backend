@@ -215,7 +215,7 @@ export default function ArticlesManager() {
                             <Field label="Свързан влак"><input className="input-premium w-full" value={ed.related_train} onChange={e => setEd({ ...ed, related_train: e.target.value })} placeholder="номер" /></Field>
                         </div>
                         <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-                            <input type="checkbox" checked={ed.featured} onChange={e => setEd({ ...ed, featured: e.target.checked })} /> Открояване (топ)
+                            <input type="checkbox" checked={ed.featured} onChange={e => setEd({ ...ed, featured: e.target.checked })} /> Featured
                         </label>
                     </div>
 

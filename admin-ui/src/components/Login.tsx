@@ -49,7 +49,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
                         Админ Панел
                     </h1>
                     <p className="text-slate-400 text-sm font-medium">
-                        Влезте с потребител и парола, или само с главната парола (админ).
+                        Въведете данните си за достъп.
                     </p>
                 </div>
 
@@ -59,7 +59,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
                             htmlFor="username"
                             className="text-sm font-bold text-slate-300 uppercase tracking-wider"
                         >
-                            Потребител <span className="text-slate-500 normal-case font-medium">(за автори; празно за админ)</span>
+                            Потребител
                         </label>
                         <input
                             id="username"
@@ -68,7 +68,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className="input-premium w-full"
-                            placeholder="напр. rali_kostadinova"
+                            placeholder=""
                         />
                     </div>
                     <div className="space-y-2">
