@@ -2,14 +2,14 @@ const Database = require('better-sqlite3');
 const path = require('path');
 
 // ── Database ────────────────────────────────────────────────────────────────
-const DB_PATH = path.join(__dirname, '..', 'bultrain.sqlite');
+const DB_PATH = process.env.BULTRAIN_DB || path.join(__dirname, '..', 'bultrain.sqlite');
 const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
 
 // ── Prepared statements ─────────────────────────────────────────────────────
 const stmtTopic = db.prepare(`
     SELECT id, app_topic_id, title, subtitle, cover_image
     FROM handbook_topics
-    WHERE language = ? AND app_topic_id = ?
+    WHERE language = ? AND app_topic_id = ? AND category = 'guide'
 `);
 
 const stmtContent = db.prepare(`
