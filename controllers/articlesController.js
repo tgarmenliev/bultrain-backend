@@ -226,7 +226,12 @@ exports.previewToken = (req, res) => {
         const id = parseInt(req.params.id, 10);
         if (Number.isNaN(id) || !getTopic.get(id)) return res.status(404).json({ error: 'Article not found.' });
         const token = jwt.sign({ pv: id, purpose: 'article-preview' }, process.env.JWT_SECRET, { expiresIn: '30m' });
-        res.json({ token, url: `/api/articles/${id}?preview=${token}`, expiresInMinutes: 30 });
+        res.json({
+            token,
+            url: `/api/articles/${id}?preview=${token}`,          // relative API path (app fetches this)
+            deepLink: `bultrain://article/${id}?preview=${token}`, // opens the app on a phone (also the QR value)
+            expiresInMinutes: 30,
+        });
     } catch (e) {
         console.error('[articles] previewToken:', e.message);
         res.status(500).json({ error: 'Internal server error' });

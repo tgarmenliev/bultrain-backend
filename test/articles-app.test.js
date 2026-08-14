@@ -92,6 +92,7 @@ test('a draft opens with a valid preview token, and only its own', () => {
     articles.previewToken({ params: { id: String(draftId) } }, res);
     const token = res.body.token;
     assert.ok(token);
+    assert.match(res.body.deepLink, new RegExp(`^bultrain://article/${draftId}\\?preview=`), 'deep link opens the app for this article');
 
     res = mockRes();
     app.getOne({ params: { id: String(draftId) }, query: { preview: token } }, res);

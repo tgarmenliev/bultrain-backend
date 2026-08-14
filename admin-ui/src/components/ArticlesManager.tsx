@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 
 type BlockType = 'heading' | 'paragraph' | 'image' | 'quote' | 'tip' | 'route';
 
@@ -42,7 +43,7 @@ export default function ArticlesManager() {
     const [error, setError] = useState<string | null>(null);
     const [ed, setEd] = useState<Editing | null>(null);
     const [busy, setBusy] = useState(false);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [preview, setPreview] = useState<{ url: string; deepLink: string } | null>(null);
 
     const fetchList = async () => {
         try {
@@ -54,9 +55,9 @@ export default function ArticlesManager() {
     };
     useEffect(() => { fetchList(); }, []);
 
-    const openNew = () => { setPreviewUrl(null); setEd(empty()); };
+    const openNew = () => { setPreview(null); setEd(empty()); };
     const openEdit = async (id: number) => {
-        setError(null); setPreviewUrl(null);
+        setError(null); setPreview(null);
         const res = await fetch(`/api/admin/articles/${id}`);
         if (!res.ok) { setError('Статията не се зареди'); return; }
         const a = await res.json();
@@ -106,7 +107,7 @@ export default function ArticlesManager() {
         if (!id) return;
         const res = await fetch(`/api/admin/articles/${id}/preview-token`, { method: 'POST' });
         const data = await res.json();
-        if (res.ok) setPreviewUrl(data.url);
+        if (res.ok) setPreview({ url: data.url, deepLink: data.deepLink });
     };
 
     const del = async (id: number) => {
@@ -181,9 +182,16 @@ export default function ArticlesManager() {
             </div>
 
             {error && <ErrorBox msg={error} />}
-            {previewUrl && (
-                <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-200 break-all">
-                    Линк за преглед в приложението (30 мин): <span className="font-mono">{previewUrl}</span>
+            {preview && (
+                <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center gap-4">
+                    <div className="bg-white p-2 rounded-lg shrink-0">
+                        <QRCodeSVG value={preview.deepLink} size={112} />
+                    </div>
+                    <div className="text-xs text-cyan-200 space-y-1 min-w-0">
+                        <p className="font-bold text-cyan-100">Преглед в приложението (важи 30 мин)</p>
+                        <p>Сканирай QR кода с телефона си, за да отвориш черновата в приложението.</p>
+                        <p className="font-mono break-all opacity-80">{preview.deepLink}</p>
+                    </div>
                 </div>
             )}
 
