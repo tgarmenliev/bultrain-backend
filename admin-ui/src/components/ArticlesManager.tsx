@@ -28,9 +28,39 @@ const empty = (): Editing => ({
     region: '', season: '', duration_min: '', related_train: '', status: 'draft', blocks: [],
 });
 
+// Shrink in the browser BEFORE upload: cap the long edge at 1600px and re-encode
+// as JPEG ~0.82. Crisp on any phone (retina included), but a 4.5 MB photo becomes
+// a few hundred KB, so the upload is fast. Transparency is flattened onto white.
+// Falls back to the original on any failure or if the result isn't smaller.
+const MAX_DIM = 1600;
+const JPEG_QUALITY = 0.82;
+async function compressImage(file: File): Promise<File> {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+    try {
+        const bitmap = await createImageBitmap(file);
+        const scale = Math.min(1, MAX_DIM / Math.max(bitmap.width, bitmap.height));
+        const w = Math.round(bitmap.width * scale);
+        const h = Math.round(bitmap.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return file;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(bitmap, 0, 0, w, h);
+        bitmap.close?.();
+        const blob: Blob | null = await new Promise(r => canvas.toBlob(r, 'image/jpeg', JPEG_QUALITY));
+        if (!blob || blob.size >= file.size) return file;
+        return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+    } catch {
+        return file;
+    }
+}
+
 async function uploadImage(file: File): Promise<string> {
+    const toSend = await compressImage(file);
     const fd = new FormData();
-    fd.append('file', file);
+    fd.append('file', toSend);
     const res = await fetch('/api/admin/media', { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Качването се провали');
@@ -183,14 +213,14 @@ export default function ArticlesManager() {
 
             {error && <ErrorBox msg={error} />}
             {preview && (
-                <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center gap-4">
-                    <div className="bg-white p-2 rounded-lg shrink-0">
-                        <QRCodeSVG value={preview.deepLink} size={112} />
+                <div className="p-5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex flex-col sm:flex-row items-center gap-5">
+                    <div className="bg-white p-3 rounded-xl shrink-0">
+                        <QRCodeSVG value={preview.deepLink} size={240} />
                     </div>
-                    <div className="text-xs text-cyan-200 space-y-1 min-w-0">
-                        <p className="font-bold text-cyan-100">Преглед в приложението (важи 30 мин)</p>
-                        <p>Сканирай QR кода с телефона си, за да отвориш черновата в приложението.</p>
-                        <p className="font-mono break-all opacity-80">{preview.deepLink}</p>
+                    <div className="text-sm text-cyan-200 space-y-2 min-w-0">
+                        <p className="font-bold text-cyan-100 text-base">Преглед в приложението (важи 30 мин)</p>
+                        <p>Сканирай QR кода с телефона си, за да отвориш черновата директно в приложението.</p>
+                        <p className="font-mono text-xs break-all opacity-70">{preview.deepLink}</p>
                     </div>
                 </div>
             )}
