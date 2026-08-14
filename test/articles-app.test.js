@@ -27,9 +27,9 @@ const app      = require('../controllers/appArticlesController'); // readonly (a
 function mockRes() {
     return { statusCode: 200, body: null, status(c) { this.statusCode = c; return this; }, json(o) { this.body = o; return this; } };
 }
-function create(title, blocks) {
+function create(title, blocks, language = 'bg') {
     const res = mockRes();
-    articles.create({ admin, body: { title, language: 'bg', region: 'Тест', duration_min: 300, blocks } }, res);
+    articles.create({ admin, body: { title, language, region: 'Тест', duration_min: 300, blocks } }, res);
     return res.body.id;
 }
 function publish(id) { articles.publish({ params: { id: String(id) } }, mockRes()); }
@@ -50,6 +50,23 @@ test('list returns only published articles', () => {
     assert.strictEqual(res.body.articles[0].id, publishedId);
     assert.strictEqual(res.body.articles[0].durationMin, 300, 'metadata is camelCased for the app');
     assert.ok('image' in res.body.articles[0], 'cover image key is present (null here)');
+});
+
+test('list filters by language — a bg reader never sees en articles', () => {
+    const enId = create('An English idea', [{ block_type: 'paragraph', text_body: 'x' }], 'en');
+    publish(enId);
+
+    // default (no lang) is bg → the en article is absent
+    let res = mockRes();
+    app.list({ query: {} }, res);
+    assert.ok(res.body.articles.every((a) => a.id !== enId), 'en article hidden from the bg default');
+    assert.ok(res.body.articles.some((a) => a.id === publishedId), 'bg article present');
+
+    // ?lang=en → only the en one
+    res = mockRes();
+    app.list({ query: { lang: 'en' } }, res);
+    assert.strictEqual(res.body.count, 1);
+    assert.strictEqual(res.body.articles[0].id, enId);
 });
 
 test('detail of a published article uses the guide envelope with block types', () => {

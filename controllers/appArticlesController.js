@@ -25,12 +25,12 @@ const MAX_LIMIT = 50;
 const listStmt = db.prepare(`
     SELECT id, title, subtitle, cover_image, region, season, duration_min, related_train, featured, published_at
     FROM handbook_topics
-    WHERE category = ? AND status = 'published'
+    WHERE category = ? AND status = 'published' AND language = ?
     ORDER BY featured DESC, published_at DESC
     LIMIT ? OFFSET ?
 `);
 const countStmt = db.prepare(
-    "SELECT COUNT(*) AS c FROM handbook_topics WHERE category = ? AND status = 'published'"
+    "SELECT COUNT(*) AS c FROM handbook_topics WHERE category = ? AND status = 'published' AND language = ?"
 );
 const oneStmt    = db.prepare('SELECT * FROM handbook_topics WHERE id = ? AND category = ?');
 const blocksStmt = db.prepare(
@@ -63,14 +63,17 @@ function previewAllows(token, id) {
     }
 }
 
-/** GET /api/articles?category=travel_idea&limit=&offset= */
+/** GET /api/articles?category=travel_idea&lang=bg&limit=&offset= */
 exports.list = (req, res) => {
     try {
         const category = req.query.category || DEFAULT_CATEGORY;
+        // Articles are per-language; return one language only, so a Bulgarian
+        // reader never sees the English variants. Defaults to bg.
+        const lang = req.query.lang === 'en' ? 'en' : 'bg';
         const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit, 10) || 20));
         const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
-        const articles = listStmt.all(category, limit, offset).map(mapCard);
-        res.json({ count: countStmt.get(category).c, articles });
+        const articles = listStmt.all(category, lang, limit, offset).map(mapCard);
+        res.json({ count: countStmt.get(category, lang).c, articles });
     } catch (e) {
         console.error('[articles/app] list:', e.message);
         res.status(500).json({ error: 'Internal server error' });
