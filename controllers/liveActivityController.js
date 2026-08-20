@@ -156,9 +156,17 @@ exports.testPush = async (req, res) => {
 
 /** GET /api/live-activity/metrics — counters for this process. */
 exports.getMetrics = (req, res) => {
+    let armed = {};
+    try {
+        armed = require('../services/liveactivity/armedStore').counts();
+    } catch { /* table not migrated yet — the rest of the snapshot still works */ }
+
     res.json(metrics.snapshot({
         live_activity_tokens_active: store.listActive().length,
         live_activity_tokens_total: store.countAll(),
+        armed_journeys_armed: armed.armed ?? 0,
+        armed_journeys_started: armed.started ?? 0,
+        registered_devices: armed.devices ?? 0,
         apns_configured: apns.isConfigured(),
     }));
 };

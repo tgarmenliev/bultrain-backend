@@ -25,12 +25,18 @@ const crypto = require('crypto');
 const cache        = require('../realtime/cache');
 const geometryOf   = require('../gtfs/tripGeometry');
 const store        = require('./store');
+const armedStore   = require('./armedStore');
+const armedWatcher = require('./armedWatcher');
 const apns         = require('./apns');
 const contentState = require('./contentState');
 const metrics      = require('./metrics');
 
 const TICK_MS                  = 30 * 1000;
 const CLEANUP_MS               = 60 * 60 * 1000;
+// How far the progress bar must move to be worth a push (2% of the passenger's
+// own segment), and how long a GPS-tracked card may go without any push.
+const PROGRESS_DELTA           = 0.02;
+const GPS_HEARTBEAT_MS         = 5 * 60 * 1000;
 const PER_TOKEN_MIN_INTERVAL_MS = 60 * 1000;   // at most one push per token per minute
 const END_AFTER_ARRIVAL_MS     = 10 * 60 * 1000;
 const STALE_AFTER_MS           = 15 * 60 * 1000;
@@ -82,6 +88,27 @@ function hasChanged(row, meta) {
 
     if ((row.last_next_stop || null) !== (meta.nextStop || null)) {
         return { changed: true, reason: 'next-stop', priority: 5 };
+    }
+
+    // The bar moved far enough to be visible. Priority 5 on purpose: Apple
+    // documents priority 5 as having NO update limit, while priority 10 is
+    // metered against an undocumented per-device budget that takes up to 24
+    // hours to refill. Spending that budget on a progress bar would silence the
+    // updates that actually matter.
+    const prevProgress = row.last_progress == null ? null : Number(row.last_progress);
+    if (prevProgress != null && meta.progress != null
+        && Math.abs(meta.progress - prevProgress) >= PROGRESS_DELTA) {
+        return { changed: true, reason: 'progress', priority: 5 };
+    }
+
+    // Floor for a GPS-tracked train: it has no feed events to react to, so
+    // without a heartbeat a long stretch between stops would show a frozen card.
+    // Trains WITH a feed need no floor — their stops and delays keep it alive.
+    if (meta.isGPSTracked && row.last_pushed_at) {
+        const since = Date.now() - new Date(row.last_pushed_at).getTime();
+        if (since >= GPS_HEARTBEAT_MS) {
+            return { changed: true, reason: 'gps-heartbeat', priority: 5 };
+        }
     }
 
     return { changed: false };
@@ -223,6 +250,7 @@ function makeTask(row, body, priority, meta, { end = false, hash: contentHash } 
                     nextStop: meta.nextStop,
                     contentHash,
                     phase: meta.phase,
+                    progress: meta.progress,
                 });
             }
             return { ok: true };
@@ -283,6 +311,15 @@ async function runTick() {
     } catch (err) {
         console.error('[la] worker tick failed:', err.message);
     }
+
+    // Server-driven tracking rides the same tick: one process, one database
+    // handle, one APNs session. Isolated in its own try so a failure there can
+    // never stop the card updates above.
+    try {
+        await armedWatcher.tick();
+    } catch (err) {
+        console.error('[armed] watcher tick failed:', err.message);
+    }
 }
 
 function runCleanup() {
@@ -294,6 +331,12 @@ function runCleanup() {
         }
     } catch (err) {
         console.error('[la] cleanup failed:', err.message);
+    }
+    try {
+        const { logs, rows } = armedStore.prune();
+        if (logs || rows) console.log(`[armed] cleanup: pruned ${rows} finished journey(s), ${logs} budget log row(s)`);
+    } catch (err) {
+        console.error('[armed] cleanup failed:', err.message);
     }
 }
 

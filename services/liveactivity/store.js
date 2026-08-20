@@ -105,14 +105,21 @@ function remove(token) {
     return conn().prepare('DELETE FROM live_activity_tokens WHERE token = ?').run(token).changes;
 }
 
+/** Drop every token of a journey — used when tracking is stopped server-side. */
+function removeByJourney(journeyId) {
+    if (!journeyId) return 0;
+    return conn().prepare('DELETE FROM live_activity_tokens WHERE journey_id = ?').run(String(journeyId)).changes;
+}
+
 /** Record what we last pushed, so the next tick can diff against it. */
-function markPushed(token, { delayMin, nextStop, contentHash, phase }) {
+function markPushed(token, { delayMin, nextStop, contentHash, phase, progress }) {
     conn().prepare(`
         UPDATE live_activity_tokens
         SET last_pushed_at = ?, last_delay_min = ?, last_next_stop = ?,
-            last_content_hash = ?, last_phase = ?
+            last_content_hash = ?, last_phase = ?, last_progress = ?
         WHERE token = ?
-    `).run(nowIso(), delayMin ?? null, nextStop ?? null, contentHash ?? null, phase ?? null, token);
+    `).run(nowIso(), delayMin ?? null, nextStop ?? null, contentHash ?? null, phase ?? null,
+           progress ?? null, token);
 }
 
 /** Hourly cleanup: journeys that ended long ago. Returns rows removed. */
@@ -127,6 +134,6 @@ function countAll() {
 }
 
 module.exports = {
-    upsert, countForJourney, getByToken, listActive, remove, markPushed,
-    pruneExpired, countAll, toUtcIso, nowIso, ACTIVE_GRACE_MS,
+    upsert, countForJourney, getByToken, listActive, remove, removeByJourney,
+    markPushed, pruneExpired, countAll, toUtcIso, nowIso, ACTIVE_GRACE_MS,
 };

@@ -136,6 +136,42 @@ test('change detection governs push volume', async (t) => {
         assert.strictEqual(d.changed, true);
         assert.strictEqual(d.reason, 'next-stop');
     });
+
+    // The bar has to follow a moving train between two distant stops, where no
+    // other signal fires — but must NOT fire for a train standing still, which
+    // is what a fixed timer would do.
+    await t.test('progress moving visibly pushes, at priority 5', () => {
+        const base = { last_delay_min: 0, last_next_stop: 'Пловдив', last_phase: 'inTransit' };
+        const row = pushed({ ...base, last_progress: 0.40 });
+
+        const still = worker.hasChanged(row, meta({ progress: 0.405 }));
+        assert.strictEqual(still.changed, false, '0.5% is not worth waking the phone');
+
+        const moved = worker.hasChanged(row, meta({ progress: 0.44 }));
+        assert.strictEqual(moved.changed, true);
+        assert.strictEqual(moved.reason, 'progress');
+        assert.strictEqual(moved.priority, 5, 'priority 10 is metered; the bar must not spend that budget');
+    });
+
+    await t.test('a GPS-tracked card gets a heartbeat; a fed one does not need it', () => {
+        const base = { last_delay_min: 0, last_next_stop: 'Пловдив', last_phase: 'inTransit', last_progress: 0.4 };
+        const stale = makeRow({ ...base, last_pushed_at: new Date(Date.now() - 6 * 60 * 1000).toISOString() });
+
+        const gps = worker.hasChanged(stale, meta({ progress: 0.4, isGPSTracked: true }));
+        assert.strictEqual(gps.reason, 'gps-heartbeat');
+        assert.strictEqual(gps.priority, 5);
+
+        const fed = worker.hasChanged(stale, meta({ progress: 0.4, isGPSTracked: false }));
+        assert.strictEqual(fed.changed, false, 'a train with a feed has its own events');
+
+        const recent = makeRow({ ...base, last_pushed_at: new Date(Date.now() - 60 * 1000).toISOString() });
+        assert.strictEqual(worker.hasChanged(recent, meta({ progress: 0.4, isGPSTracked: true })).changed, false);
+    });
+
+    await t.test('no stored progress means no basis for comparison, not zero', () => {
+        const row = pushed({ last_delay_min: 0, last_next_stop: 'Пловдив', last_phase: 'inTransit', last_progress: null });
+        assert.strictEqual(worker.hasChanged(row, meta({ progress: 0.9 })).changed, false);
+    });
 });
 
 // ── 3. Segment progress ──────────────────────────────────────────────────────

@@ -15,6 +15,13 @@ const counters = {
     live_activity_tokens_pruned: 0,
     live_activity_ends_sent: 0,
     live_activity_worker_ticks: 0,
+    // Server-driven tracking. Declared up front so they read as 0 rather than
+    // being absent before the first event — an absent counter looks like a bug.
+    push_to_start_sent: 0,
+    push_to_start_failed: 0,
+    push_to_start_refused: 0,
+    delay_alerts_sent: 0,
+    armed_auto_stopped: 0,
 };
 
 const apnsErrorsByReason = new Map();

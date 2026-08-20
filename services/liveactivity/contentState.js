@@ -219,6 +219,9 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
             nextStop,
             phase,
             hasFeed,
+            // The worker compares these against what it last pushed.
+            progress: Number(progressFraction.toFixed(4)),
+            isGPSTracked,
             // Unix seconds; the worker uses it to decide when to end the activity.
             predictedArrivalUnix: predictedArrivalUnix ?? schedArrSec,
         },

@@ -156,7 +156,16 @@ function classify(status, reason) {
 
 // ── Sending ──────────────────────────────────────────────────────────────────
 
-function postOnce({ token, environment, body, priority, expiration }) {
+// Live Activity pushes and ordinary alert notifications differ in two headers.
+// The topic suffix is NOT optional: an alert sent to the .push-type.liveactivity
+// topic is rejected, and vice versa.
+function headersFor(pushType, bundleId) {
+    return pushType === 'alert'
+        ? { topic: bundleId, type: 'alert' }
+        : { topic: `${bundleId}.push-type.liveactivity`, type: 'liveactivity' };
+}
+
+function postOnce({ token, environment, body, priority, expiration, pushType = 'liveactivity' }) {
     return new Promise((resolve, reject) => {
         let session;
         try {
@@ -166,13 +175,14 @@ function postOnce({ token, environment, body, priority, expiration }) {
         }
 
         const c = config();
+        const h = headersFor(pushType, c.bundleId);
         const started = Date.now();
         const req = session.request({
             ':method': 'POST',
             ':path': `/3/device/${token}`,
             'authorization': `bearer ${providerToken()}`,
-            'apns-topic': `${c.bundleId}.push-type.liveactivity`,
-            'apns-push-type': 'liveactivity',
+            'apns-topic': h.topic,
+            'apns-push-type': h.type,
             'apns-priority': String(priority),
             'apns-expiration': String(expiration),
             'content-type': 'application/json',
@@ -205,13 +215,13 @@ function postOnce({ token, environment, body, priority, expiration }) {
  *
  * @returns {{ outcome: string, status: number, reason: string|null }}
  */
-async function send({ token, environment, body, priority = 5, expiration }) {
+async function send({ token, environment, body, priority = 5, expiration, pushType = 'liveactivity', noRetry = false }) {
     const env = HOSTS[environment] ? environment : config().defaultEnv;
     const exp = expiration ?? Math.floor(Date.now() / 1000) + 600;
 
     let res;
     try {
-        res = await postOnce({ token, environment: env, body, priority, expiration: exp });
+        res = await postOnce({ token, environment: env, body, priority, expiration: exp, pushType });
     } catch (err) {
         metrics.apnsError('transport');
         return { outcome: 'server', status: 0, reason: err.message };
@@ -219,12 +229,22 @@ async function send({ token, environment, body, priority = 5, expiration }) {
 
     let outcome = classify(res.status, res.reason);
 
+    // noRetry exists for push-to-start. Apple's push-to-start budget is fixed,
+    // per-device and undocumented; once spent, the device silently ignores
+    // starts for up to 24 hours. A retry loop is therefore far more expensive
+    // than a missed card, so those sends get exactly one attempt.
+    if (noRetry) {
+        if (outcome === 'ok') metrics.inc('live_activity_pushes_sent');
+        else metrics.apnsError(res.reason || `http_${res.status}`);
+        return { outcome, status: res.status, reason: res.reason };
+    }
+
     // A stale or malformed provider token is a configuration problem, not a
     // transient one: regenerate once, retry once, then let it be loud.
     if (outcome === 'auth') {
         providerToken({ force: true });
         try {
-            res = await postOnce({ token, environment: env, body, priority, expiration: exp });
+            res = await postOnce({ token, environment: env, body, priority, expiration: exp, pushType });
             outcome = classify(res.status, res.reason);
         } catch (err) {
             return { outcome: 'server', status: 0, reason: err.message };
@@ -238,7 +258,7 @@ async function send({ token, environment, body, priority = 5, expiration }) {
     if (outcome === 'server') {
         await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
         try {
-            res = await postOnce({ token, environment: env, body, priority, expiration: exp });
+            res = await postOnce({ token, environment: env, body, priority, expiration: exp, pushType });
             outcome = classify(res.status, res.reason);
         } catch (err) {
             return { outcome: 'server', status: 0, reason: err.message };
