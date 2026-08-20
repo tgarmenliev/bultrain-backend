@@ -98,7 +98,28 @@ exports.register = (req, res) => {
             is_next_transport_bus: b.isNextTransportBus ? 1 : 0,
         });
 
-        res.json({ ok: true, token: maskToken(b.token), apnsConfigured: apns.isConfigured() });
+        // The app has a card for this leg NOW — it started one itself. Claim the
+        // armed row so the watcher cannot also push-to-start it: that produced a
+        // second, orphan Activity the app never updates, frozen until it expired.
+        // Registration must not fail because of this, hence its own try.
+        let claimed = 0;
+        try {
+            claimed = require('../services/liveactivity/armedStore')
+                .markStartedByJourney(b.journeyId, legIndex);
+            if (claimed) {
+                console.log(`[armed] journey=${b.journeyId}/${legIndex} started locally by the app — ` +
+                            'push-to-start cancelled for this leg');
+            }
+        } catch (err) {
+            console.error('[armed] could not claim armed row on register:', err.message);
+        }
+
+        res.json({
+            ok: true,
+            token: maskToken(b.token),
+            apnsConfigured: apns.isConfigured(),
+            autoStartCancelled: claimed > 0,
+        });
     } catch (err) {
         console.error('[la] register failed:', err.message);
         res.status(500).json({ error: 'Internal server error' });

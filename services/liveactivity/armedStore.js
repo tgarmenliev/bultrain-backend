@@ -148,6 +148,25 @@ function markStarted(id) {
         .run(nowIso(), nowIso(), id);
 }
 
+/**
+ * The app started the card ITSELF (the alarm firing, or any manual start), so
+ * this leg must never also get a push-to-start — that produced a second, orphan
+ * Activity the app's manager does not track, which then froze until it expired.
+ *
+ * Matched on journey + leg because that is what the Live Activity registration
+ * carries; install_id is not in that payload. Only 'armed' rows are touched, so
+ * it is idempotent and cannot disturb a leg already running.
+ *
+ * @returns {number} rows claimed
+ */
+function markStartedByJourney(journeyId, legIndex) {
+    if (!journeyId) return 0;
+    return conn().prepare(`
+        UPDATE armed_journeys SET state='started', started_at=?, updated_at=?
+        WHERE journey_id=? AND leg_index=? AND state='armed'
+    `).run(nowIso(), nowIso(), String(journeyId), legIndex ?? 0).changes;
+}
+
 function markStopped(id, reason) {
     conn().prepare("UPDATE armed_journeys SET state='stopped', stopped_at=?, stopped_reason=?, updated_at=? WHERE id=?")
         .run(nowIso(), reason, nowIso(), id);
@@ -217,7 +236,7 @@ function counts() {
 
 module.exports = {
     registerDevice, getToken, arm, disarm, markArrived, listActive, getById,
-    markStarted, markStopped, recordAlert, recordDelaySeen,
+    markStarted, markStartedByJourney, markStopped, recordAlert, recordDelaySeen,
     checkStartBudget, logStart, prune, counts, toUtcIso, nowIso,
     KINDS, MAX_STARTS_PER_HOUR, MAX_STARTS_PER_DAY,
 };

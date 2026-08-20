@@ -203,6 +203,16 @@ async function maybeStart(row, feed, now) {
         return;
     }
 
+    // Last look before committing. Building the payload does I/O, and a manual
+    // start landing in that gap would otherwise still get a duplicate card —
+    // the row we are holding was read at the top of the tick.
+    const fresh = store.getById(row.id);
+    if (!fresh || fresh.state !== 'armed') {
+        console.log(`[armed] push-to-start ABORTED j=${row.journey_id}: state is now ` +
+                    `${fresh ? fresh.state : 'gone'} (the app started it first)`);
+        return;
+    }
+
     // HARD RULE: exactly one attempt, no retry, ever.
     const res = await apns.send({
         token: device.token,
