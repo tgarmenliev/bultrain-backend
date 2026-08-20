@@ -20,6 +20,7 @@
 
 const cache        = require('../realtime/cache');
 const geometryOf   = require('../gtfs/tripGeometry');
+const stationCoords = require('../gtfs/stationCoords');
 const store        = require('./armedStore');
 const laStore      = require('./store');
 const apns         = require('./apns');
@@ -29,7 +30,21 @@ const metrics      = require('./metrics');
 
 // The Swift ActivityAttributes type name and the static attributes must match
 // the app exactly, or the start push is accepted and silently discarded.
-const ATTRIBUTES_TYPE = process.env.APNS_ATTRIBUTES_TYPE || 'JourneyLiveActivityAttributes';
+const ATTRIBUTES_TYPE = process.env.APNS_ATTRIBUTES_TYPE || 'JourneyAttributes';
+
+// How the two Date-ish attributes are encoded. The app team specified ISO-8601
+// strings, which is correct ONLY if those Swift properties are String. If they
+// are Date, the synthesized decoder wants seconds since the 2001 reference date
+// as a NUMBER, and an ISO string fails the same silent way a missing key does.
+// Flippable without a deploy precisely because that failure leaves no trace.
+const ATTR_DATE_FORMAT = process.env.APNS_ATTRIBUTES_DATE_FORMAT === 'swift' ? 'swift' : 'iso';
+const attrDate = (iso) => {
+    if (ATTR_DATE_FORMAT === 'swift') {
+        const ms = new Date(iso).getTime();
+        return Number.isNaN(ms) ? null : Math.floor(ms / 1000) - 978307200;
+    }
+    return iso;
+};
 
 const hhmm = (iso) => {
     try {
@@ -93,7 +108,22 @@ function readFeed(row, rt, nowSec) {
 
 // ── 1. Push-to-start ─────────────────────────────────────────────────────────
 
+/**
+ * Every property here is non-optional in JourneyAttributes, so a missing one
+ * fails the decode exactly like a missing content-state key: Apple returns 200,
+ * the device drops the start, and nothing is logged anywhere.
+ *
+ * totalDistanceKm is a STRAIGHT LINE origin→destination, deliberately — the app
+ * computes it the same way and draws progress against it. Sending route mileage
+ * instead would silently disagree with the bar the user sees.
+ *
+ * @returns {string|null} null when the distance cannot be computed; the caller
+ *          must then refuse to start rather than send a payload we know is wrong.
+ */
 function buildStartBody(row, state, nowSec) {
+    const totalDistanceKm = stationCoords.distanceKm(row.boarding_station, row.destination_station);
+    if (totalDistanceKm == null) return null;
+
     return JSON.stringify({
         aps: {
             'timestamp': nowSec,
@@ -101,10 +131,14 @@ function buildStartBody(row, state, nowSec) {
             'content-state': state,
             'attributes-type': ATTRIBUTES_TYPE,
             'attributes': {
-                trainNumber: row.train_number,
-                boardingStation: row.boarding_station,
-                destinationStation: row.destination_station,
                 journeyId: row.journey_id,
+                trainNumber: row.train_number,
+                originStation: row.boarding_station,
+                destinationStation: row.destination_station,
+                totalDistanceKm,
+                scheduledDeparture: attrDate(row.scheduled_departure),
+                scheduledArrival: attrDate(row.scheduled_arrival),
+                // appLanguage is optional — omitted rather than guessed.
             },
             'alert': {
                 title: `Влак ${row.train_number}`,
@@ -156,11 +190,24 @@ async function maybeStart(row, feed, now) {
     const { state } = contentState.build(asTokenRow(row), rt, now, v, geo);
     const nowSec = Math.floor(nowMs / 1000);
 
+    const body = buildStartBody(row, state, nowSec);
+    if (!body) {
+        // totalDistanceKm is non-optional in the app. Sending a guessed number
+        // would corrupt the progress bar; omitting it would fail the decode with
+        // no trace at all. Refusing is the only loud option — and it names the
+        // station so an alias can be added.
+        console.error(`[armed] REFUSING start j=${row.journey_id}: cannot resolve coordinates for ` +
+                      `"${row.boarding_station}" → "${row.destination_station}" (totalDistanceKm unknown)`);
+        store.markStopped(row.id, 'no-distance');
+        metrics.inc('push_to_start_failed');
+        return;
+    }
+
     // HARD RULE: exactly one attempt, no retry, ever.
     const res = await apns.send({
         token: device.token,
         environment: device.environment,
-        body: buildStartBody(row, state, nowSec),
+        body,
         priority: 10,          // the card appearing on time is the whole point
         pushType: 'liveactivity',
         noRetry: true,

@@ -84,11 +84,17 @@ function startBody(n) {
             'timestamp': nowSec,
             'event': 'start',
             'attributes-type': ATTRIBUTES_TYPE,
+            // Must carry every non-optional property of JourneyAttributes, or the
+            // card never appears and the measurement reads as "budget exceeded"
+            // when it was really a decode failure.
             'attributes': {
-                trainNumber: `TEST-${n}`,
-                boardingStation: 'Тест A',
-                destinationStation: 'Тест Б',
                 journeyId: `budget-probe-${n}`,
+                trainNumber: `TEST-${n}`,
+                originStation: 'София',
+                destinationStation: 'Пловдив',
+                totalDistanceKm: 125.1,
+                scheduledDeparture: new Date(Date.now() + 30 * 60000).toISOString(),
+                scheduledArrival: new Date(Date.now() + 150 * 60000).toISOString(),
             },
             // Mandatory content-state fields only — this is about the budget,
             // not about the payload.
