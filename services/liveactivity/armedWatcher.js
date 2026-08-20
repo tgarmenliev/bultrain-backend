@@ -32,12 +32,12 @@ const metrics      = require('./metrics');
 // the app exactly, or the start push is accepted and silently discarded.
 const ATTRIBUTES_TYPE = process.env.APNS_ATTRIBUTES_TYPE || 'JourneyAttributes';
 
-// How the two Date-ish attributes are encoded. The app team specified ISO-8601
-// strings, which is correct ONLY if those Swift properties are String. If they
-// are Date, the synthesized decoder wants seconds since the 2001 reference date
-// as a NUMBER, and an ISO string fails the same silent way a missing key does.
-// Flippable without a deploy precisely because that failure leaves no trace.
-const ATTR_DATE_FORMAT = process.env.APNS_ATTRIBUTES_DATE_FORMAT === 'swift' ? 'swift' : 'iso';
+// scheduledDeparture / scheduledArrival are Date in JourneyAttributes, so they
+// go through the same un-customized decode the content-state dates already
+// proved on a live device: seconds since the 2001 reference date, as NUMBERS.
+// An ISO string here fails exactly as silently as a missing key. Set
+// APNS_ATTRIBUTES_DATE_FORMAT=iso only if those properties ever become String.
+const ATTR_DATE_FORMAT = process.env.APNS_ATTRIBUTES_DATE_FORMAT === 'iso' ? 'iso' : 'swift';
 const attrDate = (iso) => {
     if (ATTR_DATE_FORMAT === 'swift') {
         const ms = new Date(iso).getTime();

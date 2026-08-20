@@ -17,15 +17,40 @@ const path     = require('path');
 const Database = require('better-sqlite3');
 const { normalizeStation } = require('../liveactivity/contentState');
 
-const DB_PATH = process.env.BULTRAIN_DB || path.join(__dirname, '..', '..', 'bultrain.sqlite');
+const DB_PATH   = process.env.BULTRAIN_DB || path.join(__dirname, '..', '..', 'bultrain.sqlite');
+const JSON_PATH = path.join(__dirname, '..', '..', 'stations.json');
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
 let index = null;      // normalised name -> { lat, lon, name }
 let loadedAt = 0;
 
+/**
+ * stations.json FIRST, deliberately.
+ *
+ * The app bundles this same file and computes totalDistanceKm from it, so
+ * reading it here makes the two numbers agree by construction. The stations
+ * TABLE is not equivalent: services/gtfs/reconcile-coords.js adopts GTFS
+ * coordinates into it wherever they differ by more than a kilometre, and for
+ * София that has moved the row about 9 km away from the central station —
+ * enough to disagree with the client by 6% on a Sofia–Plovdiv journey.
+ *
+ * The database is still used to fill in the handful of stations the JSON has no
+ * coordinates for.
+ */
 function load() {
     if (index && Date.now() - loadedAt < CACHE_TTL_MS) return index;
     const map = new Map();
+
+    try {
+        for (const s of JSON.parse(require('fs').readFileSync(JSON_PATH, 'utf8'))) {
+            if (s.lat == null || s.lon == null) continue;
+            const key = normalizeStation(s.name);
+            if (key && !map.has(key)) map.set(key, { lat: s.lat, lon: s.lon, name: s.name });
+        }
+    } catch (err) {
+        console.error('[stations] stations.json unreadable:', err.message);
+    }
+
     try {
         const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
         for (const r of db.prepare('SELECT name, lat, lon FROM stations WHERE lat IS NOT NULL AND lon IS NOT NULL').all()) {
@@ -34,8 +59,9 @@ function load() {
         }
         db.close();
     } catch (err) {
-        console.error('[stations] coordinate index failed:', err.message);
+        console.error('[stations] coordinate index (db) failed:', err.message);
     }
+
     index = map;
     loadedAt = Date.now();
     return index;

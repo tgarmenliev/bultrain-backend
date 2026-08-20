@@ -69,14 +69,22 @@ test('attributes-type matches the app struct', () => {
     assert.strictEqual(parsed.aps.event, 'start');
 });
 
-test('totalDistanceKm is the straight line, matching how the app computes it', () => {
+test('totalDistanceKm matches what the client computes from the same file', () => {
     const attrs = JSON.parse(watcher.buildStartBody(row, state, 1755082000)).aps.attributes;
     assert.strictEqual(typeof attrs.totalDistanceKm, 'number');
-    // Sofia→Plovdiv great-circle is ~125 km; rail mileage (~156 km) would be wrong
-    // here, because the app draws progress against a straight line.
-    assert.ok(attrs.totalDistanceKm > 120 && attrs.totalDistanceKm < 130,
-        `expected ~125 km straight line, got ${attrs.totalDistanceKm}`);
+    // The iOS side measured Sofia→Plovdiv from its bundled stations.json:
+    // 133.118 km haversine (133.360 via CLLocation's geodesic). We read the same
+    // file, so we must land on the same number — the stations TABLE would give
+    // ~125 km, because reconcile-coords has moved its София row ~9 km.
+    assert.strictEqual(attrs.totalDistanceKm, 133.1,
+        'must agree with the client, which draws progress against this number');
     assert.strictEqual(attrs.totalDistanceKm, stationCoords.distanceKm('София', 'Пловдив'));
+});
+
+test('coordinates come from stations.json, not the drifted stations table', () => {
+    const sofia = stationCoords.find('София');
+    assert.ok(Math.abs(sofia.lat - 42.7121794) < 1e-6, 'Sofia Central, as the app has it');
+    assert.ok(Math.abs(sofia.lon - 23.3211294) < 1e-6);
 });
 
 test('an unresolvable station yields NO payload, so the caller refuses to start', () => {
@@ -85,10 +93,14 @@ test('an unresolvable station yields NO payload, so the caller refuses to start'
         'better a loud refusal than a start push with a guessed distance');
 });
 
-test('dates are ISO strings by default (correct only if those properties are String)', () => {
+test('the date attributes use the 2001 reference date, as numbers', () => {
     const attrs = JSON.parse(watcher.buildStartBody(row, state, 1755082000)).aps.attributes;
-    assert.strictEqual(attrs.scheduledDeparture, '2026-08-21T11:30:00.000Z');
-    assert.strictEqual(attrs.scheduledArrival, '2026-08-21T13:45:00.000Z');
-    // If the app's properties turn out to be Date, APNS_ATTRIBUTES_DATE_FORMAT
-    // =swift switches these to 2001-epoch numbers without a code change.
+    // Same rule as the content-state dates, and for the same reason: these are
+    // Date properties decoded without a custom strategy. An ISO string here
+    // fails as silently as a missing key.
+    assert.strictEqual(typeof attrs.scheduledDeparture, 'number');
+    assert.strictEqual(typeof attrs.scheduledArrival, 'number');
+    assert.strictEqual(attrs.scheduledDeparture,
+        Math.floor(Date.parse('2026-08-21T11:30:00.000Z') / 1000) - 978307200);
+    assert.ok(attrs.scheduledArrival > attrs.scheduledDeparture);
 });
