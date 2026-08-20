@@ -3,7 +3,17 @@ const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 
-require('dotenv').config();
+// override: true is load-bearing, not tidiness.
+//
+// dotenv leaves an already-set variable alone, and `pm2 restart --update-env`
+// copies the CURRENT SHELL into the process. So an `export IOS_API_KEY=...`
+// typed once for a curl test silently outlives the shell: every later restart
+// re-injects it, dotenv declines to correct it, and the server authenticates
+// against that value instead of .env — which took the whole API down with
+// "Invalid API key" for every client at once, twice.
+//
+// On this machine .env is the single source of truth, so it wins outright.
+require('dotenv').config({ override: true });
 
 // ── Database bootstrap ──────────────────────────────────────────────────────
 // Must run before any route module below, because they open the database
@@ -96,6 +106,19 @@ app.get('/admin/*splat', (req, res) => {
 // ── Start server ───────────────────────────────────────────────────────────
 app.listen(port, () => {
   console.log(`Server is listening at http://localhost:${port}`);
+
+  // Say out loud which client keys are loaded. When authentication breaks, the
+  // symptom is a blanket 401 with no clue whether the key list is wrong, short,
+  // or missing entirely — this one line answers that at a glance. Only counts
+  // and a fingerprint are printed; never the keys themselves.
+  const fingerprint = (v) => {
+    const keys = String(v || '').split(',').map(k => k.trim()).filter(Boolean);
+    if (!keys.length) return 'NONE';
+    return `${keys.length} key(s): ` + keys.map(k => `${k.slice(0, 4)}…${k.slice(-4)}`).join(', ');
+  };
+  console.log(`[auth] IOS_API_KEY     ${fingerprint(process.env.IOS_API_KEY)}`);
+  console.log(`[auth] ANDROID_API_KEY ${fingerprint(process.env.ANDROID_API_KEY)}`);
+  console.log(`[auth] SCREEN_API_KEY  ${fingerprint(process.env.SCREEN_API_KEY)}`);
 });
 
 // ── Realtime poller ──────────────────────────────────────────────────────────
