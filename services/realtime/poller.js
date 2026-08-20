@@ -25,8 +25,12 @@ const HISTORY_ON = process.env.RT_HISTORY === 'on';
 const DB_PATH     = path.join(__dirname, '..', '..', 'bultrain.sqlite');
 const FeedMessage = B.transit_realtime.FeedMessage;
 
-const TRIP_INTERVAL_MS    = 30000; // delays change slowly
-const VEHICLE_INTERVAL_MS = 15000; // positions change faster
+// Both feeds are published on a strict 30-second grid (measured: header
+// timestamps land on :26/:56, three consecutive deltas of exactly 30s). Polling
+// faster than the source republishes fetches the same bytes twice — the vehicle
+// feed used to run at 15s, which was 2,880 wasted requests and ~12 MB a day.
+const TRIP_INTERVAL_MS    = 30000;
+const VEHICLE_INTERVAL_MS = 30000;
 const LOOKUP_REFRESH_MS   = 60 * 60 * 1000; // reload DB lookups hourly (after daily GTFS refresh)
 const HTTP_TIMEOUT_MS     = 20000;
 
