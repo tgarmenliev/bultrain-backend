@@ -81,6 +81,20 @@ test('totalDistanceKm matches what the client computes from the same file', () =
     assert.strictEqual(attrs.totalDistanceKm, stationCoords.distanceKm('София', 'Пловдив'));
 });
 
+test('the card is named with the display number, not the bare feed number', () => {
+    const withDisplay = { ...row, train_number_display: 'БВ 3637' };
+    const parsed = JSON.parse(watcher.buildStartBody(withDisplay, state, 1755082000));
+    assert.strictEqual(parsed.aps.attributes.trainNumber, 'БВ 3637',
+        'the passenger reads the category, the feed matches on the bare number');
+    assert.strictEqual(parsed.aps.alert.title, 'БВ 3637');
+});
+
+test('without a display number the bare one still reads as a train', () => {
+    const parsed = JSON.parse(watcher.buildStartBody(row, state, 1755082000));
+    assert.strictEqual(parsed.aps.attributes.trainNumber, 'Влак 2612',
+        'an older client that sends no display form must not produce a stray number');
+});
+
 test('coordinates come from stations.json, not the drifted stations table', () => {
     const sofia = stationCoords.find('София');
     assert.ok(Math.abs(sofia.lat - 42.7121794) < 1e-6, 'Sofia Central, as the app has it');

@@ -55,6 +55,13 @@ const hhmm = (iso) => {
 };
 const mins = (ms) => `${Math.round(ms / 60000)}m`;
 
+/**
+ * What the passenger should see: "БВ 3637" when the client sent the display
+ * form, otherwise the bare number with a word in front so it still reads as a
+ * train rather than a stray number.
+ */
+const trainLabel = (row) => row.train_number_display || `Влак ${row.train_number}`;
+
 /** Map an armed_journeys row onto the shape contentState.build expects. */
 function asTokenRow(row) {
     return {
@@ -132,7 +139,10 @@ function buildStartBody(row, state, nowSec) {
             'attributes-type': ATTRIBUTES_TYPE,
             'attributes': {
                 journeyId: row.journey_id,
-                trainNumber: row.train_number,
+                // The DISPLAY form ("БВ 3637") — the card names the train the way
+                // the rest of the app does. The bare number stays in train_number
+                // for feed matching and never reaches the passenger.
+                trainNumber: trainLabel(row),
                 originStation: row.boarding_station,
                 destinationStation: row.destination_station,
                 totalDistanceKm,
@@ -141,7 +151,7 @@ function buildStartBody(row, state, nowSec) {
                 // appLanguage is optional — omitted rather than guessed.
             },
             'alert': {
-                title: `Влак ${row.train_number}`,
+                title: trainLabel(row),
                 body: `Пътуване към ${row.destination_station}`,
             },
             'stale-date': nowSec + 15 * 60,
@@ -257,11 +267,15 @@ async function maybeAlert(row, feed, now) {
         return;
     }
 
-    const text = logic.alertText(row, feed.delayMin, d.kind);
+    const text = logic.alertText(row, feed.delayMin, d.kind, trainLabel(row));
     const body = JSON.stringify({
         aps: {
             alert: { title: text.title, body: text.body },
             sound: 'default',
+            // Without this, Do Not Disturb swallows the alert silently — exactly
+            // when it matters most, since a delay is worth knowing about before
+            // leaving for the station. The entitlement is in place on the app.
+            'interruption-level': 'time-sensitive',
             'thread-id': `journey-${row.journey_id}`,
         },
         journeyId: row.journey_id,

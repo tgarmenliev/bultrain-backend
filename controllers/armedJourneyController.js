@@ -105,6 +105,9 @@ exports.arm = (req, res) => {
             journey_id: String(b.journeyId),
             leg_index: legIndex,
             train_number: trainNumber,
+            // The bare number matches the feed; the display form ("БВ 3637") is
+            // what the passenger reads on the card.
+            train_number_display: b.trainNumberDisplay ? String(b.trainNumberDisplay).trim() : null,
             boarding_station: boarding,
             destination_station: destination,
             direction_station: b.directionStation ? String(b.directionStation).trim() : null,

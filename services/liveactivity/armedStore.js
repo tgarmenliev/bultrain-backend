@@ -73,17 +73,34 @@ function getToken(installId, kind) {
 
 // ── Armed journeys ───────────────────────────────────────────────────────────
 
-/** Arm a leg (or re-arm it with fresh context). Resets tracking bookkeeping. */
+/**
+ * Arm a leg (or re-arm it with fresh context). Resets tracking bookkeeping.
+ *
+ * Optional columns are defaulted here rather than demanded of every caller:
+ * better-sqlite3 throws on a missing named parameter, so adding a nullable
+ * column would otherwise break each existing call site at once.
+ */
 function arm(row) {
+    const params = {
+        train_number_display: null,
+        direction_station: null,
+        next_transport_number: null,
+        next_transport_departure: null,
+        is_next_transport_bus: 0,
+        is_current_bus: 0,
+        leg_index: 0,
+        now: nowIso(),
+        ...row,
+    };
     conn().prepare(`
         INSERT INTO armed_journeys (
-            install_id, journey_id, leg_index, train_number,
+            install_id, journey_id, leg_index, train_number, train_number_display,
             boarding_station, destination_station, direction_station,
             scheduled_departure, scheduled_arrival, is_current_bus,
             next_transport_number, next_transport_departure, is_next_transport_bus,
             state, next_action_at, created_at, updated_at
         ) VALUES (
-            @install_id, @journey_id, @leg_index, @train_number,
+            @install_id, @journey_id, @leg_index, @train_number, @train_number_display,
             @boarding_station, @destination_station, @direction_station,
             @scheduled_departure, @scheduled_arrival, @is_current_bus,
             @next_transport_number, @next_transport_departure, @is_next_transport_bus,
@@ -91,6 +108,7 @@ function arm(row) {
         )
         ON CONFLICT(install_id, journey_id, leg_index) DO UPDATE SET
             train_number             = excluded.train_number,
+            train_number_display     = excluded.train_number_display,
             boarding_station         = excluded.boarding_station,
             destination_station      = excluded.destination_station,
             direction_station        = excluded.direction_station,
@@ -110,7 +128,7 @@ function arm(row) {
             alerts_sent    = 0,
             next_action_at = excluded.next_action_at,
             updated_at     = excluded.updated_at
-    `).run(row);
+    `).run(params);
 }
 
 /** Rows the watcher still has work for. */

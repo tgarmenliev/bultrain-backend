@@ -152,3 +152,12 @@ test('alert copy names the train and never claims "on time"', () => {
     const rec = logic.alertText(row(), 2, 'recovered');
     assert.match(rec.title, /наваксва/);
 });
+
+test('alert copy prefers the display number when the client sent one', () => {
+    const t = logic.alertText(row(), 12, 'appeared', 'БВ 3637');
+    assert.strictEqual(t.title, 'БВ 3637 закъснява с 12 минути');
+    // No display form: still reads as a train, not a bare number.
+    assert.match(logic.alertText(row(), 12, 'appeared').title, /^Влак 2612/);
+    // Singular is respected.
+    assert.match(logic.alertText(row(), 1, 'appeared', 'ПВ 30114').title, /1 минута$/);
+});

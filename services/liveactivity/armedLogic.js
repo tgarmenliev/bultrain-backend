@@ -106,19 +106,23 @@ function evaluateDelayAlert(row, delayMin, now = new Date()) {
     return { shouldAlert: false, reason: 'no-material-change' };
 }
 
-/** Bulgarian copy for the alert. Kept next to the rule that produces it. */
-function alertText(row, delayMin, kind) {
-    const train = row.train_number;
+/**
+ * Bulgarian copy for the alert. Kept next to the rule that produces it.
+ * `label` is what the passenger reads — "БВ 3637" where the client supplied a
+ * display number, otherwise "Влак 3637".
+ */
+function alertText(row, delayMin, kind, label) {
+    const train = label || `Влак ${row.train_number}`;
     const to = row.destination_station;
     if (kind === 'recovered') {
         return {
-            title: `Влак ${train} наваксва`,
+            title: `${train} наваксва`,
             body: `Закъснението към ${to} е под 5 минути.`,
         };
     }
     const word = delayMin === 1 ? 'минута' : 'минути';
     return {
-        title: `Влак ${train} закъснява с ${delayMin} ${word}`,
+        title: `${train} закъснява с ${delayMin} ${word}`,
         body: kind === 'better'
             ? `Закъснението намаля. Пътуване към ${to}.`
             : `Пътуване към ${to}. Проверете преди да тръгнете.`,
