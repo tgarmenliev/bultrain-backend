@@ -199,6 +199,24 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
         isCurrentTransportBus: !!tokenRow.is_current_bus,
     };
 
+    // ── Per-LEG fields ───────────────────────────────────────────────────────
+    // The activity's attributes are immutable and describe the whole journey,
+    // so on a trip with a transfer the card showed the first train and the final
+    // station for the entire ride. These carry the CURRENT leg instead, and the
+    // client falls back to the (wrong) journey-level values when they are absent
+    // — so populate them whenever the row knows them, which is always for a
+    // per-leg registration.
+    //
+    // boarding_station / destination_station on this row ARE the leg's own
+    // endpoints: the client arms and registers each leg separately, so the
+    // destination here is the transfer station, not the end of the journey.
+    const legLabel = tokenRow.train_number_display || null;
+    if (legLabel) state.legTransportNumber = legLabel;
+    if (tokenRow.boarding_station)    state.legOriginStation = tokenRow.boarding_station;
+    if (tokenRow.destination_station) state.legDestinationStation = tokenRow.destination_station;
+    if (Number.isFinite(schedDepSec)) state.legScheduledDeparture = toSwiftDate(schedDepSec);
+    if (Number.isFinite(schedArrSec)) state.legScheduledArrival = toSwiftDate(schedArrSec);
+
     // ── Optional fields: omitted entirely when unknown, never sent as null ───
     // isGPSTracked is optional on the iOS side, so it is only ever sent as true;
     // omitting it (the feed case) is safe and reads as "not GPS-only".

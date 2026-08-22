@@ -86,6 +86,9 @@ exports.register = (req, res) => {
             environment: b.environment,
             journey_id: b.journeyId ? String(b.journeyId) : null,
             train_number: trainNumber,
+            // Display form ("БВ 8611") for the card's per-leg field. Optional —
+            // the push path composes one from the GTFS category when absent.
+            train_number_display: b.trainNumberDisplay ? String(b.trainNumberDisplay).trim() : null,
             boarding_station: boarding,
             destination_station: destination,
             direction_station: b.directionStation ? String(b.directionStation).trim() : null,

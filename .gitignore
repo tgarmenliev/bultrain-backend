@@ -45,3 +45,7 @@ map.html
 
 # NOTE: stations.json is deliberately NOT ignored. liveController and
 # routeWorker require it at startup, so a clone without it cannot boot.
+
+# Hand-off briefs dropped in the repo root by the mobile agents. Useful while
+# the work is live, but they are conversation artefacts, not source.
+*-BRIEF.md

@@ -58,10 +58,68 @@ function evaluateTrigger(row, predictedDepUnix, now = new Date()) {
     return { ...base, shouldStart: true, reason: usePredicted ? 'predicted-departure' : 'scheduled-departure' };
 }
 
+// ── Leg sequencing across a multi-leg journey ────────────────────────────────
+
+// A leg the watcher no longer has work for.
+const FINISHED_STATES = new Set(['arrived', 'stopped']);
+
+// How close to the current leg's arrival the connection becomes worth warning
+// about. Before that, a delay on a later train is noise the passenger cannot
+// act on — and worse, reads as if their CURRENT train were the late one.
+const CONNECTION_ALERT_WINDOW_MS = 45 * 60 * 1000;
+
+/**
+ * Where a leg sits relative to the passenger right now.
+ *
+ * The client arms every leg of a journey up front, so the server holds several
+ * live legs at once and must not treat them as equals: only one is being
+ * travelled, and the rest are the future. `liveLegs` is the set still in play
+ * (anything not arrived or stopped), so the lowest index among them is the leg
+ * the passenger is on or about to board.
+ *
+ * @returns {{role:'active'|'connection'|'later', activeIndex:number|null}}
+ */
+function legRole(row, liveLegs, now = new Date()) {
+    const indices = liveLegs
+        .filter(l => !FINISHED_STATES.has(l.state))
+        .map(l => l.leg_index)
+        .sort((a, b) => a - b);
+
+    if (!indices.length) return { role: 'later', activeIndex: null };
+    const activeIndex = indices[0];
+
+    if (row.leg_index === activeIndex) return { role: 'active', activeIndex };
+    if (row.leg_index !== activeIndex + 1) return { role: 'later', activeIndex };
+
+    // The immediate connection: relevant only once the transfer is close.
+    const active = liveLegs.find(l => l.leg_index === activeIndex);
+    const activeArrival = active ? new Date(active.scheduled_arrival).getTime() : null;
+    const near = activeArrival != null
+        && (activeArrival - now.getTime()) <= CONNECTION_ALERT_WINDOW_MS;
+
+    return { role: near ? 'connection' : 'later', activeIndex };
+}
+
+/** A leg's card may only be started once every earlier leg has finished. */
+function mayStartLeg(row, liveLegs, now = new Date()) {
+    return legRole(row, liveLegs, now).role === 'active';
+}
+
+/** Before departure or already rolling — decides both wording and threshold. */
+function legPhase(row, predictedDepUnix, now = new Date()) {
+    const dep = predictedDepUnix != null
+        ? predictedDepUnix * 1000
+        : new Date(row.scheduled_departure).getTime();
+    return now.getTime() < dep ? 'preDeparture' : 'inTransit';
+}
+
 // ── Task 2: when a delay is worth a notification ─────────────────────────────
 
 const ALERT_MIN_DELAY_MIN  = 5;                // below this, not worth a push
-const ALERT_CHANGE_MIN     = 5;                // material change since last told
+const ALERT_CHANGE_MIN     = 5;                // material change before departure
+// Once rolling, the card itself shows the delay, so a notification repeating it
+// is noise. Only a substantial further change earns an interruption.
+const ALERT_CHANGE_MIN_IN_TRANSIT = 10;
 const ALERT_MIN_INTERVAL_MS = 10 * 60 * 1000;  // never two alerts back to back
 const ALERT_MAX_PER_LEG    = 5;
 
@@ -69,9 +127,19 @@ const ALERT_MAX_PER_LEG    = 5;
  * @param {object} row      armed_journeys row (carries last_delay_min, alerts_sent)
  * @param {number|null} delayMin  the delay we can actually measure, or null when
  *                                the train has no realtime coverage at all
- * @returns {{shouldAlert:boolean, reason:string, kind?:'appeared'|'worse'|'better'|'recovered'}}
+ * @param {Date} now
+ * @param {{phase?:string, role?:string}} ctx  where this leg stands
+ * @returns {{shouldAlert:boolean, reason:string, kind?:string}}
  */
-function evaluateDelayAlert(row, delayMin, now = new Date()) {
+function evaluateDelayAlert(row, delayMin, now = new Date(), ctx = {}) {
+    const phase = ctx.phase || 'preDeparture';
+    const role  = ctx.role  || 'active';
+
+    // Never warn about a train the passenger is not on and cannot yet act on.
+    // Getting "8611 is late" while sitting on 4632 reads as if THIS train were
+    // the late one — the single most misleading thing this system could send.
+    if (role === 'later') return { shouldAlert: false, reason: 'not-the-current-leg' };
+
     // Hard project rule: no data means no claim. Never "on time" without a
     // measurement behind it, and never a notification built on nothing.
     if (delayMin == null) return { shouldAlert: false, reason: 'no-coverage' };
@@ -82,6 +150,7 @@ function evaluateDelayAlert(row, delayMin, now = new Date()) {
         if (since < ALERT_MIN_INTERVAL_MS) return { shouldAlert: false, reason: 'too-soon' };
     }
 
+    const changeBar = phase === 'inTransit' ? ALERT_CHANGE_MIN_IN_TRANSIT : ALERT_CHANGE_MIN;
     const last = row.last_delay_min;
 
     if (last == null) {
@@ -96,7 +165,7 @@ function evaluateDelayAlert(row, delayMin, now = new Date()) {
     }
 
     const change = delayMin - last;
-    if (Math.abs(change) >= ALERT_CHANGE_MIN && delayMin >= ALERT_MIN_DELAY_MIN) {
+    if (Math.abs(change) >= changeBar && delayMin >= ALERT_MIN_DELAY_MIN) {
         return {
             shouldAlert: true,
             reason: change > 0 ? 'delay-worse' : 'delay-better',
@@ -108,19 +177,49 @@ function evaluateDelayAlert(row, delayMin, now = new Date()) {
 
 /**
  * Bulgarian copy for the alert. Kept next to the rule that produces it.
+ *
  * `label` is what the passenger reads — "БВ 3637" where the client supplied a
- * display number, otherwise "Влак 3637".
+ * display number, otherwise "Влак 3637". `ctx` decides the wording: telling
+ * someone already aboard to "check before you leave" is nonsense, and a
+ * connection warning has to name itself as being about the NEXT train or it
+ * will be read as being about the current one.
  */
-function alertText(row, delayMin, kind, label) {
+function alertText(row, delayMin, kind, label, ctx = {}) {
+    const phase = ctx.phase || 'preDeparture';
+    const role  = ctx.role  || 'active';
     const train = label || `Влак ${row.train_number}`;
     const to = row.destination_station;
+    const word = delayMin === 1 ? 'минута' : 'минути';
+
+    if (role === 'connection') {
+        if (kind === 'recovered') {
+            return {
+                title: `Връзката ви наваксва`,
+                body: `Следващият влак ${train} вече не закъснява съществено.`,
+            };
+        }
+        return {
+            title: `Следващият ви влак ${train} закъснява с ${delayMin} ${word}`,
+            body: `Това е връзката ви след прекачването, не влакът, в който сте.`,
+        };
+    }
+
     if (kind === 'recovered') {
         return {
             title: `${train} наваксва`,
             body: `Закъснението към ${to} е под 5 минути.`,
         };
     }
-    const word = delayMin === 1 ? 'минута' : 'минути';
+
+    if (phase === 'inTransit') {
+        return {
+            title: `${train} закъснява с ${delayMin} ${word}`,
+            body: kind === 'better'
+                ? `Закъснението намаля. Пътуване към ${to}.`
+                : `Закъснението нарасна. Пътуване към ${to}.`,
+        };
+    }
+
     return {
         title: `${train} закъснява с ${delayMin} ${word}`,
         body: kind === 'better'
@@ -166,6 +265,8 @@ function evaluateDeadline(row, predictedArrivalUnix, now = new Date()) {
 
 module.exports = {
     evaluateTrigger, evaluateDelayAlert, alertText, evaluateDeadline,
+    legRole, mayStartLeg, legPhase,
     START_WINDOW_MS, ALERT_MIN_DELAY_MIN, ALERT_CHANGE_MIN,
-    ALERT_MIN_INTERVAL_MS, ALERT_MAX_PER_LEG, MAX_JOURNEY_AHEAD_MS,
+    ALERT_CHANGE_MIN_IN_TRANSIT, ALERT_MIN_INTERVAL_MS, ALERT_MAX_PER_LEG,
+    MAX_JOURNEY_AHEAD_MS, CONNECTION_ALERT_WINDOW_MS,
 };

@@ -21,6 +21,7 @@
 const cache        = require('../realtime/cache');
 const geometryOf   = require('../gtfs/tripGeometry');
 const stationCoords = require('../gtfs/stationCoords');
+const trainCategory = require('../gtfs/trainCategory');
 const store        = require('./armedStore');
 const laStore      = require('./store');
 const apns         = require('./apns');
@@ -67,6 +68,9 @@ const trainLabel = (row) => row.train_number_display || `Влак ${row.train_nu
 function asTokenRow(row) {
     return {
         train_number: row.train_number,
+        // The card's per-leg field wants the passenger-facing form. Prefer what
+        // the client sent, else compose it from the train's GTFS category.
+        train_number_display: row.train_number_display || trainCategory.displayFor(row.train_number),
         boarding_station: row.boarding_station,
         destination_station: row.destination_station,
         direction_station: row.direction_station,
@@ -160,7 +164,16 @@ function buildStartBody(row, state, nowSec) {
     });
 }
 
-async function maybeStart(row, feed, now) {
+async function maybeStart(row, feed, now, legCtx) {
+    // Every leg of a journey is armed up front, so leg 1's trigger (departure
+    // minus 40 minutes) falls while the passenger is still riding leg 0. Without
+    // this guard the server would push a SECOND card mid-journey.
+    if (legCtx.role !== 'active') {
+        console.log(`[armed] trigger j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
+                    `decision=wait (waiting for leg ${legCtx.activeIndex} to finish)`);
+        return;
+    }
+
     const t = logic.evaluateTrigger(row, feed.predictedDepUnix, now);
     const nowMs = now.getTime();
 
@@ -276,8 +289,11 @@ async function maybeStart(row, feed, now) {
 
 // ── 2. Delay alert ───────────────────────────────────────────────────────────
 
-async function maybeAlert(row, feed, now) {
-    const d = logic.evaluateDelayAlert(row, feed.delayMin, now);
+async function maybeAlert(row, feed, now, legCtx) {
+    const phase = logic.legPhase(row, feed.predictedDepUnix, now);
+    const ctx = { phase, role: legCtx.role };
+
+    const d = logic.evaluateDelayAlert(row, feed.delayMin, now, ctx);
     if (!d.shouldAlert) {
         // Still remember what we saw, so the next comparison is against truth.
         if (feed.delayMin != null && feed.delayMin !== row.last_delay_min && d.reason === 'below-threshold') {
@@ -295,7 +311,7 @@ async function maybeAlert(row, feed, now) {
     // The wording lives server-side for both platforms — the Bulgarian
     // pluralisation and the "never claim on time" rule are in alertText(), and
     // duplicating them in two clients is how they drift apart.
-    const text = logic.alertText(row, feed.delayMin, d.kind, trainLabel(row));
+    const text = logic.alertText(row, feed.delayMin, d.kind, trainLabel(row), ctx);
 
     let res;
     if (device.platform === 'android') {
@@ -339,9 +355,9 @@ async function maybeAlert(row, feed, now) {
         });
     }
 
-    console.log(`[armed] delay alert j=${row.journey_id} train=${row.train_number} ` +
-                `platform=${device.platform} delay=${feed.delayMin}m was=${row.last_delay_min ?? '—'} ` +
-                `(${d.reason}) -> ${res.outcome}`);
+    console.log(`[armed] delay alert j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
+                `platform=${device.platform} role=${ctx.role} phase=${ctx.phase} ` +
+                `delay=${feed.delayMin}m was=${row.last_delay_min ?? '—'} (${d.reason}) -> ${res.outcome}`);
 
     if (res.outcome === 'ok') {
         store.recordAlert(row.id, feed.delayMin);
@@ -378,18 +394,31 @@ async function tick(now = new Date()) {
     const nowSec = Math.floor(now.getTime() / 1000);
     let started = 0, alerted = 0, stopped = 0;
 
+    // Group the live legs by journey. listActive() returns only legs still in
+    // play, so the lowest leg_index within a group IS the leg being travelled —
+    // no extra query needed to work out where the passenger is.
+    const byJourney = new Map();
+    for (const r of rows) {
+        const key = `${r.install_id}|${r.journey_id}`;
+        if (!byJourney.has(key)) byJourney.set(key, []);
+        byJourney.get(key).push(r);
+    }
+
     for (const row of rows) {
         try {
+            const siblings = byJourney.get(`${row.install_id}|${row.journey_id}`) || [row];
+            const legCtx = logic.legRole(row, siblings, now);
+
             const rt = cache.getTrain(row.train_number);
             const feed = readFeed(row, rt, nowSec);
 
             if (maybeStop(row, feed, now)) { stopped++; continue; }
 
             const before = row.state;
-            await maybeStart(row, feed, now);
+            await maybeStart(row, feed, now, legCtx);
             if (before === 'armed' && store.getById(row.id)?.state === 'started') started++;
 
-            await maybeAlert(row, feed, now);
+            await maybeAlert(row, feed, now, legCtx);
             if (store.getById(row.id)?.alerts_sent > row.alerts_sent) alerted++;
         } catch (err) {
             console.error(`[armed] row ${row.id} (j=${row.journey_id}) failed:`, err.message);

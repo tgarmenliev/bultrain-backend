@@ -24,6 +24,7 @@ const crypto = require('crypto');
 
 const cache        = require('../realtime/cache');
 const geometryOf   = require('../gtfs/tripGeometry');
+const trainCategory = require('../gtfs/trainCategory');
 const store        = require('./store');
 const armedStore   = require('./armedStore');
 const armedWatcher = require('./armedWatcher');
@@ -126,6 +127,17 @@ function contextKey(row) {
 
 const hash = (s) => crypto.createHash('sha256').update(s).digest('hex').slice(0, 32);
 
+/**
+ * The card's per-leg transport number wants the passenger-facing form
+ * ("БВ 8611"). Prefer what the client registered; otherwise compose it from the
+ * train's GTFS category, so an older client still gets a sensible label instead
+ * of a bare number.
+ */
+function withLegDisplay(row) {
+    if (!row || row.train_number_display) return row;
+    return { ...row, train_number_display: trainCategory.displayFor(row.train_number) };
+}
+
 /** Wrap a content-state in the APNs body. */
 function buildBody(state, { nowSec, predictedArrivalUnix, event = 'update', dismissalUnix }) {
     // A visibly stale card is better than a confidently wrong one: if pushes
@@ -180,7 +192,7 @@ async function tick(now = new Date()) {
             const key = contextKey(row);
 
             if (!built.has(key)) {
-                const { state, meta } = contentState.build(row, rt, now, v, geo);
+                const { state, meta } = contentState.build(withLegDisplay(row), rt, now, v, geo);
                 built.set(key, { state, meta, body: null, hash: null, endBody: null });
             }
             const ctx = built.get(key);
@@ -287,7 +299,7 @@ function scheduleDepartures(now = new Date()) {
                 const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
                 const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
                 const nowSec = Math.floor(Date.now() / 1000);
-                const { state, meta } = contentState.build(fresh, rt, new Date(), v, geo);
+                const { state, meta } = contentState.build(withLegDisplay(fresh), rt, new Date(), v, geo);
                 const body = buildBody(state, { nowSec, predictedArrivalUnix: meta.predictedArrivalUnix });
                 // Phase change: worth priority 10 and worth bypassing the
                 // per-minute throttle, which exists for feed noise, not this.
