@@ -11,7 +11,21 @@ ExecStart=/root/bultrain-app/scripts/backup.sh
 Environment=BULTRAIN_DB=/root/bultrain-app/bultrain.sqlite
 Environment=BULTRAIN_BACKUP_DIR=/root/backups
 Environment=BULTRAIN_BACKUP_RETENTION=30
-# Uncomment and set to your rclone remote to enable off-box copies (Backblaze B2):
-# Environment=BULTRAIN_BACKUP_REMOTE=b2:your-bucket-name/bultrain
+# BULTRAIN_BACKUP_REMOTE (the off-box rclone target) is set via a systemd
+# drop-in, NOT here — see bultrain-backup.service.d/remote.conf in this same
+# directory. Deploy it with:
+#   mkdir -p /etc/systemd/system/bultrain-backup.service.d
+#   cp deploy/systemd/bultrain-backup.service.d/remote.conf \
+#      /etc/systemd/system/bultrain-backup.service.d/
+#   systemctl daemon-reload
+# Kept out of the base unit so the credential-adjacent bucket path isn't in the
+# main file every redeploy touches, and so it survives a base-file overwrite.
+#
+# IMPORTANT: backup.sh reads this from the PROCESS environment, not from .env —
+# it is a plain bash script, not the Node app, and never sources .env. A manual
+# `bash scripts/backup.sh` from an interactive shell will NOT have this var and
+# will log "BULTRAIN_BACKUP_REMOTE unset" even though the daily timer (which
+# runs with the drop-in's environment) works fine. That log line during a
+# manual test run is expected, not a sign anything is broken.
 Nice=10
 IOSchedulingClass=idle
