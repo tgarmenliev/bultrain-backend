@@ -67,7 +67,23 @@ async function uploadImage(file: File): Promise<string> {
     return data.filename as string;
 }
 
-export default function ArticlesManager() {
+interface Props { category?: 'travel_idea' | 'guide'; }
+
+export default function ArticlesManager({ category = 'travel_idea' }: Props) {
+    const isGuide = category === 'guide';
+    // Guide topics are official app content (how to read a departure board, what
+    // a Desiro is) — travel/trip metadata doesn't apply to them, so that whole
+    // section of the form is hidden rather than left showing empty fields.
+    const L = {
+        heading: isGuide ? 'Справочник' : 'Идеи за пътуване',
+        sub: isGuide ? 'Съдържание на наръчника в приложението.' : 'Статии за еднодневни пътувания с влак.',
+        newBtn: isGuide ? '+ Нова тема' : '+ Нова статия',
+        empty: isGuide ? 'Още няма теми. Създай първата.' : 'Още няма статии. Създай първата.',
+        loadError: isGuide ? 'Темата не се зареди' : 'Статията не се зареди',
+        deleteConfirm: isGuide ? 'Да изтрия ли темата?' : 'Да изтрия ли статията?',
+        createdMsg: isGuide ? 'Темата е създадена (чернова).' : 'Статията е създадена (чернова).',
+    };
+
     const [items, setItems] = useState<ListItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -78,18 +94,18 @@ export default function ArticlesManager() {
     const fetchList = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/admin/articles');
+            const res = await fetch(`/api/admin/articles?category=${category}`);
             if (!res.ok) throw new Error('Грешка при зареждане');
             setItems(await res.json());
         } catch (e: any) { setError(e.message); } finally { setLoading(false); }
     };
-    useEffect(() => { fetchList(); }, []);
+    useEffect(() => { fetchList(); }, [category]);
 
     const openNew = () => { setPreview(null); setEd(empty()); };
     const openEdit = async (id: number) => {
         setError(null); setPreview(null);
         const res = await fetch(`/api/admin/articles/${id}`);
-        if (!res.ok) { setError('Статията не се зареди'); return; }
+        if (!res.ok) { setError(L.loadError); return; }
         const a = await res.json();
         setEd({
             id: a.id, title: a.title || '', subtitle: a.subtitle || '', language: a.language || 'bg',
@@ -105,12 +121,15 @@ export default function ArticlesManager() {
         if (!ed.title.trim()) { setError('Заглавието е задължително'); return null; }
         setBusy(true); setError(null);
         try {
-            const payload = {
+            const payload: Record<string, unknown> = {
                 title: ed.title, subtitle: ed.subtitle, language: ed.language,
                 cover_image: ed.cover_image, featured: ed.featured, region: ed.region,
                 season: ed.season, duration_min: ed.duration_min ? Number(ed.duration_min) : null,
                 related_train: ed.related_train, blocks: ed.blocks,
             };
+            // Only meaningful on create — an existing row's category is fixed
+            // server-side and can never be reassigned via update.
+            if (!ed.id) payload.category = category;
             const res = await fetch(ed.id ? `/api/admin/articles/${ed.id}` : '/api/admin/articles', {
                 method: ed.id ? 'PUT' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -141,7 +160,7 @@ export default function ArticlesManager() {
     };
 
     const del = async (id: number) => {
-        if (!confirm('Да изтрия ли статията?')) return;
+        if (!confirm(L.deleteConfirm)) return;
         const res = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE' });
         if (res.ok) { setEd(null); await fetchList(); }
     };
@@ -162,15 +181,15 @@ export default function ArticlesManager() {
             <div className="space-y-8">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h2 className="text-3xl font-bold text-gradient">Идеи за пътуване</h2>
-                        <p className="text-slate-400 text-sm mt-2">Статии за еднодневни пътувания с влак.</p>
+                        <h2 className="text-3xl font-bold text-gradient">{L.heading}</h2>
+                        <p className="text-slate-400 text-sm mt-2">{L.sub}</p>
                     </div>
-                    <button onClick={openNew} className="btn-glow px-6 py-3">+ Нова статия</button>
+                    <button onClick={openNew} className="btn-glow px-6 py-3">{L.newBtn}</button>
                 </div>
                 {error && <ErrorBox msg={error} />}
                 {loading ? <p className="text-slate-400">Зареждане…</p> : (
                     <div className="grid gap-4">
-                        {items.length === 0 && <p className="text-slate-500">Още няма статии. Създай първата.</p>}
+                        {items.length === 0 && <p className="text-slate-500">{L.empty}</p>}
                         {items.map(a => (
                             <div key={a.id} className="glass-card rounded-2xl p-5 flex items-center gap-4">
                                 <div className="w-20 h-14 rounded-lg bg-slate-800 overflow-hidden shrink-0">
@@ -180,11 +199,13 @@ export default function ArticlesManager() {
                                     <div className="flex items-center gap-2">
                                         <h3 className="font-bold text-white truncate">{a.title}</h3>
                                         <StatusBadge status={a.status} />
-                                        {!!a.featured && <span className="text-[10px] font-black uppercase text-purple-300 bg-purple-500/15 px-2 py-0.5 rounded-md border border-purple-500/25">Топ</span>}
+                                        {!isGuide && !!a.featured && <span className="text-[10px] font-black uppercase text-purple-300 bg-purple-500/15 px-2 py-0.5 rounded-md border border-purple-500/25">Топ</span>}
                                     </div>
-                                    <p className="text-xs text-slate-400 mt-1 truncate">
-                                        {[a.region, a.season, a.duration_min ? `${a.duration_min} мин` : null, a.related_train ? `влак ${a.related_train}` : null].filter(Boolean).join(' · ') || '—'}
-                                    </p>
+                                    {!isGuide && (
+                                        <p className="text-xs text-slate-400 mt-1 truncate">
+                                            {[a.region, a.season, a.duration_min ? `${a.duration_min} мин` : null, a.related_train ? `влак ${a.related_train}` : null].filter(Boolean).join(' · ') || '—'}
+                                        </p>
+                                    )}
                                 </div>
                                 <button onClick={() => openEdit(a.id)} className="px-4 py-2 rounded-lg text-sm font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/25 hover:bg-indigo-500/20">Редактирай</button>
                                 <button onClick={() => del(a.id)} className="px-3 py-2 rounded-lg text-sm font-bold text-rose-300 bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/20">Изтрий</button>
@@ -238,15 +259,19 @@ export default function ArticlesManager() {
                             </select>
                         </Field>
                         <ImageField label="Корица" value={ed.cover_image} onUpload={async f => setEd({ ...ed, cover_image: await uploadImage(f) })} onClear={() => setEd({ ...ed, cover_image: null })} setError={setError} />
-                        <div className="grid grid-cols-2 gap-3">
-                            <Field label="Регион"><input className="input-premium w-full" value={ed.region} onChange={e => setEd({ ...ed, region: e.target.value })} /></Field>
-                            <Field label="Сезон"><input className="input-premium w-full" value={ed.season} onChange={e => setEd({ ...ed, season: e.target.value })} placeholder="напр. есен" /></Field>
-                            <Field label="Времетраене (мин)"><input type="number" className="input-premium w-full" value={ed.duration_min} onChange={e => setEd({ ...ed, duration_min: e.target.value })} /></Field>
-                            <Field label="Свързан влак"><input className="input-premium w-full" value={ed.related_train} onChange={e => setEd({ ...ed, related_train: e.target.value })} placeholder="номер" /></Field>
-                        </div>
-                        <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-                            <input type="checkbox" checked={ed.featured} onChange={e => setEd({ ...ed, featured: e.target.checked })} /> Featured
-                        </label>
+                        {!isGuide && (
+                            <>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <Field label="Регион"><input className="input-premium w-full" value={ed.region} onChange={e => setEd({ ...ed, region: e.target.value })} /></Field>
+                                    <Field label="Сезон"><input className="input-premium w-full" value={ed.season} onChange={e => setEd({ ...ed, season: e.target.value })} placeholder="напр. есен" /></Field>
+                                    <Field label="Времетраене (мин)"><input type="number" className="input-premium w-full" value={ed.duration_min} onChange={e => setEd({ ...ed, duration_min: e.target.value })} /></Field>
+                                    <Field label="Свързан влак"><input className="input-premium w-full" value={ed.related_train} onChange={e => setEd({ ...ed, related_train: e.target.value })} placeholder="номер" /></Field>
+                                </div>
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                                    <input type="checkbox" checked={ed.featured} onChange={e => setEd({ ...ed, featured: e.target.checked })} /> Featured
+                                </label>
+                            </>
+                        )}
                     </div>
 
                     <div className="glass-card rounded-2xl p-5 space-y-3">
@@ -282,7 +307,7 @@ export default function ArticlesManager() {
                         <div className="p-5 space-y-3">
                             <h1 className="text-2xl font-black text-white">{ed.title || 'Без заглавие'}</h1>
                             {ed.subtitle && <p className="text-slate-400">{ed.subtitle}</p>}
-                            {(ed.region || ed.season || ed.duration_min || ed.related_train) && (
+                            {!isGuide && (ed.region || ed.season || ed.duration_min || ed.related_train) && (
                                 <p className="text-xs text-purple-300">{[ed.region, ed.season, ed.duration_min && `${ed.duration_min} мин`, ed.related_train && `влак ${ed.related_train}`].filter(Boolean).join(' · ')}</p>
                             )}
                             <div className="space-y-3 pt-2">

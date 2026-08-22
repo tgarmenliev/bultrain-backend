@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import Login from './components/Login';
-import GuideManager from './components/GuideManager';
 import TrainManager from './components/TrainManager';
 import DataSync from './components/DataSync';
 import ExceptionsManager from './components/ExceptionsManager';
@@ -146,7 +145,7 @@ function App() {
             </div>
           )}
 
-          {isAdmin && currentView === 'guide' && <GuideManager />}
+          {isAdmin && currentView === 'guide' && <ArticlesManager category="guide" />}
           {isAdmin && currentView === 'trains' && <TrainManager />}
           {isAdmin && currentView === 'exceptions' && <ExceptionsManager />}
           {currentView === 'articles' && <ArticlesManager />}
