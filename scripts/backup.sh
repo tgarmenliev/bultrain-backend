@@ -55,6 +55,18 @@ if [ -n "$REMOTE" ]; then
     command -v rclone >/dev/null 2>&1 || fail "BULTRAIN_BACKUP_REMOTE set but rclone is not installed"
     rclone copy "$BACKUP_DIR" "$REMOTE" --include 'bultrain-*.sqlite.gz' \
         && log "copied to $REMOTE" || fail "off-box rclone copy to $REMOTE failed"
+
+    # `copy` never deletes on the remote (deliberately — see the note above), so
+    # without this the remote grows forever: ~10 MB/day is small today but adds
+    # up to multiple GB a year with nothing ever trimming it, and free-tier
+    # storage is not infinite. Prune independently of local rotation, on its own
+    # much longer retention — the whole point of the off-box copy is to survive
+    # a dead local disk, so it must outlive the local 30-day window.
+    REMOTE_RETENTION_DAYS="${BULTRAIN_BACKUP_REMOTE_RETENTION_DAYS:-180}"
+    rclone delete "$REMOTE" --min-age "${REMOTE_RETENTION_DAYS}d" \
+        --include 'bultrain-*.sqlite.gz' \
+        && log "pruned remote backups older than ${REMOTE_RETENTION_DAYS}d" \
+        || log "WARNING: remote prune failed (old backups may be piling up — check manually)"
 else
     log "WARNING: BULTRAIN_BACKUP_REMOTE unset — backups are on the same disk as the DB"
 fi
