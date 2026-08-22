@@ -8,6 +8,17 @@ const verifyRole = require('../middleware/verifyRole');
 const adminController = require('../controllers/adminController');
 const mediaController = require('../controllers/mediaController');
 const articlesController = require('../controllers/articlesController');
+const { createRateLimit } = require('../middleware/rateLimit');
+
+// Login had NO throttling at all until now — the API-wide limiter (120/min) is
+// nowhere near tight enough to slow down password guessing. This is deliberately
+// much stricter and keyed by IP alone: admin login sends no X-Bultrain-Api-Key,
+// so the shared clientKey() already buckets it by IP address.
+const loginLimit = createRateLimit({
+    windowMs: 60_000,
+    max: 8,
+    message: 'Too many login attempts. Try again shortly.',
+});
 
 // ── Image uploads for the article/guide editor ──────────────────────────────
 // Server-generated filename from the MIME type (no client-controlled path or
@@ -26,7 +37,7 @@ const mediaUpload = multer({
 }).single('file');
 
 // ── Public (no auth) ────────────────────────────────────────────────────────
-router.post('/login', adminController.login);
+router.post('/login', loginLimit, adminController.login);
 router.post('/logout', adminController.logout);
 
 // Any authenticated account — used by the panel to learn its own role.

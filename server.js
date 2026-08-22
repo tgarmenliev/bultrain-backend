@@ -73,6 +73,27 @@ app.get('/health', healthController.getHealth);
 // ── Serve static guide images ──────────────────────────────────────────────
 app.use('/guide/images', express.static(path.join(__dirname, 'guide', 'images')));
 
+// ── API-wide rate limiting ──────────────────────────────────────────────────
+// One shared ceiling ahead of every /api/* route, so a route added later can't
+// silently ship without protection the way every route except live-activity's
+// register endpoints did until now. Deliberately generous — normal app usage
+// (a cold-start burst of station/schedule/guide/realtime calls, then scattered
+// requests while browsing) is nowhere near 120/min; this exists to stop a
+// scraping loop or a runaway client, not to throttle real traffic. Per-route
+// limiters (like live-activity's tighter 20/min register limit) still apply on
+// top of this — both must pass, so the tighter one continues to govern there.
+//
+// Accurate per-IP behaviour depends on nginx forwarding X-Forwarded-For (see
+// rateLimit.js); without it every request behind the proxy collapses into one
+// bucket per API key, which is still a real ceiling, just a coarser one.
+const { createRateLimit } = require('./middleware/rateLimit');
+const apiLimiter = createRateLimit({
+  windowMs: 60_000,
+  max: 120,
+  message: 'Too many requests. Slow down.',
+});
+app.use('/api', apiLimiter);
+
 // ── Public API routes (protected by mobile client verification) ────────────
 app.use('/api/live', verifyMobileClient, liveRoutes);
 app.use('/api/train-info', verifyMobileClient, trainInfoRoutes);
