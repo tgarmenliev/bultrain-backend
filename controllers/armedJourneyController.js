@@ -15,8 +15,17 @@ const store = require('../services/liveactivity/armedStore');
 const { isValidToken } = require('./liveActivityController');
 
 const ENVIRONMENTS = new Set(['sandbox', 'production']);
-const KINDS        = new Set(['push_to_start', 'alert']);
+const IOS_KINDS    = new Set(['push_to_start', 'alert']);
+const PLATFORMS    = new Set(['ios', 'android']);
 const INSTALL_RE   = /^[A-Za-z0-9._:-]{8,128}$/;
+
+// FCM registration tokens are NOT hex — they look like "<id>:APA91b<...>", with
+// colons, dashes and underscores, and they are long. Reusing the APNs hex check
+// here would reject every Android registration, the same way the old exact-64
+// rule rejected every real ActivityKit token. Validate the shape loosely and
+// let FCM be the authority on whether a token actually works.
+const FCM_TOKEN_RE = /^[A-Za-z0-9_:.\-]{64,4096}$/;
+const isValidFcmToken = (t) => typeof t === 'string' && FCM_TOKEN_RE.test(t);
 
 const bad = (res, message) => res.status(400).json({ error: message });
 const maskToken = (t) => (typeof t === 'string' && t.length > 12 ? `${t.slice(0, 8)}…${t.slice(-4)}` : '(invalid)');
@@ -29,10 +38,15 @@ function parseDate(value) {
 
 /**
  * POST /api/live-activity/register-device
- * Body: { installId, token, kind: 'push_to_start'|'alert', environment }
  *
- * Called once per app launch for each kind. Tokens rotate, so the store keeps
- * only the newest token per (install, kind).
+ * iOS:      { installId, token, kind: 'push_to_start'|'alert', environment, platform?: 'ios' }
+ * Android:  { installId, token, platform: 'android' }        // kind and environment implied
+ *
+ * Called once per app launch. Tokens rotate, so the store keeps only the newest
+ * token per (install, kind).
+ *
+ * `platform` is optional and defaults to 'ios', so every already-shipped iOS
+ * build keeps registering exactly as it does today without an app update.
  */
 exports.registerDevice = (req, res) => {
     try {
@@ -40,10 +54,39 @@ exports.registerDevice = (req, res) => {
         if (!b.installId || !INSTALL_RE.test(String(b.installId))) {
             return bad(res, 'installId must be 8–128 chars of [A-Za-z0-9._:-].');
         }
+
+        const platform = b.platform === undefined ? 'ios' : String(b.platform);
+        if (!PLATFORMS.has(platform)) {
+            return bad(res, "platform must be either 'ios' or 'android'.");
+        }
+
+        if (platform === 'android') {
+            // One FCM token per install receives both the start message and the
+            // delay alert — FCM has no equivalent of Apple's separate,
+            // budget-limited push-to-start token.
+            if (!isValidFcmToken(b.token)) {
+                return bad(res, 'token must be an FCM registration token (64–4096 chars of [A-Za-z0-9_:.-]).');
+            }
+            // 'environment' is an APNs concept (which of Apple's two hosts a
+            // token belongs to). FCM has no such split, so it is ignored here
+            // rather than demanded of the Android client.
+            store.registerDevice({
+                installId: String(b.installId),
+                token: b.token,
+                kind: 'fcm',
+                environment: 'n/a',
+                platform: 'android',
+            });
+
+            console.log(`[armed] device registered install=${b.installId} platform=android kind=fcm token=${maskToken(b.token)}`);
+            return res.json({ ok: true, platform: 'android', kind: 'fcm', token: maskToken(b.token) });
+        }
+
+        // ── iOS, unchanged ───────────────────────────────────────────────────
         if (!isValidToken(b.token)) {
             return bad(res, 'token must be an even-length hex string (32–512 chars).');
         }
-        if (!KINDS.has(b.kind)) {
+        if (!IOS_KINDS.has(b.kind)) {
             return bad(res, "kind must be either 'push_to_start' or 'alert'.");
         }
         if (!ENVIRONMENTS.has(b.environment)) {
@@ -55,10 +98,11 @@ exports.registerDevice = (req, res) => {
             token: b.token,
             kind: b.kind,
             environment: b.environment,
+            platform: 'ios',
         });
 
-        console.log(`[armed] device registered install=${b.installId} kind=${b.kind} token=${maskToken(b.token)}`);
-        res.json({ ok: true, kind: b.kind, token: maskToken(b.token) });
+        console.log(`[armed] device registered install=${b.installId} platform=ios kind=${b.kind} token=${maskToken(b.token)}`);
+        res.json({ ok: true, platform: 'ios', kind: b.kind, token: maskToken(b.token) });
     } catch (err) {
         console.error('[armed] register-device failed:', err.message);
         res.status(500).json({ error: 'Internal server error' });

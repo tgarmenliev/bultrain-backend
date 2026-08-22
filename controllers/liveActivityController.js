@@ -188,7 +188,10 @@ exports.getMetrics = (req, res) => {
         armed_journeys_armed: armed.armed ?? 0,
         armed_journeys_started: armed.started ?? 0,
         registered_devices: armed.devices ?? 0,
+        registered_devices_ios: armed.devices_ios ?? 0,
+        registered_devices_android: armed.devices_android ?? 0,
         apns_configured: apns.isConfigured(),
+        fcm_configured: require('../services/liveactivity/fcm').isConfigured(),
     }));
 };
 

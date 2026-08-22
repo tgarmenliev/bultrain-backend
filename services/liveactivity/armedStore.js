@@ -17,7 +17,12 @@ const DB_PATH = process.env.BULTRAIN_DB || path.join(__dirname, '..', '..', 'bul
 const MAX_STARTS_PER_HOUR = 3;
 const MAX_STARTS_PER_DAY  = 8;
 
-const KINDS = new Set(['push_to_start', 'alert']);
+// iOS registers two distinct tokens: Apple's push-to-start token is a different
+// object from the ordinary alert token. FCM has no such split — one Android
+// token receives both the start message and the delay alert — so Android
+// registers a single 'fcm' row.
+const KINDS = new Set(['push_to_start', 'alert', 'fcm']);
+const PLATFORMS = new Set(['ios', 'android']);
 
 let db = null;
 function conn() {
@@ -45,30 +50,47 @@ function toUtcIso(value) {
  * of the same kind for the same install — a rotated token replaces its
  * predecessor rather than accumulating dead rows we would push to forever.
  */
-function registerDevice({ installId, token, kind, environment }) {
+function registerDevice({ installId, token, kind, environment, platform = 'ios' }) {
     const c = conn();
     const tx = c.transaction(() => {
         c.prepare(
             'DELETE FROM device_tokens WHERE install_id = ? AND kind = ? AND token != ?'
         ).run(installId, kind, token);
         c.prepare(`
-            INSERT INTO device_tokens (token, install_id, kind, environment, created_at, updated_at)
-            VALUES (@token, @installId, @kind, @environment, @now, @now)
+            INSERT INTO device_tokens (token, install_id, kind, environment, platform, created_at, updated_at)
+            VALUES (@token, @installId, @kind, @environment, @platform, @now, @now)
             ON CONFLICT(token) DO UPDATE SET
                 install_id = excluded.install_id,
                 kind       = excluded.kind,
                 environment= excluded.environment,
+                platform   = excluded.platform,
                 updated_at = excluded.updated_at
-        `).run({ token, installId, kind, environment, now: nowIso() });
+        `).run({ token, installId, kind, environment, platform, now: nowIso() });
     });
     tx();
 }
 
-/** Current token of a kind for an install, or null. */
+/**
+ * The token to push to for a given purpose.
+ *
+ * iOS keeps a separate row per kind, so the exact match is what it needs and
+ * what it has always got. Android registers ONE token that serves both purposes
+ * (FCM has no push-to-start/alert distinction), so when there is no exact-kind
+ * row we fall back to that install's Android token.
+ *
+ * The fallback cannot disturb iOS: it only fires when the exact kind is absent,
+ * and it only matches rows whose platform is 'android'. An iOS install that has
+ * registered only one of its two kinds still correctly gets null for the other.
+ */
 function getToken(installId, kind) {
+    const exact = conn().prepare(
+        'SELECT token, environment, platform, kind FROM device_tokens WHERE install_id = ? AND kind = ? ORDER BY updated_at DESC LIMIT 1'
+    ).get(installId, kind);
+    if (exact) return exact;
+
     return conn().prepare(
-        'SELECT token, environment FROM device_tokens WHERE install_id = ? AND kind = ? ORDER BY updated_at DESC LIMIT 1'
-    ).get(installId, kind) || null;
+        "SELECT token, environment, platform, kind FROM device_tokens WHERE install_id = ? AND platform = 'android' ORDER BY updated_at DESC LIMIT 1"
+    ).get(installId) || null;
 }
 
 // ── Armed journeys ───────────────────────────────────────────────────────────
@@ -249,6 +271,8 @@ function counts() {
         armed:   c.prepare("SELECT COUNT(*) AS n FROM armed_journeys WHERE state='armed'").get().n,
         started: c.prepare("SELECT COUNT(*) AS n FROM armed_journeys WHERE state='started'").get().n,
         devices: c.prepare('SELECT COUNT(DISTINCT install_id) AS n FROM device_tokens').get().n,
+        devices_ios: c.prepare("SELECT COUNT(DISTINCT install_id) AS n FROM device_tokens WHERE platform = 'ios'").get().n,
+        devices_android: c.prepare("SELECT COUNT(DISTINCT install_id) AS n FROM device_tokens WHERE platform = 'android'").get().n,
     };
 }
 
@@ -256,5 +280,5 @@ module.exports = {
     registerDevice, getToken, arm, disarm, markArrived, listActive, getById,
     markStarted, markStartedByJourney, markStopped, recordAlert, recordDelaySeen,
     checkStartBudget, logStart, prune, counts, toUtcIso, nowIso,
-    KINDS, MAX_STARTS_PER_HOUR, MAX_STARTS_PER_DAY,
+    KINDS, PLATFORMS, MAX_STARTS_PER_HOUR, MAX_STARTS_PER_DAY,
 };

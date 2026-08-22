@@ -24,6 +24,7 @@ const stationCoords = require('../gtfs/stationCoords');
 const store        = require('./armedStore');
 const laStore      = require('./store');
 const apns         = require('./apns');
+const fcm          = require('./fcm');
 const contentState = require('./contentState');
 const logic        = require('./armedLogic');
 const metrics      = require('./metrics');
@@ -193,24 +194,55 @@ async function maybeStart(row, feed, now) {
         return;
     }
 
-    const rt = cache.getTrain(row.train_number);
-    const v  = cache.getVehicle(row.train_number);
-    const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
-    const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
-    const { state } = contentState.build(asTokenRow(row), rt, now, v, geo);
-    const nowSec = Math.floor(nowMs / 1000);
+    // ── Build the send, per platform ─────────────────────────────────────────
+    // The decision to start is identical everywhere; only the delivery differs.
+    let dispatch;
 
-    const body = buildStartBody(row, state, nowSec);
-    if (!body) {
-        // totalDistanceKm is non-optional in the app. Sending a guessed number
-        // would corrupt the progress bar; omitting it would fail the decode with
-        // no trace at all. Refusing is the only loud option — and it names the
-        // station so an alias can be added.
-        console.error(`[armed] REFUSING start j=${row.journey_id}: cannot resolve coordinates for ` +
-                      `"${row.boarding_station}" → "${row.destination_station}" (totalDistanceKm unknown)`);
-        store.markStopped(row.id, 'no-distance');
-        metrics.inc('push_to_start_failed');
-        return;
+    if (device.platform === 'android') {
+        // Deliberately thin. Android's ongoing notification is built and posted
+        // by the app itself, not rendered by the OS from pushed structure the
+        // way ActivityKit is — so the message only has to say "this leg needs
+        // attention now" and the client rebuilds the rest from its own state.
+        dispatch = () => fcm.send({
+            token: device.token,
+            data: {
+                type: 'start_tracking',
+                journeyId: row.journey_id,
+                legIndex: row.leg_index,
+                trainNumber: row.train_number,
+            },
+            noRetry: true,
+        });
+    } else {
+        const rt = cache.getTrain(row.train_number);
+        const v  = cache.getVehicle(row.train_number);
+        const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
+        const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
+        const { state } = contentState.build(asTokenRow(row), rt, now, v, geo);
+        const nowSec = Math.floor(nowMs / 1000);
+
+        const body = buildStartBody(row, state, nowSec);
+        if (!body) {
+            // totalDistanceKm is non-optional in the app. Sending a guessed number
+            // would corrupt the progress bar; omitting it would fail the decode with
+            // no trace at all. Refusing is the only loud option — and it names the
+            // station so an alias can be added. (Android is unaffected: its payload
+            // carries no distance, so an unresolvable station cannot block a start.)
+            console.error(`[armed] REFUSING start j=${row.journey_id}: cannot resolve coordinates for ` +
+                          `"${row.boarding_station}" → "${row.destination_station}" (totalDistanceKm unknown)`);
+            store.markStopped(row.id, 'no-distance');
+            metrics.inc('push_to_start_failed');
+            return;
+        }
+
+        dispatch = () => apns.send({
+            token: device.token,
+            environment: device.environment,
+            body,
+            priority: 10,          // the card appearing on time is the whole point
+            pushType: 'liveactivity',
+            noRetry: true,
+        });
     }
 
     // Last look before committing. Building the payload does I/O, and a manual
@@ -224,18 +256,11 @@ async function maybeStart(row, feed, now) {
     }
 
     // HARD RULE: exactly one attempt, no retry, ever.
-    const res = await apns.send({
-        token: device.token,
-        environment: device.environment,
-        body,
-        priority: 10,          // the card appearing on time is the whole point
-        pushType: 'liveactivity',
-        noRetry: true,
-    });
+    const res = await dispatch();
 
     store.logStart(row.install_id, row.journey_id, res.outcome);
     console.log(`[armed] push-to-start SENT j=${row.journey_id} train=${row.train_number} ` +
-                `-> ${res.outcome} status=${res.status} reason=${res.reason || '—'} ` +
+                `platform=${device.platform} -> ${res.outcome} status=${res.status} reason=${res.reason || '—'} ` +
                 `(budget 1h=${budget.lastHour + (res.outcome === 'ok' ? 1 : 0)}/${store.MAX_STARTS_PER_HOUR})`);
 
     if (res.outcome === 'ok') {
@@ -267,35 +292,56 @@ async function maybeAlert(row, feed, now) {
         return;
     }
 
+    // The wording lives server-side for both platforms — the Bulgarian
+    // pluralisation and the "never claim on time" rule are in alertText(), and
+    // duplicating them in two clients is how they drift apart.
     const text = logic.alertText(row, feed.delayMin, d.kind, trainLabel(row));
-    const body = JSON.stringify({
-        aps: {
-            alert: { title: text.title, body: text.body },
-            sound: 'default',
-            // Without this, Do Not Disturb swallows the alert silently — exactly
-            // when it matters most, since a delay is worth knowing about before
-            // leaving for the station. The entitlement is in place on the app.
-            'interruption-level': 'time-sensitive',
-            'thread-id': `journey-${row.journey_id}`,
-        },
-        journeyId: row.journey_id,
-        legIndex: row.leg_index,
-        trainNumber: row.train_number,
-        delayMinutes: feed.delayMin,
-    });
 
-    // A plain alert notification — not a Live Activity push, so it does not
-    // touch the Live Activity update budget at all.
-    const res = await apns.send({
-        token: device.token,
-        environment: device.environment,
-        body,
-        priority: 10,
-        pushType: 'alert',
-    });
+    let res;
+    if (device.platform === 'android') {
+        res = await fcm.send({
+            token: device.token,
+            data: {
+                type: 'delay_alert',
+                journeyId: row.journey_id,
+                legIndex: row.leg_index,
+                trainNumber: row.train_number,
+                delayMinutes: feed.delayMin,
+                title: text.title,
+                body: text.body,
+            },
+        });
+    } else {
+        const body = JSON.stringify({
+            aps: {
+                alert: { title: text.title, body: text.body },
+                sound: 'default',
+                // Without this, Do Not Disturb swallows the alert silently — exactly
+                // when it matters most, since a delay is worth knowing about before
+                // leaving for the station. The entitlement is in place on the app.
+                'interruption-level': 'time-sensitive',
+                'thread-id': `journey-${row.journey_id}`,
+            },
+            journeyId: row.journey_id,
+            legIndex: row.leg_index,
+            trainNumber: row.train_number,
+            delayMinutes: feed.delayMin,
+        });
+
+        // A plain alert notification — not a Live Activity push, so it does not
+        // touch the Live Activity update budget at all.
+        res = await apns.send({
+            token: device.token,
+            environment: device.environment,
+            body,
+            priority: 10,
+            pushType: 'alert',
+        });
+    }
 
     console.log(`[armed] delay alert j=${row.journey_id} train=${row.train_number} ` +
-                `delay=${feed.delayMin}m was=${row.last_delay_min ?? '—'} (${d.reason}) -> ${res.outcome}`);
+                `platform=${device.platform} delay=${feed.delayMin}m was=${row.last_delay_min ?? '—'} ` +
+                `(${d.reason}) -> ${res.outcome}`);
 
     if (res.outcome === 'ok') {
         store.recordAlert(row.id, feed.delayMin);
