@@ -78,13 +78,22 @@ async function cmdArm() {
     // the whole point is not waiting on the real schedule. Any near-future
     // departure makes the trigger (departure - 40min) already past, so
     // push-to-start fires on the very first 30s tick.
+    const dep2 = new Date(now + 25 * 60_000);
     const legs = [
-        { index: 0, leg: LEGS[1], dep: new Date(now + 2 * 60_000), arr: new Date(now + 20 * 60_000) },
-        { index: 1, leg: LEGS[2], dep: new Date(now + 25 * 60_000), arr: new Date(now + 45 * 60_000) },
+        {
+            index: 0, leg: LEGS[1], dep: new Date(now + 2 * 60_000), arr: new Date(now + 20 * 60_000),
+            // A real multi-leg journey arms leg 0 already knowing the connection —
+            // this is what makes the card show "next: TEST-LEG2 at HH:MM" ahead of
+            // the transfer. Without it, leg 0's card looks like a plain single-leg
+            // trip; nothing wrong happens, it just under-represents what a real
+            // transfer journey's card looks like.
+            next: { number: LEGS[2].display, departure: dep2 },
+        },
+        { index: 1, leg: LEGS[2], dep: dep2, arr: new Date(now + 45 * 60_000) },
     ];
 
     let canAutoStart = true;
-    for (const { index, leg, dep, arr } of legs) {
+    for (const { index, leg, dep, arr, next } of legs) {
         const res = await client.post('/api/live-activity/arm', {
             installId: INSTALL_ID,
             journeyId: JOURNEY_ID,
@@ -95,6 +104,7 @@ async function cmdArm() {
             destinationStation: leg.destination,
             scheduledDeparture: dep.toISOString(),
             scheduledArrival: arr.toISOString(),
+            ...(next ? { nextTransportNumber: next.number, nextTransportDeparture: next.departure.toISOString() } : {}),
         });
         console.log(`armed leg ${index}: ${leg.train} ${leg.boarding} -> ${leg.destination}, dep ${dep.toLocaleTimeString('bg-BG')}`);
         if (!res.data.canAutoStart) canAutoStart = false;
@@ -165,11 +175,24 @@ async function cmdArrive(legNum) {
         { station: leg.destination, arrivalInSec: -700, delayMin: 0 },
     ]);
 
-    console.log(`leg ${legNum} marked arrived — its card should END within the next ~30s worker tick.`);
-    if (legNum === '1') {
-        console.log("Run 'delay 2 0' next to seed leg 2's feed.");
+    console.log(`leg ${legNum} marked arrived — its card should END within the next ~30s worker tick (single-leg journeys only — see below for a transfer).`);
+
+    if (legNum === '1' && LEGS[2]) {
+        // The next leg's trigger can fire on the very NEXT tick — its own
+        // scheduled_departure was fixed back at `arm` time, so however long you
+        // took between `arm` and this `arrive` may already be past it. Waiting
+        // for a separate manual 'delay 2 0' left a real window where the
+        // retarget/push-to-start fired with NOTHING in leg 2's feed yet, which
+        // is exactly why the card showed "no live data" instead of a delay.
+        // Seed it here, immediately, so there is never a gap.
+        await setFeed(LEGS[2].train, [
+            { station: LEGS[2].boarding, departureInSec: 60, delayMin: 0 },
+            { station: LEGS[2].destination, arrivalInSec: 1200, delayMin: 0 },
+        ]);
+        console.log("Leg 2's feed is already seeded (on time) — no separate step needed.");
         console.log('The SAME card should now update in place for leg 2 (no second push-to-start) —');
         console.log('check pm2 logs for "[armed] retarget" vs "[armed] push-to-start SENT".');
+        console.log("Run 'delay 2 <min>' whenever you want to test a delay on leg 2.");
     }
 }
 
