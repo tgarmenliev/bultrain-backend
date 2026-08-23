@@ -163,3 +163,15 @@ if (process.env.LIVE_ACTIVITY === 'on') {
   }
   require('./services/liveactivity/worker').start();
 }
+
+// ── Self-monitoring ──────────────────────────────────────────────────────────
+// Watches metrics.js for the failure pattern that bit us once already (a
+// device silently stuck sending pushes to the wrong APNs environment) and
+// emails when it recognizes it. Independent of the push pipeline it watches —
+// see services/alerts/email.js for why.
+if (process.env.SELF_MONITOR === 'on') {
+  if (process.env.LIVE_ACTIVITY !== 'on') {
+    console.warn('[selfcheck] SELF_MONITOR=on but LIVE_ACTIVITY is off — there is nothing to watch yet');
+  }
+  require('./services/liveactivity/selfCheck').start();
+}
