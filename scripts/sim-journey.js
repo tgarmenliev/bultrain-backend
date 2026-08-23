@@ -15,10 +15,14 @@
  * it can never appear on the map radar or anywhere else a real user looks.
  * Requires ENABLE_JOURNEY_SIM=on on the target server (404s otherwise).
  *
- * Requires INSTALL_ID: the install id YOUR OWN phone's app already registered
- * (open the app once, then `pm2 logs bultrain | grep 'device registered'` to
- * find it) — pushes go only to that install's own tokens, never to anyone
- * else's device.
+ * PREREQUISITE, one-time, before this script can do anything: a push-to-start
+ * token must already be registered for your install. Simply having the app
+ * open is NOT enough — the app only requests/registers that token when you
+ * actually track a real journey (search a real train, do whatever the app
+ * calls "track/save this journey"). Do that once, for any real train, then
+ * find your install id: `pm2 logs bultrain | grep 'device registered'`.
+ * `arm` below checks this itself and tells you plainly if it's still missing
+ * — pushes go only to that install's own tokens, never to anyone else's.
  *
  * Usage (Плодив -> Карлово -> Антон, matching a real transfer route):
  *   BASE_URL=https://api.bultrain.eu IOS_API_KEY=... INSTALL_ID=... \
@@ -79,8 +83,9 @@ async function cmdArm() {
         { index: 1, leg: LEGS[2], dep: new Date(now + 25 * 60_000), arr: new Date(now + 45 * 60_000) },
     ];
 
+    let canAutoStart = true;
     for (const { index, leg, dep, arr } of legs) {
-        await client.post('/api/live-activity/arm', {
+        const res = await client.post('/api/live-activity/arm', {
             installId: INSTALL_ID,
             journeyId: JOURNEY_ID,
             legIndex: index,
@@ -92,6 +97,15 @@ async function cmdArm() {
             scheduledArrival: arr.toISOString(),
         });
         console.log(`armed leg ${index}: ${leg.train} ${leg.boarding} -> ${leg.destination}, dep ${dep.toLocaleTimeString('bg-BG')}`);
+        if (!res.data.canAutoStart) canAutoStart = false;
+    }
+
+    if (!canAutoStart) {
+        console.warn('\n⚠  No push-to-start token on file for this install yet — the card will NOT appear, and nothing else here will help until that exists.');
+        console.warn('   Open the BulTrain app, pick any REAL journey, and do whatever it calls "track/save this journey" — once, for any train.');
+        console.warn('   That is what makes the app request and register a push-to-start token — simply opening the app is not enough.');
+        console.warn(`   Then re-run:  node scripts/sim-journey.js arm\n`);
+        return;
     }
 
     // Seed leg 1 immediately so the trigger has a predicted departure on the
