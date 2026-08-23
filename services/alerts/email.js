@@ -25,6 +25,13 @@ function getTransporter() {
                 user: process.env.ALERT_EMAIL_FROM,
                 pass: process.env.ALERT_EMAIL_APP_PASSWORD,
             },
+            // Without these, a host that silently drops outbound SMTP (some VPS
+            // providers block 465/587 by default) leaves sendMail() hanging
+            // indefinitely instead of failing — exactly the kind of silent break
+            // this whole channel exists to avoid.
+            connectionTimeout: 10_000,
+            greetingTimeout: 10_000,
+            socketTimeout: 10_000,
         });
     }
     return transporter;
