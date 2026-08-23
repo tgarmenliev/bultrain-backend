@@ -22,6 +22,12 @@ const counters = {
     push_to_start_refused: 0,
     delay_alerts_sent: 0,
     armed_auto_stopped: 0,
+    // A later leg retargeting the existing Activity instead of a second
+    // push-to-start — kept separate from push_to_start_* so a retarget
+    // failure doesn't get misread by selfCheck.js as the push-to-start
+    // pipeline itself breaking.
+    leg_retargeted_sent: 0,
+    leg_retargeted_failed: 0,
 };
 
 const apnsErrorsByReason = new Map();

@@ -30,6 +30,7 @@ const fcm          = require('./fcm');
 const contentState = require('./contentState');
 const logic        = require('./armedLogic');
 const metrics      = require('./metrics');
+const pushBody     = require('./pushBody');
 
 // Reserved TEST-prefixed numbers resolve from testFeed (see its header for why
 // that lives outside services/realtime/cache.js); every real number falls
@@ -196,6 +197,27 @@ async function maybeStart(row, feed, now, legCtx) {
 
     if (!t.shouldStart) return;
 
+    // A later leg of a multi-leg journey: if an Activity is already tracking
+    // this journey (started by an earlier leg), retarget it with an ordinary
+    // content-state update instead of a second push-to-start. ActivityKit
+    // attributes (train/stations/distance) are immutable and stay whatever
+    // leg 0 started with — what the passenger reads for the CURRENT leg comes
+    // from contentState.js's leg* fields, which the app renders in preference
+    // to attributes (confirmed with the mobile side). live_activity_tokens is
+    // iOS-only by construction — Android's FCM path never registers there, so
+    // finding a row always means "there's an Activity to redirect", not a
+    // platform guess.
+    if (row.leg_index > 0) {
+        const existing = laStore.getActiveTokenForJourney(row.journey_id);
+        if (existing) {
+            await retargetExistingActivity(row, existing, now);
+            return;
+        }
+        // No existing token (leg 0's card was never registered, or its token
+        // was since pruned) — fall through to a normal push-to-start so this
+        // leg is never silently left untracked.
+    }
+
     const device = store.getToken(row.install_id, 'push_to_start');
     if (!device) {
         console.warn(`[armed] no push-to-start token for install=${row.install_id} — cannot start j=${row.journey_id}`);
@@ -292,6 +314,75 @@ async function maybeStart(row, feed, now, legCtx) {
         console.error(`[armed] push-to-start failed, NOT retrying j=${row.journey_id}: ${res.outcome} ${res.reason || ''}`);
         store.markStopped(row.id, `start-failed:${res.outcome}`);
         metrics.inc('push_to_start_failed');
+    }
+}
+
+/**
+ * Re-point an EXISTING, already-started Activity's token onto this (later)
+ * leg via an ordinary content-state push — not a second push-to-start. Not
+ * subject to the push-to-start budget at all: it never touches Apple's
+ * push-to-start allowance, only the far more generous ordinary-update one.
+ *
+ * Unlike push-to-start, a failure here is NOT fatal to the leg: the row stays
+ * 'armed' so the next tick simply tries again, the same way worker.js's own
+ * ordinary content pushes already retry every tick until they land.
+ */
+async function retargetExistingActivity(row, existing, now) {
+    const nowSec = Math.floor(now.getTime() / 1000);
+
+    laStore.upsert({
+        token: existing.token,
+        environment: existing.environment,
+        journey_id: row.journey_id,
+        train_number: row.train_number,
+        train_number_display: row.train_number_display,
+        boarding_station: row.boarding_station,
+        destination_station: row.destination_station,
+        direction_station: row.direction_station,
+        scheduled_departure: row.scheduled_departure,
+        scheduled_arrival: row.scheduled_arrival,
+        current_leg_index: row.leg_index,
+        is_current_bus: row.is_current_bus,
+        next_transport_number: row.next_transport_number,
+        next_transport_departure: row.next_transport_departure,
+        is_next_transport_bus: row.is_next_transport_bus,
+    });
+
+    const rt = getTrain(row.train_number);
+    const v  = getVehicle(row.train_number);
+    const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
+    const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
+    const { state, meta } = contentState.build(asTokenRow(row), rt, now, v, geo);
+
+    const body = pushBody.buildBody(state, { nowSec, predictedArrivalUnix: meta.predictedArrivalUnix });
+
+    const res = await apns.send({
+        token: existing.token,
+        environment: existing.environment,
+        body,
+        priority: 10,
+        pushType: 'liveactivity',
+        noRetry: true,
+    });
+
+    console.log(`[armed] retarget j=${row.journey_id} token=${existing.token.slice(0, 8)}… ` +
+                `-> leg=${row.leg_index} train=${row.train_number} outcome=${res.outcome}`);
+
+    if (res.outcome === 'ok') {
+        // last_content_hash is left null rather than replicating worker.js's
+        // internal hash here — worst case is one harmless extra push on the
+        // very next regular tick, comparing against a null hash and deciding
+        // "changed" once more. Far cheaper than the coupling of sharing it.
+        laStore.markPushed(existing.token, {
+            delayMin: meta.delayMinutes, nextStop: meta.nextStop,
+            contentHash: null, phase: meta.phase, progress: meta.progress,
+        });
+        store.markStarted(row.id);
+        store.logStart(row.install_id, row.journey_id, 'retargeted');
+        metrics.inc('leg_retargeted_sent');
+    } else {
+        store.logStart(row.install_id, row.journey_id, `retarget-failed:${res.outcome}`);
+        metrics.inc('leg_retargeted_failed');
     }
 }
 

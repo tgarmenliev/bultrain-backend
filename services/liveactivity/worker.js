@@ -32,6 +32,7 @@ const armedWatcher = require('./armedWatcher');
 const apns         = require('./apns');
 const contentState = require('./contentState');
 const metrics      = require('./metrics');
+const { buildBody, STALE_AFTER_MS } = require('./pushBody');
 
 // See testFeed.js: a reserved TEST-prefixed number resolves synthetic data for
 // end-to-end testing; every real number is untouched, since testFeed returns
@@ -47,7 +48,6 @@ const PROGRESS_DELTA           = 0.02;
 const GPS_HEARTBEAT_MS         = 5 * 60 * 1000;
 const PER_TOKEN_MIN_INTERVAL_MS = 60 * 1000;   // at most one push per token per minute
 const END_AFTER_ARRIVAL_MS     = 10 * 60 * 1000;
-const STALE_AFTER_MS           = 15 * 60 * 1000;
 const LARGE_DELAY_JUMP_MIN     = 5;            // worth spending an urgent push on
 
 let tickTimer = null;
@@ -145,25 +145,10 @@ function withLegDisplay(row) {
     return { ...row, train_number_display: trainCategory.displayFor(row.train_number) };
 }
 
-/** Wrap a content-state in the APNs body. */
-function buildBody(state, { nowSec, predictedArrivalUnix, event = 'update', dismissalUnix }) {
-    // A visibly stale card is better than a confidently wrong one: if pushes
-    // stop, iOS dims it rather than presenting old data as current.
-    let staleDate = nowSec + STALE_AFTER_MS / 1000;
-    if (predictedArrivalUnix && predictedArrivalUnix > nowSec && predictedArrivalUnix < staleDate) {
-        staleDate = predictedArrivalUnix;
-    }
-    const aps = {
-        // This one IS a plain Unix timestamp — only the fields inside
-        // content-state use the 2001 reference date.
-        timestamp: nowSec,
-        event,
-        'stale-date': Math.floor(staleDate),
-        'content-state': state,
-    };
-    if (event === 'end') aps['dismissal-date'] = Math.floor(dismissalUnix ?? nowSec);
-    return JSON.stringify({ aps });
-}
+// buildBody itself now lives in pushBody.js (imported above) so
+// armedWatcher.js can build an ordinary 'update' push too, without a
+// circular require back to this file. Re-exported below unchanged so
+// existing callers/tests of worker.buildBody keep working.
 
 // ── One tick ─────────────────────────────────────────────────────────────────
 

@@ -166,7 +166,11 @@ async function cmdArrive(legNum) {
     ]);
 
     console.log(`leg ${legNum} marked arrived — its card should END within the next ~30s worker tick.`);
-    if (legNum === '1') console.log("Run 'delay 2 0' next to seed leg 2's feed — its push-to-start should now be eligible.");
+    if (legNum === '1') {
+        console.log("Run 'delay 2 0' next to seed leg 2's feed.");
+        console.log('The SAME card should now update in place for leg 2 (no second push-to-start) —');
+        console.log('check pm2 logs for "[armed] retarget" vs "[armed] push-to-start SENT".');
+    }
 }
 
 async function cmdDisarm() {

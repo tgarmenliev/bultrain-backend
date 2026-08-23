@@ -98,6 +98,22 @@ function getByToken(token) {
     return conn().prepare('SELECT * FROM live_activity_tokens WHERE token = ?').get(token) || null;
 }
 
+/**
+ * The token already tracking this journey, if any — used at a leg transfer to
+ * retarget the SAME Activity onto the next leg (an ordinary content-state
+ * update) instead of starting a second one. ActivityKit only ever allows one
+ * live Activity per (attributes-defined) journey to make sense as "the same
+ * card", so the newest-registered token for the journey is the right one to
+ * reuse; an older, already-superseded token would mean stale registration
+ * data we should not be pushing to anyway.
+ */
+function getActiveTokenForJourney(journeyId) {
+    if (!journeyId) return null;
+    return conn().prepare(
+        'SELECT * FROM live_activity_tokens WHERE journey_id = ? ORDER BY created_at DESC LIMIT 1'
+    ).get(String(journeyId)) || null;
+}
+
 /** Tokens still worth pushing to. */
 function listActive() {
     return conn().prepare(
@@ -139,6 +155,7 @@ function countAll() {
 }
 
 module.exports = {
-    upsert, countForJourney, getByToken, listActive, remove, removeByJourney,
-    markPushed, pruneExpired, countAll, toUtcIso, nowIso, ACTIVE_GRACE_MS,
+    upsert, countForJourney, getByToken, getActiveTokenForJourney, listActive,
+    remove, removeByJourney, markPushed, pruneExpired, countAll, toUtcIso,
+    nowIso, ACTIVE_GRACE_MS,
 };
