@@ -20,7 +20,13 @@ let transporter = null;
 function getTransporter() {
     if (!transporter) {
         transporter = nodemailer.createTransport({
-            service: 'gmail',
+            // Explicit host/port rather than the 'service: gmail' shortcut,
+            // which defaults to port 465 (implicit TLS) — confirmed blocked
+            // outbound on this host. 587 (STARTTLS) is open and is Gmail's
+            // documented alternative.
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
             auth: {
                 user: process.env.ALERT_EMAIL_FROM,
                 pass: process.env.ALERT_EMAIL_APP_PASSWORD,
