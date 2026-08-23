@@ -19,6 +19,7 @@
  */
 
 const cache        = require('../realtime/cache');
+const testFeed     = require('./testFeed');
 const geometryOf   = require('../gtfs/tripGeometry');
 const stationCoords = require('../gtfs/stationCoords');
 const trainCategory = require('../gtfs/trainCategory');
@@ -29,6 +30,13 @@ const fcm          = require('./fcm');
 const contentState = require('./contentState');
 const logic        = require('./armedLogic');
 const metrics      = require('./metrics');
+
+// Reserved TEST-prefixed numbers resolve from testFeed (see its header for why
+// that lives outside services/realtime/cache.js); every real number falls
+// straight through unaffected, since testFeed returns null for anything not
+// in its own reserved namespace.
+const getTrain = (num) => testFeed.getTrain(num) ?? cache.getTrain(num);
+const getVehicle = (num) => testFeed.getVehicle(num) ?? cache.getVehicle(num);
 
 // The Swift ActivityAttributes type name and the static attributes must match
 // the app exactly, or the start push is accepted and silently discarded.
@@ -227,8 +235,8 @@ async function maybeStart(row, feed, now, legCtx) {
             noRetry: true,
         });
     } else {
-        const rt = cache.getTrain(row.train_number);
-        const v  = cache.getVehicle(row.train_number);
+        const rt = getTrain(row.train_number);
+        const v  = getVehicle(row.train_number);
         const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
         const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
         const { state } = contentState.build(asTokenRow(row), rt, now, v, geo);
@@ -409,7 +417,7 @@ async function tick(now = new Date()) {
             const siblings = byJourney.get(`${row.install_id}|${row.journey_id}`) || [row];
             const legCtx = logic.legRole(row, siblings, now);
 
-            const rt = cache.getTrain(row.train_number);
+            const rt = getTrain(row.train_number);
             const feed = readFeed(row, rt, nowSec);
 
             if (maybeStop(row, feed, now)) { stopped++; continue; }

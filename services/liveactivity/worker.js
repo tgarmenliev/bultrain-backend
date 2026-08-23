@@ -23,6 +23,7 @@
 const crypto = require('crypto');
 
 const cache        = require('../realtime/cache');
+const testFeed     = require('./testFeed');
 const geometryOf   = require('../gtfs/tripGeometry');
 const trainCategory = require('../gtfs/trainCategory');
 const store        = require('./store');
@@ -31,6 +32,12 @@ const armedWatcher = require('./armedWatcher');
 const apns         = require('./apns');
 const contentState = require('./contentState');
 const metrics      = require('./metrics');
+
+// See testFeed.js: a reserved TEST-prefixed number resolves synthetic data for
+// end-to-end testing; every real number is untouched, since testFeed returns
+// null for anything outside its own reserved namespace.
+const getTrain = (num) => testFeed.getTrain(num) ?? cache.getTrain(num);
+const getVehicle = (num) => testFeed.getVehicle(num) ?? cache.getVehicle(num);
 
 const TICK_MS                  = 30 * 1000;
 const CLEANUP_MS               = 60 * 60 * 1000;
@@ -181,8 +188,8 @@ async function tick(now = new Date()) {
     let skipped = 0;
 
     for (const [trainNumber, tokens] of byTrain) {
-        const rt = cache.getTrain(trainNumber);     // in-memory only, no network
-        const v  = cache.getVehicle(trainNumber);   // for the GPS-tracked flag + progress
+        const rt = getTrain(trainNumber);     // in-memory only, no network
+        const v  = getVehicle(trainNumber);   // for the GPS-tracked flag + progress
         // Static geometry for segment progress, by whichever trip_id we have.
         const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
         const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
@@ -294,8 +301,8 @@ function scheduleDepartures(now = new Date()) {
             try {
                 const fresh = store.getByToken(row.token);
                 if (!fresh) return;
-                const rt = cache.getTrain(fresh.train_number);
-                const v  = cache.getVehicle(fresh.train_number);
+                const rt = getTrain(fresh.train_number);
+                const v  = getVehicle(fresh.train_number);
                 const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
                 const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
                 const nowSec = Math.floor(Date.now() / 1000);
