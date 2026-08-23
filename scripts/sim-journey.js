@@ -130,8 +130,14 @@ async function cmdDelay(legNum, minutes) {
     const min = Number(minutes);
     if (!Number.isFinite(min)) { console.error('minutes must be a number.'); process.exit(1); }
 
+    // Boarding is pinned safely in the past — this command is for testing a
+    // delay while the leg is already rolling (or just about to, from arm's own
+    // seed). Previously it re-set the boarding departure to "60s from now" on
+    // EVERY call, so calling this after the train had "left" made legPhase()
+    // read it as still pre-departure — which is exactly why the alert said
+    // "check before you leave" while the tester was already mid-journey.
     await setFeed(leg.train, [
-        { station: leg.boarding, departureInSec: 60, delayMin: min },
+        { station: leg.boarding, arrivalInSec: -99999, departureInSec: -99999, delayMin: min },
         { station: leg.destination, arrivalInSec: 1200, delayMin: min },
     ]);
     console.log(`leg ${legNum} (${leg.train}) now shows ${min} min delay.`);
