@@ -11,7 +11,8 @@
  * discovers those problems on its own.
  */
 
-const store = require('../services/liveactivity/armedStore');
+const store   = require('../services/liveactivity/armedStore');
+const laStore = require('../services/liveactivity/store');
 const { isValidToken } = require('./liveActivityController');
 
 const ENVIRONMENTS = new Set(['sandbox', 'production']);
@@ -189,8 +190,19 @@ exports.disarm = (req, res) => {
         if (!b.installId || !b.journeyId) return bad(res, 'installId and journeyId are required.');
         const legIndex = Number.isInteger(b.legIndex) ? b.legIndex : null;
         const stopped = store.disarm(String(b.installId), String(b.journeyId), legIndex);
-        console.log(`[armed] disarm journey=${b.journeyId} leg=${legIndex ?? 'all'} stopped=${stopped}`);
-        res.json({ ok: true, stopped });
+
+        // Whole-journey disarm (no specific leg) also means "stop tracking this
+        // Activity" — without this, its live_activity_tokens row sat there
+        // orphaned (worker.js kept pushing to it) until scheduled_arrival aged
+        // out, hours later. A single-leg disarm leaves it alone: the token may
+        // still belong to a later leg via retargetExistingActivity.
+        let tokensRemoved = 0;
+        if (legIndex === null) {
+            tokensRemoved = laStore.removeByJourney(String(b.journeyId));
+        }
+
+        console.log(`[armed] disarm journey=${b.journeyId} leg=${legIndex ?? 'all'} stopped=${stopped} tokensRemoved=${tokensRemoved}`);
+        res.json({ ok: true, stopped, tokensRemoved });
     } catch (err) {
         console.error('[armed] disarm failed:', err.message);
         res.status(500).json({ error: 'Internal server error' });

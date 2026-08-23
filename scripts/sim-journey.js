@@ -35,17 +35,48 @@
  *   node scripts/sim-journey.js arrive 2
  *   node scripts/sim-journey.js disarm         # always clean up when done
  *
- * BASE_URL/IOS_API_KEY/INSTALL_ID/JOURNEY_ID are read fresh from the
- * environment on every invocation, so each command is a separate `node`
- * call — that's deliberate, it's what lets you watch the phone between steps.
+ * BASE_URL/IOS_API_KEY/INSTALL_ID are read fresh from the environment on
+ * every invocation, so each command is a separate `node` call — that's
+ * deliberate, it's what lets you watch the phone between steps.
+ *
+ * journeyId is NOT a fixed constant: `arm` generates a fresh one each time
+ * and remembers it (data/sim-journey-session.json), and every other command
+ * reads that back automatically. Reusing one hardcoded id across sessions
+ * meant a leftover live_activity_tokens row from a PREVIOUS test could get
+ * picked up by a brand new one — exactly what produced a confusing mix of an
+ * old, already-retargeted token next to a freshly armed leg 0. Override with
+ * an explicit JOURNEY_ID env var only if you deliberately want to resume a
+ * specific past session.
  */
 
+const fs   = require('fs');
+const path = require('path');
 const axios = require('axios');
 
 const BASE_URL    = process.env.BASE_URL || 'http://localhost:3000';
 const API_KEY     = process.env.IOS_API_KEY || '';
 const INSTALL_ID  = process.env.INSTALL_ID || '';
-const JOURNEY_ID  = process.env.JOURNEY_ID || 'sim-journey';
+
+const SESSION_FILE = path.join(__dirname, '..', 'data', 'sim-journey-session.json');
+
+function readSession() {
+    try { return JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8')); } catch { return null; }
+}
+function writeSession(journeyId) {
+    fs.mkdirSync(path.dirname(SESSION_FILE), { recursive: true });
+    fs.writeFileSync(SESSION_FILE, JSON.stringify({ journeyId, armedAt: new Date().toISOString() }));
+}
+function clearSession() {
+    try { fs.unlinkSync(SESSION_FILE); } catch { /* nothing to clear */ }
+}
+/** The journey every command but `arm` operates on. */
+function currentJourneyId() {
+    if (process.env.JOURNEY_ID) return process.env.JOURNEY_ID;
+    const session = readSession();
+    if (session) return session.journeyId;
+    console.error('No sim-journey session found — run "arm" first (or set JOURNEY_ID explicitly).');
+    process.exit(1);
+}
 
 const LEGS = {
     1: { train: 'TEST-LEG1', display: 'ТЕСТ 1', boarding: 'Пловдив', destination: 'Карлово' },
@@ -73,6 +104,10 @@ async function cmdArm() {
     requireEnv('INSTALL_ID', INSTALL_ID);
     requireEnv('IOS_API_KEY', API_KEY);
 
+    const journeyId = process.env.JOURNEY_ID || `sim-${Date.now()}`;
+    writeSession(journeyId);
+    console.log(`journey id: ${journeyId} (remembered — every other command will use this automatically)`);
+
     const now = Date.now();
     // Deliberately close, not "40+ min before departure" realistic timing —
     // the whole point is not waiting on the real schedule. Any near-future
@@ -96,7 +131,7 @@ async function cmdArm() {
     for (const { index, leg, dep, arr, next } of legs) {
         const res = await client.post('/api/live-activity/arm', {
             installId: INSTALL_ID,
-            journeyId: JOURNEY_ID,
+            journeyId,
             legIndex: index,
             trainNumber: leg.train,
             trainNumberDisplay: leg.display,
@@ -159,8 +194,9 @@ async function cmdArrive(legNum) {
     const leg = LEGS[legNum];
     requireEnv('leg (1 or 2)', leg);
     const legIndex = Number(legNum) - 1;
+    const journeyId = currentJourneyId();
 
-    await client.post('/api/live-activity/leg-arrived', { installId: INSTALL_ID, journeyId: JOURNEY_ID, legIndex });
+    await client.post('/api/live-activity/leg-arrived', { installId: INSTALL_ID, journeyId, legIndex });
 
     // /leg-arrived only unblocks the NEXT leg's push-to-start trigger — it does
     // NOT end THIS leg's already-started card. Ending is worker.js's own job,
@@ -198,11 +234,13 @@ async function cmdArrive(legNum) {
 
 async function cmdDisarm() {
     requireEnv('INSTALL_ID', INSTALL_ID);
-    await client.post('/api/live-activity/disarm', { installId: INSTALL_ID, journeyId: JOURNEY_ID });
+    const journeyId = currentJourneyId();
+    const res = await client.post('/api/live-activity/disarm', { installId: INSTALL_ID, journeyId });
     for (const leg of Object.values(LEGS)) {
         await client.delete(`/api/live-activity/sim/train/${leg.train}`).catch(() => {});
     }
-    console.log('disarmed and cleared synthetic feed data.');
+    clearSession();
+    console.log(`disarmed j=${journeyId}, cleared synthetic feed data, removed ${res.data.tokensRemoved ?? 0} live_activity_tokens row(s).`);
 }
 
 const [, , cmd, a, b] = process.argv;
