@@ -2,9 +2,15 @@
 
 const test   = require('node:test');
 const assert = require('node:assert');
+const fs     = require('node:fs');
+const os     = require('node:os');
+const path   = require('node:path');
+
+process.env.SELF_CHECK_STATE_FILE = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bultrain-selfcheck-')), 'state.json');
 
 const selfCheck = require('../services/liveactivity/selfCheck');
 const email     = require('../services/alerts/email');
+const metrics   = require('../services/liveactivity/metrics');
 
 // ── diffCounters / diffReasons: pure arithmetic ─────────────────────────────
 
@@ -76,7 +82,7 @@ test('run: alerts once on the transition into "bad", not every tick while it sta
     const mock = mockEmail();
     try {
         await selfCheck.run(); // establishes the baseline snapshot, no diff yet
-        require('../services/liveactivity/metrics').inc('push_to_start_failed', 3);
+        metrics.inc('push_to_start_failed', 3);
         await selfCheck.run(); // first bad tick -> alert
         await selfCheck.run(); // still bad, same window's worth of failure -> no NEW failures this tick, so no new alert either
         assert.strictEqual(mock.sent.filter(m => m.subject.includes('ALERT')).length, 1);
@@ -89,7 +95,6 @@ test('run: alerts once on the transition into "bad", not every tick while it sta
 test('run: emails a recovery once the rule clears', async () => {
     selfCheck.stop();
     const mock = mockEmail();
-    const metrics = require('../services/liveactivity/metrics');
     try {
         await selfCheck.run();
         metrics.inc('push_to_start_failed', 2);
@@ -102,5 +107,53 @@ test('run: emails a recovery once the rule clears', async () => {
     } finally {
         mock.restore();
         selfCheck.stop();
+    }
+});
+
+// ── maybeSendReport(): the weekly heartbeat ─────────────────────────────────
+
+test('maybeSendReport: does not fire before the interval has elapsed', async () => {
+    fs.writeFileSync(process.env.SELF_CHECK_STATE_FILE, JSON.stringify({ lastReportAt: new Date().toISOString() }));
+    const mock = mockEmail();
+    try {
+        await selfCheck.maybeSendReport(metrics.snapshot());
+        assert.strictEqual(mock.sent.length, 0);
+    } finally {
+        mock.restore();
+    }
+});
+
+test('maybeSendReport: fires once overdue, and persists the timestamp so it will not immediately resend', async () => {
+    const overdue = new Date(Date.now() - selfCheck.REPORT_MS - 1000).toISOString();
+    fs.writeFileSync(process.env.SELF_CHECK_STATE_FILE, JSON.stringify({ lastReportAt: overdue }));
+    const mock = mockEmail();
+    try {
+        await selfCheck.maybeSendReport(metrics.snapshot());
+        assert.strictEqual(mock.sent.length, 1);
+        assert.match(mock.sent[0].subject, /седмичен отчет/);
+
+        // A restart-simulating second call right after must not resend — the
+        // whole point of persisting to disk rather than memory.
+        await selfCheck.maybeSendReport(metrics.snapshot());
+        assert.strictEqual(mock.sent.length, 1);
+
+        const persisted = JSON.parse(fs.readFileSync(process.env.SELF_CHECK_STATE_FILE, 'utf8'));
+        assert.ok(new Date(persisted.lastReportAt).getTime() > Date.now() - 5000, 'the timestamp was updated to just now');
+    } finally {
+        mock.restore();
+    }
+});
+
+test('maybeSendReport: a failure in the period marks the report kind/subject accordingly', async () => {
+    const overdue = new Date(Date.now() - selfCheck.REPORT_MS - 1000).toISOString();
+    fs.writeFileSync(process.env.SELF_CHECK_STATE_FILE, JSON.stringify({ lastReportAt: overdue }));
+    const mock = mockEmail();
+    try {
+        metrics.inc('push_to_start_failed', 1);
+        await selfCheck.maybeSendReport(metrics.snapshot());
+        assert.strictEqual(mock.sent[0].kind, 'report_warn');
+        assert.match(mock.sent[0].subject, /има грешки/);
+    } finally {
+        mock.restore();
     }
 });

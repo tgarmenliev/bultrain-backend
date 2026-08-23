@@ -13,23 +13,62 @@
  * a couple of concrete rules. Alerting is transition-based (email once when a
  * rule goes bad, once when it recovers) with a cooldown while it stays bad, so
  * a persistent problem doesn't fall silent but also doesn't spam every tick.
+ *
+ * A second, independent thing rides the same tick: a heartbeat report every
+ * REPORT_MS (~weekly) regardless of whether anything broke — so a server that
+ * has gone completely silent (not just "broken but still ticking") is itself
+ * noticeable, as the absence of an expected email rather than nothing at all.
  */
 
+const fs      = require('fs');
+const path    = require('path');
 const metrics = require('./metrics');
 const email   = require('../alerts/email');
 
 const CHECK_MS   = 15 * 60 * 1000;      // how often to look
 const COOLDOWN_MS = 6 * 60 * 60 * 1000; // re-notify at most this often while still bad
+const REPORT_MS  = 7 * 24 * 60 * 60 * 1000; // heartbeat report cadence
 
 // Same reason repeating this many times inside one window reads as systemic
 // (e.g. BadDeviceToken from a misconfigured environment), not one-off noise.
 const REPEATED_ERROR_THRESHOLD = 3;
 
+// Overridable for tests. Deploys restart the process often, which would reset
+// an in-memory "last sent" clock long before 7 days pass — persisted to disk
+// so the cadence survives a `pm2 restart`, not just a quiet process.
+const STATE_FILE = process.env.SELF_CHECK_STATE_FILE
+    || path.join(__dirname, '..', '..', 'data', 'self-check-state.json');
+
 let prevSnapshot = null;
 let timer = null;
 
+// The counters this process has seen since the last heartbeat report (or
+// since it started, if no report has fired yet this run). Reset whenever a
+// report actually sends — NOT persisted, so after a restart it naturally
+// starts over from that moment; the report reads "since the last report or
+// the last restart, whichever is more recent" rather than claiming an exact
+// 7-day figure it cannot reconstruct from in-memory-only counters.
+let reportBaseline = null;
+
 // key -> { bad: boolean, lastNotifiedAt: number|null }
 const ruleState = new Map();
+
+function readState() {
+    try {
+        return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+    } catch {
+        return {};
+    }
+}
+
+function writeState(state) {
+    try {
+        fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+        fs.writeFileSync(STATE_FILE, JSON.stringify(state));
+    } catch (err) {
+        console.error('[selfcheck] failed to persist state:', err.message);
+    }
+}
 
 function diffCounters(prev, curr) {
     const delta = {};
@@ -86,14 +125,68 @@ async function notify(kind, f) {
     const prefix = kind === 'bad' ? '[BulTrain] ALERT' : '[BulTrain] OK';
     const subject = kind === 'bad' ? `${prefix}: ${f.subject}` : `${prefix}: ${f.subject} — оправи се`;
     const text = kind === 'bad' ? f.body : 'Вече не се наблюдава в последния прозорец.';
-    const res = await email.send({ subject, text });
+    const res = await email.send({
+        subject,
+        text,
+        kind: kind === 'bad' ? 'alert' : 'ok',
+        title: kind === 'bad' ? f.subject : `${f.subject} — оправи се`,
+        lines: [text],
+    });
     console.log(`[selfcheck] ${kind === 'bad' ? 'ALERT' : 'recovered'} ${f.key} -> email ${res.sent ? 'sent' : `NOT sent (${res.reason})`}`);
+}
+
+const REPORT_ROWS = [
+    ['push_to_start_sent', 'Push-to-start изпратени'],
+    ['push_to_start_failed', 'Push-to-start неуспешни'],
+    ['push_to_start_refused', 'Push-to-start отказани (наш бюджет)'],
+    ['delay_alerts_sent', 'Известия за закъснение'],
+    ['armed_auto_stopped', 'Тихо спрени пътувания'],
+    ['live_activity_pushes_sent', 'Live Activity обновявания'],
+];
+
+/**
+ * The heartbeat: fires roughly every REPORT_MS regardless of whether
+ * anything broke, so silence itself is never mistaken for "all good" — a
+ * server that stopped ticking entirely also stops sending these.
+ */
+async function maybeSendReport(curr) {
+    const state = readState();
+    const lastAt = state.lastReportAt ? new Date(state.lastReportAt).getTime() : 0;
+    if (Date.now() - lastAt < REPORT_MS) return;
+
+    const delta = diffCounters(reportBaseline, curr);
+    const reasonDelta = diffReasons(reportBaseline, curr);
+    const sinceLabel = reportBaseline ? 'от последния отчет' : 'от последния рестарт на сървъра';
+
+    const tableRows = REPORT_ROWS.map(([k, label]) => [label, delta[k] || 0]);
+    const reasonLines = Object.entries(reasonDelta).filter(([, c]) => c > 0).map(([r, c]) => `${r}: ${c}`);
+    const hadFailures = (delta.push_to_start_failed || 0) > 0 || reasonLines.length > 0;
+
+    const lines = [`Обхваща периода ${sinceLabel}.`];
+    lines.push(hadFailures ? 'Има грешки през периода — виж таблицата и APNs причините по-долу.' : 'Всичко изглежда наред.');
+    if (reasonLines.length) lines.push(`APNs грешки: ${reasonLines.join(', ')}.`);
+
+    const res = await email.send({
+        subject: `[BulTrain] седмичен отчет${hadFailures ? ' — има грешки' : ''}`,
+        kind: hadFailures ? 'report_warn' : 'report',
+        title: 'Седмичен отчет',
+        lines,
+        tableRows,
+    });
+    console.log(`[selfcheck] weekly report -> email ${res.sent ? 'sent' : `NOT sent (${res.reason})`}`);
+
+    reportBaseline = curr;
+    writeState({ ...state, lastReportAt: new Date().toISOString() });
 }
 
 async function run() {
     try {
         const curr = metrics.snapshot();
-        if (!prevSnapshot) { prevSnapshot = curr; return; } // first tick: nothing to diff yet
+        if (!prevSnapshot) {
+            prevSnapshot = curr;
+            if (reportBaseline == null) reportBaseline = curr;
+            return; // first tick: nothing to diff yet
+        }
 
         const delta = diffCounters(prevSnapshot, curr);
         const reasonDelta = diffReasons(prevSnapshot, curr);
@@ -130,6 +223,7 @@ async function run() {
         }
 
         prevSnapshot = curr;
+        await maybeSendReport(curr);
     } catch (err) {
         console.error('[selfcheck] run failed:', err.message);
     }
@@ -149,7 +243,11 @@ function stop() {
     clearInterval(timer);
     timer = null;
     prevSnapshot = null;
+    reportBaseline = null;
     ruleState.clear();
 }
 
-module.exports = { start, stop, run, evaluate, diffCounters, diffReasons, CHECK_MS, COOLDOWN_MS };
+module.exports = {
+    start, stop, run, evaluate, diffCounters, diffReasons, maybeSendReport,
+    CHECK_MS, COOLDOWN_MS, REPORT_MS,
+};
