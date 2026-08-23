@@ -117,6 +117,11 @@ async function cmdArm() {
 
     console.log('\nArmed. Watch your phone — push-to-start should land within ~30s.');
     console.log('Tail the decision log with:  pm2 logs bultrain | grep armed');
+    console.log('\nAfter the card appears, wait past its departure time and check whether the');
+    console.log('CONTENT actually keeps updating (phase should flip preDeparture -> inTransit):');
+    console.log('  node scripts/check-test-journey.js');
+    console.log('An empty live_activity_tokens section there means the app never registered an');
+    console.log('update token for this activity — worth flagging to the mobile side, not a retry-able server issue.');
 }
 
 async function cmdDelay(legNum, minutes) {
@@ -135,9 +140,26 @@ async function cmdDelay(legNum, minutes) {
 
 async function cmdArrive(legNum) {
     requireEnv('INSTALL_ID', INSTALL_ID);
+    const leg = LEGS[legNum];
+    requireEnv('leg (1 or 2)', leg);
     const legIndex = Number(legNum) - 1;
+
     await client.post('/api/live-activity/leg-arrived', { installId: INSTALL_ID, journeyId: JOURNEY_ID, legIndex });
-    console.log(`leg ${legNum} marked arrived.`);
+
+    // /leg-arrived only unblocks the NEXT leg's push-to-start trigger — it does
+    // NOT end THIS leg's already-started card. Ending is worker.js's own job,
+    // decided purely from the feed's predicted arrival time plus a grace
+    // period (same as it would be for a real train, whose feed naturally
+    // updates as it actually arrives). Without this, the card would just sit
+    // there until the untouched, far-future synthetic arrival time we seeded
+    // at `arm` finally passes — which is why a second leg-2 card could appear
+    // while leg 1's was still showing.
+    await setFeed(leg.train, [
+        { station: leg.boarding, departureInSec: -1400, delayMin: 0 },
+        { station: leg.destination, arrivalInSec: -700, delayMin: 0 },
+    ]);
+
+    console.log(`leg ${legNum} marked arrived — its card should END within the next ~30s worker tick.`);
     if (legNum === '1') console.log("Run 'delay 2 0' next to seed leg 2's feed — its push-to-start should now be eligible.");
 }
 
