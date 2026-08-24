@@ -81,6 +81,34 @@ test('a train absent from BOTH feeds still 404s', () => {
     assert.strictEqual(res.statusCode, 404);
 });
 
+test('the origin stop has no arrival, only departure — the response must still carry a predicted time', () => {
+    // A trip's first stop is never "arrived at" by the feed's own model — it's
+    // departure-only. Reported by the mobile side: predictedArrival came back
+    // null there even though the underlying departureTime was already computed
+    // and departureDelayMin was populated (0) — the endpoint just never surfaced it.
+    const soon = Math.floor(Date.now() / 1000) + 300;
+    seed('10221', [
+        { stationId: 3, station: 'София', arrivalDelay: null, arrivalTime: null, departureDelay: 0, departureTime: soon },
+    ]);
+    const res = mockRes();
+    controller.getTrain({ params: { trainNo: '10221' } }, res);
+
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.stops[0].predictedArrival, null, 'still null — there genuinely is no arrival at the origin');
+    assert.ok(res.body.stops[0].predictedDeparture, 'but departure must not be null — it is the only time this stop ever has');
+    assert.strictEqual(res.body.stops[0].departureDelayMin, 0);
+});
+
+test('an origin stop reads as "passed" once departed, even with no arrivalTime to compare', () => {
+    const past = Math.floor(Date.now() / 1000) - 300;
+    seed('10221', [
+        { stationId: 3, station: 'София', arrivalDelay: null, arrivalTime: null, departureDelay: 0, departureTime: past },
+    ]);
+    const res = mockRes();
+    controller.getTrain({ params: { trainNo: '10221' } }, res);
+    assert.strictEqual(res.body.stops[0].passed, true, 'departure already happened, so the origin has been left behind');
+});
+
 test('a delayed train reports its delay (control case)', () => {
     const soon = Math.floor(Date.now() / 1000) + 600;
     seed('8611', [

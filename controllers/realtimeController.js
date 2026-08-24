@@ -27,14 +27,23 @@ const MAX_OFFSET_M = 3000;
 // Stops + headline delay from a TripUpdate (the feed's own predicted times).
 function fromFeed(rt, nowSec) {
     const named = rt.stops.filter(s => s.stationId != null);
-    const stops = named.map(s => ({
-        station:           s.station,
-        stationId:         s.stationId,
-        predictedArrival:  hhmm(s.arrivalTime),
-        arrivalDelayMin:   toMin(s.arrivalDelay),
-        departureDelayMin: toMin(s.departureDelay),
-        passed:            s.arrivalTime ? (s.arrivalTime < nowSec) : null,
-    }));
+    const stops = named.map(s => {
+        // A trip's ORIGIN has no arrival at all — only departure. Without this
+        // fallback, predictedArrival/passed were both null there forever, even
+        // once the train had clearly left: the one stop where a delay matters
+        // most (waiting at the boarding platform) was the one stop the response
+        // could never actually confirm.
+        const refTime = s.arrivalTime ?? s.departureTime;
+        return {
+            station:            s.station,
+            stationId:          s.stationId,
+            predictedArrival:   hhmm(s.arrivalTime),
+            predictedDeparture: hhmm(s.departureTime),
+            arrivalDelayMin:    toMin(s.arrivalDelay),
+            departureDelayMin:  toMin(s.departureDelay),
+            passed:             refTime ? (refTime < nowSec) : null,
+        };
+    });
     const upcoming = named.filter(s => s.arrivalTime && s.arrivalTime >= nowSec);
     const ref = upcoming[0] || named[named.length - 1];
     return {
