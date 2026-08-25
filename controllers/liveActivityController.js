@@ -11,6 +11,7 @@
 const store   = require('../services/liveactivity/store');
 const apns    = require('../services/liveactivity/apns');
 const metrics = require('../services/liveactivity/metrics');
+const segmentMode = require('../services/gtfs/segmentMode');
 
 const MAX_TOKENS_PER_JOURNEY = 5;
 const ENVIRONMENTS = new Set(['sandbox', 'production']);
@@ -81,6 +82,21 @@ exports.register = (req, res) => {
             });
         }
 
+        // Same resolution as /arm — see segmentMode.js. Needed here too: this
+        // is the OTHER path that can populate is_current_bus/train_number_display
+        // (live_activity_tokens, not armed_journeys), and it was hitting the
+        // same whole-number ambiguity independently, which is how the wrong
+        // category could flicker back in even after /arm got it right.
+        const resolved = segmentMode.resolveBoardingCategory(
+            trainNumber, segmentMode.sofiaServiceDate(departure), boarding
+        );
+        const isCurrentBus = resolved
+            ? (resolved.category === 'АВТ' ? 1 : 0)
+            : (b.isCurrentTransportBus ? 1 : 0);
+        const trainNumberDisplay = resolved
+            ? `${resolved.category} ${trainNumber}`
+            : (b.trainNumberDisplay ? String(b.trainNumberDisplay).trim() : null);
+
         store.upsert({
             token: b.token,
             environment: b.environment,
@@ -88,14 +104,14 @@ exports.register = (req, res) => {
             train_number: trainNumber,
             // Display form ("БВ 8611") for the card's per-leg field. Optional —
             // the push path composes one from the GTFS category when absent.
-            train_number_display: b.trainNumberDisplay ? String(b.trainNumberDisplay).trim() : null,
+            train_number_display: trainNumberDisplay,
             boarding_station: boarding,
             destination_station: destination,
             direction_station: b.directionStation ? String(b.directionStation).trim() : null,
             scheduled_departure: departure.toISOString(),
             scheduled_arrival: arrival.toISOString(),
             current_leg_index: legIndex,
-            is_current_bus: b.isCurrentTransportBus ? 1 : 0,
+            is_current_bus: isCurrentBus,
             next_transport_number: b.nextTransportNumber ? String(b.nextTransportNumber) : null,
             next_transport_departure: parseDate(b.nextTransportDeparture)?.toISOString() ?? null,
             is_next_transport_bus: b.isNextTransportBus ? 1 : 0,

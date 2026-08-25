@@ -13,6 +13,7 @@
 
 const store   = require('../services/liveactivity/armedStore');
 const laStore = require('../services/liveactivity/store');
+const segmentMode = require('../services/gtfs/segmentMode');
 const { isValidToken } = require('./liveActivityController');
 
 const ENVIRONMENTS = new Set(['sandbox', 'production']);
@@ -145,6 +146,25 @@ exports.arm = (req, res) => {
         // rather than silently accepting a journey we can never start.
         const startToken = store.getToken(String(b.installId), 'push_to_start');
 
+        // A number that runs partly as a replacement bus has separate trip
+        // rows per category (see gtfs-bus-replacement) — the client's own
+        // isCurrentTransportBus/trainNumberDisplay were the source of the
+        // "АВТ 30122" incident on a passenger travelling entirely on the
+        // train portion, because they get built from a whole-number lookup
+        // that has no idea which leg is being boarded. Resolve it here from
+        // the GTFS data for THIS specific boarding station instead; only
+        // fall back to the client's values when it can't be resolved (e.g.
+        // the trip/trip_date tables don't have this date yet).
+        const resolved = segmentMode.resolveBoardingCategory(
+            trainNumber, segmentMode.sofiaServiceDate(departure), boarding
+        );
+        const isCurrentBus = resolved
+            ? (resolved.category === 'АВТ' ? 1 : 0)
+            : (b.isCurrentTransportBus ? 1 : 0);
+        const trainNumberDisplay = resolved
+            ? `${resolved.category} ${trainNumber}`
+            : (b.trainNumberDisplay ? String(b.trainNumberDisplay).trim() : null);
+
         store.arm({
             install_id: String(b.installId),
             journey_id: String(b.journeyId),
@@ -152,13 +172,13 @@ exports.arm = (req, res) => {
             train_number: trainNumber,
             // The bare number matches the feed; the display form ("БВ 3637") is
             // what the passenger reads on the card.
-            train_number_display: b.trainNumberDisplay ? String(b.trainNumberDisplay).trim() : null,
+            train_number_display: trainNumberDisplay,
             boarding_station: boarding,
             destination_station: destination,
             direction_station: b.directionStation ? String(b.directionStation).trim() : null,
             scheduled_departure: departure.toISOString(),
             scheduled_arrival: arrival.toISOString(),
-            is_current_bus: b.isCurrentTransportBus ? 1 : 0,
+            is_current_bus: isCurrentBus,
             next_transport_number: b.nextTransportNumber ? String(b.nextTransportNumber) : null,
             next_transport_departure: parseDate(b.nextTransportDeparture)?.toISOString() ?? null,
             is_next_transport_bus: b.isNextTransportBus ? 1 : 0,
