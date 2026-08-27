@@ -3,6 +3,8 @@
 const Database = require('better-sqlite3');
 const path     = require('path');
 const { Worker } = require('worker_threads');
+const cache = require('../services/realtime/cache');
+const { findStopIndex } = require('../services/liveactivity/contentState');
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 const DB_PATH           = path.join(__dirname, '..', 'bultrain.sqlite');
@@ -206,6 +208,40 @@ function dedup(options) {
     return Array.from(groups.values());
 }
 
+// ── Live delay enrichment (today's date only) ─────────────────────────────────
+// Deliberately reads services/realtime/cache.js directly, NEVER testFeed —
+// this is the real, public search endpoint every user hits, so it must never
+// be able to surface synthetic test-journey data (see testFeed.js's own
+// header for why that separation exists).
+
+// Same guard used throughout the realtime code: reject only a multi-day feed
+// glitch, not a genuinely huge real delay.
+const MAX_ABS_DELAY_SEC = 20 * 3600;
+const delayMinutesFrom = (sec) =>
+    (sec == null || Math.abs(sec) > MAX_ABS_DELAY_SEC) ? null : Math.round(sec / 60);
+
+function isSofiaToday(ymd) {
+    return ymd === new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Sofia' });
+}
+
+/**
+ * Per leg, the live delay AT THAT LEG'S OWN BOARDING STATION — not a whole-trip
+ * headline — because the client's use case is deciding whether a "save
+ * journey" / alarm window past the scheduled departure is warranted for THIS
+ * specific leg. hasLiveDelay distinguishes "confirmed on time" (true, 0) from
+ * "no coverage at all" (false, null) — never invent a delay from absence.
+ */
+function withLiveDelay(trains) {
+    return trains.map(t => {
+        const rt = cache.getTrain(t.trainNumber);
+        const stops = rt && Array.isArray(rt.stops) ? rt.stops.filter(s => s.station) : null;
+        const idx = stops ? findStopIndex(stops, t.from) : -1;
+        if (idx < 0) return { ...t, hasLiveDelay: false, delayMinutes: null };
+        const s = stops[idx];
+        return { ...t, hasLiveDelay: true, delayMinutes: delayMinutesFrom(s.departureDelay ?? s.arrivalDelay) };
+    });
+}
+
 // ── Convert raw paths → formatted option objects ──────────────────────────────
 function buildOptions(paths, dateStr, language) {
     return paths.map(legs => {
@@ -356,6 +392,12 @@ exports.generateScheduleData = async (language, from, to, date) => {
     options = paretoFilter(options);
     options.sort((a, b) => a.departMins - b.departMins);
 
+    // Only for today: a delay reading is meaningless for a future date, so the
+    // fields are omitted there entirely (not sent as null/false).
+    if (isSofiaToday(date)) {
+        options = options.map(opt => ({ ...opt, trains: withLiveDelay(opt.trains) }));
+    }
+
     return {
         data: {
             date:        dateStr,
@@ -395,3 +437,5 @@ exports.getSchedule = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+exports.__test = { withLiveDelay, isSofiaToday }; // exported for unit tests only
