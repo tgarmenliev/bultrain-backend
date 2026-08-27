@@ -7,7 +7,12 @@ const cache = require('../services/realtime/cache');
 const { findStopIndex } = require('../services/liveactivity/contentState');
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
-const DB_PATH           = path.join(__dirname, '..', 'bultrain.sqlite');
+// BULTRAIN_DB lets tests point this at a scratch database — every other
+// service module already does this; this one didn't, which is exactly why
+// requiring it without a real bultrain.sqlite at the default path (e.g. in
+// CI, where ci-check.sh deletes its own scratch one before the unit tests
+// run) threw SQLITE_CANTOPEN at require() time.
+const DB_PATH           = process.env.BULTRAIN_DB || path.join(__dirname, '..', 'bultrain.sqlite');
 const STATIONS_JSON     = path.join(__dirname, '..', 'stations.json');
 const WORKER_PATH       = path.join(__dirname, '..', 'workers', 'routeWorker.js');
 

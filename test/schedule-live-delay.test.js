@@ -14,17 +14,22 @@
 
 const test   = require('node:test');
 const assert = require('node:assert');
+const fs     = require('node:fs');
+const os     = require('node:os');
+const path   = require('node:path');
+
+// scheduleController opens its DB connection eagerly at require() time
+// (`new Database(DB_PATH, { fileMustExist: true })`, not lazily like the
+// liveactivity/* stores), so BULTRAIN_DB must point at a real, migrated file
+// BEFORE the require below — otherwise it throws SQLITE_CANTOPEN the moment
+// this file loads. Missed once already: CI's ci-check.sh deletes its own
+// scratch bultrain.sqlite right after the route-loading check, so by the time
+// it runs the unit tests there is no file at the default path at all.
+const TMP = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bultrain-sched-')), 'test.sqlite');
+process.env.BULTRAIN_DB = TMP;
+require('../database/migrate')(TMP);
 
 const cache = require('../services/realtime/cache');
-
-// generateScheduleData/withLiveDelay/isSofiaToday aren't exported (internal
-// helpers) — require the module fresh and reach them via a tiny re-export
-// shim would over-complicate this file for two pure functions; instead we
-// drive the same code path through the one function that IS exported,
-// generateScheduleData, but only for the parts that don't need the worker:
-// this file tests the enrichment in isolation by monkey-patching cache and
-// checking withLiveDelay's observable behaviour through a minimal reproduction
-// of what buildOptions produces.
 const scheduleController = require('../controllers/scheduleController');
 
 test('a boarding station with a live TripUpdate reports its own delay, not a whole-trip headline', () => {
