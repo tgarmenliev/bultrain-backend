@@ -142,7 +142,7 @@ const hash = (s) => crypto.createHash('sha256').update(s).digest('hex').slice(0,
  */
 function withLegDisplay(row) {
     if (!row || row.train_number_display) return row;
-    return { ...row, train_number_display: trainCategory.displayFor(row.train_number) };
+    return { ...row, train_number_display: trainCategory.displayFor(row.train_number, row.app_language) };
 }
 
 // buildBody itself now lives in pushBody.js (imported above) so

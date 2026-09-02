@@ -12,9 +12,22 @@ const store   = require('../services/liveactivity/store');
 const apns    = require('../services/liveactivity/apns');
 const metrics = require('../services/liveactivity/metrics');
 const segmentMode = require('../services/gtfs/segmentMode');
+const { abbrevFor } = require('../services/gtfs/categoryDisplay');
 
 const MAX_TOKENS_PER_JOURNEY = 5;
 const ENVIRONMENTS = new Set(['sandbox', 'production']);
+const APP_LANGUAGES = new Set(['bg', 'en']);
+
+/**
+ * Client-declared language for this journey — 'bg', 'en', or null when
+ * unset. Missing/unrecognized is NOT an error (old clients never send it,
+ * and it's cosmetic, not something to fail a request over) — it just falls
+ * back to Bulgarian everywhere downstream, exactly like today, unchanged.
+ * Shared with armedJourneyController.js, same reasoning as isValidToken.
+ */
+function parseAppLanguage(value) {
+    return APP_LANGUAGES.has(value) ? value : null;
+}
 
 // ActivityKit push tokens are NOT the 32-byte (64-hex) device tokens used for
 // standard notifications. They are variable-length and much longer — commonly
@@ -82,6 +95,8 @@ exports.register = (req, res) => {
             });
         }
 
+        const appLanguage = parseAppLanguage(b.appLanguage);
+
         // Same resolution as /arm — see segmentMode.js. Needed here too: this
         // is the OTHER path that can populate is_current_bus/train_number_display
         // (live_activity_tokens, not armed_journeys), and it was hitting the
@@ -94,7 +109,7 @@ exports.register = (req, res) => {
             ? (resolved.category === 'АВТ' ? 1 : 0)
             : (b.isCurrentTransportBus ? 1 : 0);
         const trainNumberDisplay = resolved
-            ? `${resolved.category} ${trainNumber}`
+            ? `${abbrevFor(resolved.category, appLanguage)} ${trainNumber}`
             : (b.trainNumberDisplay ? String(b.trainNumberDisplay).trim() : null);
 
         store.upsert({
@@ -105,6 +120,7 @@ exports.register = (req, res) => {
             // Display form ("БВ 8611") for the card's per-leg field. Optional —
             // the push path composes one from the GTFS category when absent.
             train_number_display: trainNumberDisplay,
+            app_language: appLanguage,
             boarding_station: boarding,
             destination_station: destination,
             direction_station: b.directionStation ? String(b.directionStation).trim() : null,
@@ -217,3 +233,6 @@ exports.getMetrics = (req, res) => {
 // Exported for unit testing the token-shape rule directly — this validator was
 // the source of a bug that silently rejected every real ActivityKit token.
 exports.isValidToken = isValidToken;
+// Shared with armedJourneyController.js's /arm — one definition of "which
+// languages we understand", not two that could drift apart.
+exports.parseAppLanguage = parseAppLanguage;

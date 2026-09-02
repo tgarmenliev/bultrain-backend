@@ -118,3 +118,15 @@ test('the date attributes use the 2001 reference date, as numbers', () => {
         Math.floor(Date.parse('2026-08-21T11:30:00.000Z') / 1000) - 978307200);
     assert.ok(attrs.scheduledArrival > attrs.scheduledDeparture);
 });
+
+test('appLanguage is omitted, not sent as null, when the row never carried one', () => {
+    const attrs = JSON.parse(watcher.buildStartBody(row, state, 1755082000)).aps.attributes;
+    assert.strictEqual('appLanguage' in attrs, false, 'optional per JourneyAttributes — omit rather than guess');
+});
+
+test('appLanguage is sent, and the alert body is English, for an English-language journey', () => {
+    const enRow = { ...row, app_language: 'en' };
+    const parsed = JSON.parse(watcher.buildStartBody(enRow, state, 1755082000));
+    assert.strictEqual(parsed.aps.attributes.appLanguage, 'en');
+    assert.match(parsed.aps.alert.body, /^Travelling to /);
+});

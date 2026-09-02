@@ -23,15 +23,7 @@ const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
 const USE_GTFS = process.env.SCHEDULE_SOURCE === 'gtfs';
 
 // ── Category abbreviation maps ────────────────────────────────────────────────
-const CATEGORY_EN = {
-    'ПВ':   'PT',
-    'КПВ':  'SUT',
-    'БВ':   'FT',
-    'МБВ':  'IFT',
-    'БВЗР': 'FT',
-    'ЕВ':   'ET',
-    "АВТ": 'BUS'
-};
+const { CATEGORY_EN } = require('../services/gtfs/categoryDisplay');
 
 // ── Day-of-week column mapping (JS getDay 0=Sun…6=Sat) ───────────────────────
 const DAY_COLUMN = [

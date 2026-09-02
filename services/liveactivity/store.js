@@ -48,16 +48,18 @@ function upsert(row) {
     // Optional columns are defaulted here rather than demanded of every caller:
     // better-sqlite3 throws on a missing named parameter, so adding a nullable
     // column would otherwise break each existing call site at once.
-    const params = { train_number_display: null, ...row };
+    const params = { train_number_display: null, app_language: null, ...row };
     conn().prepare(`
         INSERT INTO live_activity_tokens (
             token, environment, journey_id, train_number, train_number_display,
+            app_language,
             boarding_station, destination_station, direction_station,
             scheduled_departure, scheduled_arrival,
             current_leg_index, is_current_bus,
             next_transport_number, next_transport_departure, is_next_transport_bus
         ) VALUES (
             @token, @environment, @journey_id, @train_number, @train_number_display,
+            @app_language,
             @boarding_station, @destination_station, @direction_station,
             @scheduled_departure, @scheduled_arrival,
             @current_leg_index, @is_current_bus,
@@ -68,6 +70,7 @@ function upsert(row) {
             journey_id               = excluded.journey_id,
             train_number             = excluded.train_number,
             train_number_display     = excluded.train_number_display,
+            app_language             = excluded.app_language,
             boarding_station         = excluded.boarding_station,
             destination_station      = excluded.destination_station,
             direction_station        = excluded.direction_station,

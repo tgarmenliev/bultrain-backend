@@ -13,6 +13,7 @@
 
 const path     = require('path');
 const Database = require('better-sqlite3');
+const { abbrevFor } = require('./categoryDisplay');
 
 const DB_PATH = process.env.BULTRAIN_DB || path.join(__dirname, '..', '..', 'bultrain.sqlite');
 const CACHE_TTL_MS = 60 * 60 * 1000;
@@ -46,13 +47,14 @@ function load() {
 }
 
 /**
- * "БВ 8611" when the category is known, otherwise null so the caller can decide
- * its own fallback rather than being handed a half-formed label.
+ * "БВ 8611" (or "FT 8611" for language 'en') when the category is known,
+ * otherwise null so the caller can decide its own fallback rather than being
+ * handed a half-formed label.
  */
-function displayFor(trainNumber) {
+function displayFor(trainNumber, language) {
     if (!trainNumber) return null;
     const category = load().get(String(trainNumber));
-    return category ? `${category} ${trainNumber}` : null;
+    return category ? `${abbrevFor(category, language)} ${trainNumber}` : null;
 }
 
 module.exports = { displayFor };

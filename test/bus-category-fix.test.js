@@ -120,3 +120,35 @@ test('an unresolvable segment (no GTFS coverage) falls back to whatever the clie
     assert.strictEqual(row.train_number_display, 'БВ 99999', 'no crash, no silent data loss — client value preserved');
     assert.strictEqual(row.is_current_bus, 0);
 });
+
+test('/arm: appLanguage=en produces an English category abbreviation, not the Bulgarian one', () => {
+    const res = mockRes();
+    armedCtrl.arm({ body: {
+        installId: INSTALL, journeyId: 'j-buscat-5', legIndex: 0,
+        trainNumber: '30122', appLanguage: 'en',
+        boardingStation: 'Антон', destinationStation: 'Волуяк',
+        scheduledDeparture: `${DATE}T03:00:00.000Z`,
+        scheduledArrival:   `${DATE}T04:00:00.000Z`,
+    } }, res);
+
+    assert.strictEqual(res.statusCode, 200);
+    const row = armedStore.listActive().find(r => r.journey_id === 'j-buscat-5');
+    assert.strictEqual(row.train_number_display, 'PT 30122', 'ПВ -> PT for an English-language journey');
+    assert.strictEqual(row.app_language, 'en', 'persisted for later ticks (delay-alert wording, attributes.appLanguage)');
+});
+
+test('an unrecognized appLanguage value is treated as unset, not an error', () => {
+    const res = mockRes();
+    armedCtrl.arm({ body: {
+        installId: INSTALL, journeyId: 'j-buscat-6', legIndex: 0,
+        trainNumber: '30122', appLanguage: 'fr',
+        boardingStation: 'Антон', destinationStation: 'Волуяк',
+        scheduledDeparture: `${DATE}T03:00:00.000Z`,
+        scheduledArrival:   `${DATE}T04:00:00.000Z`,
+    } }, res);
+
+    assert.strictEqual(res.statusCode, 200);
+    const row = armedStore.listActive().find(r => r.journey_id === 'j-buscat-6');
+    assert.strictEqual(row.train_number_display, 'ПВ 30122', 'falls back to Bulgarian, same as no field at all');
+    assert.strictEqual(row.app_language, null);
+});

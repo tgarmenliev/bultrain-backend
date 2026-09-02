@@ -105,6 +105,7 @@ function getToken(installId, kind) {
 function arm(row) {
     const params = {
         train_number_display: null,
+        app_language: null,
         direction_station: null,
         next_transport_number: null,
         next_transport_departure: null,
@@ -117,12 +118,14 @@ function arm(row) {
     conn().prepare(`
         INSERT INTO armed_journeys (
             install_id, journey_id, leg_index, train_number, train_number_display,
+            app_language,
             boarding_station, destination_station, direction_station,
             scheduled_departure, scheduled_arrival, is_current_bus,
             next_transport_number, next_transport_departure, is_next_transport_bus,
             state, next_action_at, created_at, updated_at
         ) VALUES (
             @install_id, @journey_id, @leg_index, @train_number, @train_number_display,
+            @app_language,
             @boarding_station, @destination_station, @direction_station,
             @scheduled_departure, @scheduled_arrival, @is_current_bus,
             @next_transport_number, @next_transport_departure, @is_next_transport_bus,
@@ -131,6 +134,7 @@ function arm(row) {
         ON CONFLICT(install_id, journey_id, leg_index) DO UPDATE SET
             train_number             = excluded.train_number,
             train_number_display     = excluded.train_number_display,
+            app_language             = excluded.app_language,
             boarding_station         = excluded.boarding_station,
             destination_station      = excluded.destination_station,
             direction_station        = excluded.direction_station,

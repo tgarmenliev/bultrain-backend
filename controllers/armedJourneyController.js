@@ -14,7 +14,8 @@
 const store   = require('../services/liveactivity/armedStore');
 const laStore = require('../services/liveactivity/store');
 const segmentMode = require('../services/gtfs/segmentMode');
-const { isValidToken } = require('./liveActivityController');
+const { abbrevFor } = require('../services/gtfs/categoryDisplay');
+const { isValidToken, parseAppLanguage } = require('./liveActivityController');
 
 const ENVIRONMENTS = new Set(['sandbox', 'production']);
 const IOS_KINDS    = new Set(['push_to_start', 'alert']);
@@ -146,6 +147,8 @@ exports.arm = (req, res) => {
         // rather than silently accepting a journey we can never start.
         const startToken = store.getToken(String(b.installId), 'push_to_start');
 
+        const appLanguage = parseAppLanguage(b.appLanguage);
+
         // A number that runs partly as a replacement bus has separate trip
         // rows per category (see gtfs-bus-replacement) — the client's own
         // isCurrentTransportBus/trainNumberDisplay were the source of the
@@ -162,7 +165,7 @@ exports.arm = (req, res) => {
             ? (resolved.category === 'АВТ' ? 1 : 0)
             : (b.isCurrentTransportBus ? 1 : 0);
         const trainNumberDisplay = resolved
-            ? `${resolved.category} ${trainNumber}`
+            ? `${abbrevFor(resolved.category, appLanguage)} ${trainNumber}`
             : (b.trainNumberDisplay ? String(b.trainNumberDisplay).trim() : null);
 
         store.arm({
@@ -173,6 +176,7 @@ exports.arm = (req, res) => {
             // The bare number matches the feed; the display form ("БВ 3637") is
             // what the passenger reads on the card.
             train_number_display: trainNumberDisplay,
+            app_language: appLanguage,
             boarding_station: boarding,
             destination_station: destination,
             direction_station: b.directionStation ? String(b.directionStation).trim() : null,

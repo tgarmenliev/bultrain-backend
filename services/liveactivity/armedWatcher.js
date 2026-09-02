@@ -79,7 +79,7 @@ function asTokenRow(row) {
         train_number: row.train_number,
         // The card's per-leg field wants the passenger-facing form. Prefer what
         // the client sent, else compose it from the train's GTFS category.
-        train_number_display: row.train_number_display || trainCategory.displayFor(row.train_number),
+        train_number_display: row.train_number_display || trainCategory.displayFor(row.train_number, row.app_language),
         boarding_station: row.boarding_station,
         destination_station: row.destination_station,
         direction_station: row.direction_station,
@@ -145,28 +145,35 @@ function buildStartBody(row, state, nowSec) {
     const totalDistanceKm = stationCoords.distanceKm(row.boarding_station, row.destination_station);
     if (totalDistanceKm == null) return null;
 
+    const attributes = {
+        journeyId: row.journey_id,
+        // The DISPLAY form ("БВ 3637") — the card names the train the way
+        // the rest of the app does. The bare number stays in train_number
+        // for feed matching and never reaches the passenger.
+        trainNumber: trainLabel(row),
+        originStation: row.boarding_station,
+        destinationStation: row.destination_station,
+        totalDistanceKm,
+        scheduledDeparture: attrDate(row.scheduled_departure),
+        scheduledArrival: attrDate(row.scheduled_arrival),
+    };
+    // Optional, per JourneyAttributes — omitted (not guessed) when the client
+    // never told us. The widget extension can't see the host app's per-app
+    // language override, which is exactly why this field exists.
+    if (row.app_language) attributes.appLanguage = row.app_language;
+
     return JSON.stringify({
         aps: {
             'timestamp': nowSec,
             'event': 'start',
             'content-state': state,
             'attributes-type': ATTRIBUTES_TYPE,
-            'attributes': {
-                journeyId: row.journey_id,
-                // The DISPLAY form ("БВ 3637") — the card names the train the way
-                // the rest of the app does. The bare number stays in train_number
-                // for feed matching and never reaches the passenger.
-                trainNumber: trainLabel(row),
-                originStation: row.boarding_station,
-                destinationStation: row.destination_station,
-                totalDistanceKm,
-                scheduledDeparture: attrDate(row.scheduled_departure),
-                scheduledArrival: attrDate(row.scheduled_arrival),
-                // appLanguage is optional — omitted rather than guessed.
-            },
+            attributes,
             'alert': {
                 title: trainLabel(row),
-                body: `Пътуване към ${row.destination_station}`,
+                body: row.app_language === 'en'
+                    ? `Travelling to ${row.destination_station}`
+                    : `Пътуване към ${row.destination_station}`,
             },
             'stale-date': nowSec + 15 * 60,
         },
@@ -336,6 +343,7 @@ async function retargetExistingActivity(row, existing, now) {
         journey_id: row.journey_id,
         train_number: row.train_number,
         train_number_display: row.train_number_display,
+        app_language: row.app_language,
         boarding_station: row.boarding_station,
         destination_station: row.destination_station,
         direction_station: row.direction_station,
@@ -390,7 +398,7 @@ async function retargetExistingActivity(row, existing, now) {
 
 async function maybeAlert(row, feed, now, legCtx) {
     const phase = logic.legPhase(row, feed.predictedDepUnix, now);
-    const ctx = { phase, role: legCtx.role };
+    const ctx = { phase, role: legCtx.role, language: row.app_language };
 
     const d = logic.evaluateDelayAlert(row, feed.delayMin, now, ctx);
     if (!d.shouldAlert) {

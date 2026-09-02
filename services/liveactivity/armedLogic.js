@@ -176,56 +176,86 @@ function evaluateDelayAlert(row, delayMin, now = new Date(), ctx = {}) {
 }
 
 /**
- * Bulgarian copy for the alert. Kept next to the rule that produces it.
- *
+ * Bilingual copy for the alert, one language object per locale so both read
+ * side by side and can't silently drift apart. Real incident: this used to be
+ * Bulgarian-only regardless of the app's language — an English-language app
+ * with a correctly English Live Activity card still got a Bulgarian delay
+ * push, because this text is composed server-side and nothing carried the
+ * client's language here at all (see migration 015_app_language.sql).
+ */
+const ALERT_COPY = {
+    bg: {
+        word: (n) => (n === 1 ? 'минута' : 'минути'),
+        bareTrain: (num) => `Влак ${num}`,
+        connectionRecovered: (train) => ({
+            title: 'Връзката ви наваксва',
+            body: `Следващият влак ${train} вече не закъснява съществено.`,
+        }),
+        connectionDelayed: (train, delayMin, word) => ({
+            title: `Следващият ви влак ${train} закъснява с ${delayMin} ${word}`,
+            body: 'Това е връзката ви след прекачването, не влакът, в който сте.',
+        }),
+        recovered: (train, to) => ({
+            title: `${train} наваксва`,
+            body: `Закъснението към ${to} е под 5 минути.`,
+        }),
+        inTransit: (train, delayMin, word, better, to) => ({
+            title: `${train} закъснява с ${delayMin} ${word}`,
+            body: better ? `Закъснението намаля. Пътуване към ${to}.` : `Закъснението нарасна. Пътуване към ${to}.`,
+        }),
+        preDeparture: (train, delayMin, word, better, to) => ({
+            title: `${train} закъснява с ${delayMin} ${word}`,
+            body: better ? `Закъснението намаля. Пътуване към ${to}.` : `Пътуване към ${to}. Проверете преди да тръгнете.`,
+        }),
+    },
+    en: {
+        word: (n) => (n === 1 ? 'minute' : 'minutes'),
+        bareTrain: (num) => `Train ${num}`,
+        connectionRecovered: (train) => ({
+            title: 'Your connection is catching up',
+            body: `The next train ${train} is no longer significantly delayed.`,
+        }),
+        connectionDelayed: (train, delayMin, word) => ({
+            title: `Your next train ${train} is delayed by ${delayMin} ${word}`,
+            body: 'This is your connecting train after the transfer, not the one you are on.',
+        }),
+        recovered: (train, to) => ({
+            title: `${train} is catching up`,
+            body: `The delay to ${to} is now under 5 minutes.`,
+        }),
+        inTransit: (train, delayMin, word, better, to) => ({
+            title: `${train} is delayed by ${delayMin} ${word}`,
+            body: better ? `The delay has decreased. Travelling to ${to}.` : `The delay has increased. Travelling to ${to}.`,
+        }),
+        preDeparture: (train, delayMin, word, better, to) => ({
+            title: `${train} is delayed by ${delayMin} ${word}`,
+            body: better ? `The delay has decreased. Travelling to ${to}.` : `Travelling to ${to}. Check before you leave.`,
+        }),
+    },
+};
+
+/**
  * `label` is what the passenger reads — "БВ 3637" where the client supplied a
- * display number, otherwise "Влак 3637". `ctx` decides the wording: telling
- * someone already aboard to "check before you leave" is nonsense, and a
- * connection warning has to name itself as being about the NEXT train or it
- * will be read as being about the current one.
+ * display number, otherwise a bare-number fallback in the same language.
+ * `ctx` decides the wording: telling someone already aboard to "check before
+ * you leave" is nonsense, and a connection warning has to name itself as
+ * being about the NEXT train or it will be read as being about the current
+ * one. `ctx.language` — 'en' or anything else ('bg', missing, unrecognized).
  */
 function alertText(row, delayMin, kind, label, ctx = {}) {
     const phase = ctx.phase || 'preDeparture';
     const role  = ctx.role  || 'active';
-    const train = label || `Влак ${row.train_number}`;
+    const c = ALERT_COPY[ctx.language === 'en' ? 'en' : 'bg'];
+    const train = label || c.bareTrain(row.train_number);
     const to = row.destination_station;
-    const word = delayMin === 1 ? 'минута' : 'минути';
+    const word = c.word(delayMin);
 
     if (role === 'connection') {
-        if (kind === 'recovered') {
-            return {
-                title: `Връзката ви наваксва`,
-                body: `Следващият влак ${train} вече не закъснява съществено.`,
-            };
-        }
-        return {
-            title: `Следващият ви влак ${train} закъснява с ${delayMin} ${word}`,
-            body: `Това е връзката ви след прекачването, не влакът, в който сте.`,
-        };
+        return kind === 'recovered' ? c.connectionRecovered(train) : c.connectionDelayed(train, delayMin, word);
     }
-
-    if (kind === 'recovered') {
-        return {
-            title: `${train} наваксва`,
-            body: `Закъснението към ${to} е под 5 минути.`,
-        };
-    }
-
-    if (phase === 'inTransit') {
-        return {
-            title: `${train} закъснява с ${delayMin} ${word}`,
-            body: kind === 'better'
-                ? `Закъснението намаля. Пътуване към ${to}.`
-                : `Закъснението нарасна. Пътуване към ${to}.`,
-        };
-    }
-
-    return {
-        title: `${train} закъснява с ${delayMin} ${word}`,
-        body: kind === 'better'
-            ? `Закъснението намаля. Пътуване към ${to}.`
-            : `Пътуване към ${to}. Проверете преди да тръгнете.`,
-    };
+    if (kind === 'recovered') return c.recovered(train, to);
+    if (phase === 'inTransit') return c.inTransit(train, delayMin, word, kind === 'better', to);
+    return c.preDeparture(train, delayMin, word, kind === 'better', to);
 }
 
 // ── Auto-stop: a journey that was armed but never taken ──────────────────────

@@ -161,3 +161,44 @@ test('alert copy prefers the display number when the client sent one', () => {
     // Singular is respected.
     assert.match(logic.alertText(row(), 1, 'appeared', 'ПВ 30114').title, /1 минута$/);
 });
+
+// ── Copy, English ────────────────────────────────────────────────────────────
+// Real incident: an English-language app with a correctly English Live
+// Activity card still got a Bulgarian delay push, because nothing carried
+// the client's language to alertText() at all — ctx.language fixes that.
+
+test('language defaults to Bulgarian when unset, unrecognized, or ctx omitted entirely', () => {
+    assert.match(logic.alertText(row(), 12, 'appeared').title, /закъснява/);
+    assert.match(logic.alertText(row(), 12, 'appeared', null, {}).title, /закъснява/);
+    assert.match(logic.alertText(row(), 12, 'appeared', null, { language: 'fr' }).title, /закъснява/, 'unrecognized language is not English either');
+});
+
+test('English: names the train, never claims "on time", respects singular', () => {
+    const t = logic.alertText(row(), 12, 'appeared', 'FT 3637', { language: 'en' });
+    assert.strictEqual(t.title, 'FT 3637 is delayed by 12 minutes');
+    assert.ok(!/on time/i.test(t.title + t.body));
+
+    const rec = logic.alertText(row(), 2, 'recovered', 'FT 3637', { language: 'en' });
+    assert.match(rec.title, /catching up/);
+
+    assert.match(logic.alertText(row(), 12, 'appeared', null, { language: 'en' }).title, /^Train 2612/, 'bare fallback is English too, not "Влак"');
+    assert.match(logic.alertText(row(), 1, 'appeared', 'PT 30114', { language: 'en' }).title, /1 minute$/, 'not "1 minutes"');
+});
+
+test('English: connection role names the NEXT train, not the current one', () => {
+    const t = logic.alertText(row(), 31, 'appeared', 'FT 8611', { role: 'connection', phase: 'preDeparture', language: 'en' });
+    assert.match(t.title, /next train FT 8611/);
+    assert.match(t.body, /not the one you are on/);
+
+    const rec = logic.alertText(row(), 2, 'recovered', 'FT 8611', { role: 'connection', language: 'en' });
+    assert.match(rec.title, /catching up/);
+});
+
+test('English: pre-departure vs in-transit wording differs, same as Bulgarian', () => {
+    const before = logic.alertText(row(), 12, 'appeared', 'PT 4632', { phase: 'preDeparture', role: 'active', language: 'en' });
+    assert.match(before.body, /Check before you leave/);
+
+    const during = logic.alertText(row(), 12, 'worse', 'PT 4632', { phase: 'inTransit', role: 'active', language: 'en' });
+    assert.match(during.body, /delay has increased/);
+    assert.ok(!/Check before you leave/.test(during.body), 'nonsense once already aboard');
+});
