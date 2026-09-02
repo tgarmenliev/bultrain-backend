@@ -175,6 +175,75 @@ function evaluateDelayAlert(row, delayMin, now = new Date(), ctx = {}) {
     return { shouldAlert: false, reason: 'no-material-change' };
 }
 
+// ── Task 2b: whether a delay alert deserves to bypass Focus/DND ─────────────
+//
+// Ported 1:1 from the client's own connection-risk banner (see the mobile
+// team's answer, JourneyLiveActivityAttributes.swift's ContentState —
+// connectionGapMinutes / connectionRisk), so the push priority and the Live
+// Activity's own transfer banner can never disagree with each other. Not a
+// server reinterpretation — the exact same formula and thresholds.
+
+// The tight/fine boundary — the client's one named constant
+// (comfortableTransferMinutes). <= 0 (not < 1) is the at-risk boundary:
+// exactly 0 counts as at-risk, not tight.
+const COMFORTABLE_TRANSFER_MIN = 10;
+
+/**
+ * Minutes between the connecting leg's departure and the arriving leg's
+ * predicted arrival at the transfer station. Both inputs are expected to
+ * already carry the client's own fallback (predicted, else scheduled) — see
+ * transferArrivalUnix/nextDepartureUnix below — so this is just the
+ * subtraction. No midnight-rollover correction is needed the way the
+ * client's predictedDate(forStation:) needs one: our timestamps (both
+ * predicted, from the GTFS-RT feed's own absolute epoch, and scheduled, ISO-
+ * 8601 with a real date) are full instants end to end, never a bare HH:MM
+ * that needs a reference day guessed for it.
+ *
+ * @returns {number|null} floor()'d minutes; null when either side is unknown.
+ */
+function connectionGapMinutes(transferArrivalUnix, nextDepartureUnix) {
+    if (transferArrivalUnix == null || nextDepartureUnix == null) return null;
+    return Math.floor((nextDepartureUnix - transferArrivalUnix) / 60);
+}
+
+/** The arriving leg's own realtime prediction for the transfer station, else its schedule. */
+function transferArrivalUnix(activeRow, activeFeed) {
+    return activeFeed.predictedArrUnix ?? Math.floor(new Date(activeRow.scheduled_arrival).getTime() / 1000);
+}
+
+/** The connecting leg's own realtime prediction for its departure, else its schedule. */
+function nextDepartureUnix(nextRow, nextFeed) {
+    return (nextFeed && nextFeed.predictedDepUnix) ?? Math.floor(new Date(nextRow.scheduled_departure).getTime() / 1000);
+}
+
+/** 'departsBeforeArrival' | 'tight' | 'fine' | null (nothing to assess). Mirrors the client's enum names exactly. */
+function connectionRiskBand(gapMin) {
+    if (gapMin == null) return null;
+    if (gapMin <= 0) return 'departsBeforeArrival';
+    if (gapMin < COMFORTABLE_TRANSFER_MIN) return 'tight';
+    return 'fine';
+}
+
+/**
+ * Whether THIS delay alert is worth interrupting Focus/DND for — actionable
+ * exactly when the passenger hasn't boarded yet (can still change plans), or
+ * a transfer they're relying on is tight/at-risk. A delay on the leg they're
+ * already riding, with nothing downstream to protect, is something the Live
+ * Activity already shows passively every time they glance at the phone —
+ * not worth an interruption on its own.
+ *
+ * @param {{phase:string, role:string}} ctx
+ * @param {string|null} band          connectionRiskBand() for the relevant
+ *        transfer, or null if none was computed (see hasTransfer).
+ * @param {boolean} hasTransfer       false only for role 'active' on the
+ *        journey's LAST leg — nothing downstream to protect at all.
+ */
+function isAlertActionable(ctx, band, hasTransfer) {
+    if (ctx.role === 'active' && ctx.phase !== 'inTransit') return true; // not boarded yet
+    if (!hasTransfer) return false; // riding, no transfer at stake
+    return band == null || band !== 'fine';
+}
+
 /**
  * Bilingual copy for the alert, one language object per locale so both read
  * side by side and can't silently drift apart. Real incident: this used to be
@@ -296,7 +365,9 @@ function evaluateDeadline(row, predictedArrivalUnix, now = new Date()) {
 module.exports = {
     evaluateTrigger, evaluateDelayAlert, alertText, evaluateDeadline,
     legRole, mayStartLeg, legPhase,
+    connectionGapMinutes, transferArrivalUnix, nextDepartureUnix,
+    connectionRiskBand, isAlertActionable,
     START_WINDOW_MS, ALERT_MIN_DELAY_MIN, ALERT_CHANGE_MIN,
     ALERT_CHANGE_MIN_IN_TRANSIT, ALERT_MIN_INTERVAL_MS, ALERT_MAX_PER_LEG,
-    MAX_JOURNEY_AHEAD_MS, CONNECTION_ALERT_WINDOW_MS,
+    MAX_JOURNEY_AHEAD_MS, CONNECTION_ALERT_WINDOW_MS, COMFORTABLE_TRANSFER_MIN,
 };

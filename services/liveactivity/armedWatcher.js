@@ -396,7 +396,49 @@ async function retargetExistingActivity(row, existing, now) {
 
 // ── 2. Delay alert ───────────────────────────────────────────────────────────
 
-async function maybeAlert(row, feed, now, legCtx) {
+/**
+ * The connection-risk band relevant to THIS alert, ported 1:1 from the
+ * client's own transfer banner (see armedLogic.js's connectionGapMinutes doc)
+ * — computed here rather than in armedLogic.js because it needs the SIBLING
+ * leg's own live feed, which only armedWatcher.js has access to.
+ *
+ *  - role 'connection': this row IS the connecting leg — the other side of
+ *    the gap is the ACTIVE leg (siblings[legCtx.activeIndex]), refetched for
+ *    its own current prediction.
+ *  - role 'active' + already rolling: the other side is the NEXT leg, if one
+ *    exists — refetched the same way. No next leg = nothing to protect.
+ *  - role 'active' + not yet departed: irrelevant (isAlertActionable() never
+ *    consults it for that case), so not computed.
+ *
+ * @returns {{band: string|null, hasTransfer: boolean}}
+ */
+function connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec) {
+    let activeRow, activeFeed, nextRow, nextFeed;
+
+    if (ctx.role === 'connection') {
+        activeRow = siblings.find(s => s.leg_index === legCtx.activeIndex);
+        if (!activeRow) return { band: null, hasTransfer: true }; // shouldn't happen; err on the safe side
+        activeFeed = readFeed(activeRow, getTrain(activeRow.train_number), nowSec);
+        nextRow = row;
+        nextFeed = feed;
+    } else if (ctx.phase === 'inTransit') {
+        nextRow = siblings.find(s => s.leg_index === row.leg_index + 1);
+        if (!nextRow) return { band: null, hasTransfer: false }; // last leg — nothing downstream
+        activeRow = row;
+        activeFeed = feed;
+        nextFeed = readFeed(nextRow, getTrain(nextRow.train_number), nowSec);
+    } else {
+        return { band: null, hasTransfer: false }; // not consulted for this case anyway
+    }
+
+    const gap = logic.connectionGapMinutes(
+        logic.transferArrivalUnix(activeRow, activeFeed),
+        logic.nextDepartureUnix(nextRow, nextFeed)
+    );
+    return { band: logic.connectionRiskBand(gap), hasTransfer: true };
+}
+
+async function maybeAlert(row, feed, now, legCtx, siblings) {
     const phase = logic.legPhase(row, feed.predictedDepUnix, now);
     const ctx = { phase, role: legCtx.role, language: row.app_language };
 
@@ -420,6 +462,15 @@ async function maybeAlert(row, feed, now, legCtx) {
     // duplicating them in two clients is how they drift apart.
     const text = logic.alertText(row, feed.delayMin, d.kind, trainLabel(row), ctx);
 
+    // Whether this specific alert is worth bypassing Focus/DND for — ported
+    // 1:1 from the client's own transfer-risk banner (see connectionRiskForAlert
+    // and armedLogic.js's connectionGapMinutes doc), so the push priority and
+    // what the Live Activity shows can never disagree with each other.
+    const nowSec = Math.floor(now.getTime() / 1000);
+    const { band, hasTransfer } = connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec);
+    const actionable = logic.isAlertActionable(ctx, band, hasTransfer);
+    const interruptionLevel = actionable ? 'time-sensitive' : 'active';
+
     let res;
     if (device.platform === 'android') {
         res = await fcm.send({
@@ -440,9 +491,12 @@ async function maybeAlert(row, feed, now, legCtx) {
                 alert: { title: text.title, body: text.body },
                 sound: 'default',
                 // Without this, Do Not Disturb swallows the alert silently — exactly
-                // when it matters most, since a delay is worth knowing about before
-                // leaving for the station. The entitlement is in place on the app.
-                'interruption-level': 'time-sensitive',
+                // when it matters most, since an actionable delay is worth knowing
+                // about before leaving for the station or missing a connection. The
+                // entitlement is in place on the app. Dropped to 'active' (normal
+                // priority) when there's nothing the passenger can act on right now
+                // — see isAlertActionable().
+                'interruption-level': interruptionLevel,
                 'thread-id': `journey-${row.journey_id}`,
             },
             journeyId: row.journey_id,
@@ -464,7 +518,8 @@ async function maybeAlert(row, feed, now, legCtx) {
 
     console.log(`[armed] delay alert j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
                 `platform=${device.platform} role=${ctx.role} phase=${ctx.phase} ` +
-                `delay=${feed.delayMin}m was=${row.last_delay_min ?? '—'} (${d.reason}) -> ${res.outcome}`);
+                `delay=${feed.delayMin}m was=${row.last_delay_min ?? '—'} (${d.reason}) ` +
+                `connectionBand=${band ?? '—'} interruption=${interruptionLevel} -> ${res.outcome}`);
 
     if (res.outcome === 'ok') {
         store.recordAlert(row.id, feed.delayMin);
@@ -525,7 +580,7 @@ async function tick(now = new Date()) {
             await maybeStart(row, feed, now, legCtx);
             if (before === 'armed' && store.getById(row.id)?.state === 'started') started++;
 
-            await maybeAlert(row, feed, now, legCtx);
+            await maybeAlert(row, feed, now, legCtx, siblings);
             if (store.getById(row.id)?.alerts_sent > row.alerts_sent) alerted++;
         } catch (err) {
             console.error(`[armed] row ${row.id} (j=${row.journey_id}) failed:`, err.message);

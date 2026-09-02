@@ -202,3 +202,61 @@ test('English: pre-departure vs in-transit wording differs, same as Bulgarian', 
     assert.match(during.body, /delay has increased/);
     assert.ok(!/Check before you leave/.test(during.body), 'nonsense once already aboard');
 });
+
+// ── Connection-risk banding, ported 1:1 from the client's transfer banner ──
+// (JourneyLiveActivityAttributes.swift's ContentState.connectionRisk).
+
+test('connectionGapMinutes: null when either side is unknown, floor()s otherwise', () => {
+    assert.strictEqual(logic.connectionGapMinutes(null, 1000), null);
+    assert.strictEqual(logic.connectionGapMinutes(1000, null), null);
+    // 9.9 minutes -> 9, not rounded up to 10 (matters right at the tight/fine line).
+    assert.strictEqual(logic.connectionGapMinutes(0, 9.9 * 60), 9);
+});
+
+test('connectionRiskBand: <=0 is departsBeforeArrival (inclusive), not just negative', () => {
+    assert.strictEqual(logic.connectionRiskBand(null), null);
+    assert.strictEqual(logic.connectionRiskBand(0), 'departsBeforeArrival');
+    assert.strictEqual(logic.connectionRiskBand(-5), 'departsBeforeArrival');
+    assert.strictEqual(logic.connectionRiskBand(1), 'tight');
+    assert.strictEqual(logic.connectionRiskBand(9), 'tight');
+    assert.strictEqual(logic.connectionRiskBand(10), 'fine', '10 is the boundary — comfortable, not tight');
+    assert.strictEqual(logic.connectionRiskBand(30), 'fine');
+});
+
+test('transferArrivalUnix / nextDepartureUnix: predicted preferred, scheduled as fallback', () => {
+    const r = row();
+    assert.strictEqual(logic.transferArrivalUnix(r, { predictedArrUnix: 1000 }), 1000);
+    assert.strictEqual(
+        logic.transferArrivalUnix(r, { predictedArrUnix: null }),
+        Math.floor(new Date(r.scheduled_arrival).getTime() / 1000)
+    );
+    assert.strictEqual(logic.nextDepartureUnix(r, { predictedDepUnix: 2000 }), 2000);
+    assert.strictEqual(
+        logic.nextDepartureUnix(r, null),
+        Math.floor(new Date(r.scheduled_departure).getTime() / 1000),
+        'no feed at all for the sibling leg — still falls back to its schedule'
+    );
+});
+
+test('isAlertActionable: not boarded yet is always actionable, transfer band aside', () => {
+    assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'preDeparture' }, 'fine', true), true);
+    assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'preDeparture' }, null, false), true);
+});
+
+test('isAlertActionable: riding, last leg (no transfer) — never actionable', () => {
+    assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'inTransit' }, null, false), false);
+});
+
+test('isAlertActionable: riding WITH a downstream transfer — follows the band', () => {
+    const ctx = { role: 'active', phase: 'inTransit' };
+    assert.strictEqual(logic.isAlertActionable(ctx, 'fine', true), false, 'comfortable buffer — nothing to act on right now');
+    assert.strictEqual(logic.isAlertActionable(ctx, 'tight', true), true);
+    assert.strictEqual(logic.isAlertActionable(ctx, 'departsBeforeArrival', true), true);
+});
+
+test('isAlertActionable: connection role follows the band the same way', () => {
+    const ctx = { role: 'connection', phase: 'inTransit' };
+    assert.strictEqual(logic.isAlertActionable(ctx, 'fine', true), false);
+    assert.strictEqual(logic.isAlertActionable(ctx, 'tight', true), true);
+    assert.strictEqual(logic.isAlertActionable(ctx, null, true), true, 'unknown band defaults to actionable, not silently normal');
+});
