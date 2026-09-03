@@ -483,6 +483,13 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
                 delayMinutes: feed.delayMin,
                 title: text.title,
                 body: text.body,
+                // Same computed signal as iOS's interruption-level, same
+                // vocabulary deliberately — Android has no per-message DND
+                // bypass field the way APNs does, so acting on this requires
+                // the app routing to a high-importance vs normal notification
+                // channel client-side. Sent now regardless so the data exists
+                // whenever that's wired up; unused today costs nothing.
+                interruptionLevel,
             },
         });
     } else {
