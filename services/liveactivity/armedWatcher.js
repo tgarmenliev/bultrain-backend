@@ -112,15 +112,10 @@ function readFeed(row, rt, nowSec) {
         ? (stops[dIdx].arrivalTime ?? stops[dIdx].departureTime ?? null) : null;
 
     // The delay that matters to this passenger: at the boarding station while
-    // still waiting, otherwise the next stop ahead.
-    let delaySec = null;
-    if (bIdx >= 0 && (stops[bIdx].arrivalTime ?? 0) >= nowSec) {
-        delaySec = stops[bIdx].departureDelay ?? stops[bIdx].arrivalDelay ?? null;
-    } else {
-        const upcoming = stops.filter(s => s.arrivalTime != null && s.arrivalTime >= nowSec);
-        const ref = upcoming[0] || stops[stops.length - 1];
-        if (ref) delaySec = ref.arrivalDelay ?? ref.departureDelay ?? null;
-    }
+    // still waiting, otherwise the next stop ahead. Shared with
+    // contentState.build() (see its currentDelay() doc) — they used to
+    // compute this independently and could disagree with each other.
+    const { delaySec } = contentState.currentDelay(stops, bIdx, nowSec);
     const delayMin = (delaySec == null || Math.abs(delaySec) > 20 * 3600)
         ? null : Math.round(delaySec / 60);
 

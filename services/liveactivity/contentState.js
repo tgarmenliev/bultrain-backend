@@ -70,6 +70,43 @@ function findStopIndex(stops, stationName, getName = (s) => s.station) {
 }
 
 /**
+ * The delay relevant to a specific passenger right now, in seconds — not
+ * "wherever the train happens to be next", which can be an earlier stop it
+ * hasn't reached yet, before boarding_station, showing a smaller delay than
+ * what the feed already predicts by the time it actually gets there.
+ *
+ * Before boarding (the boarding stop is still ahead): the boarding station's
+ * OWN delay — this is what decides when to actually leave for the station,
+ * and must agree with the predicted departure time shown on the same card.
+ * Once aboard (boarding stop already behind): the delay at whichever stop is
+ * coming up next for the train, which from here on IS the passenger's own
+ * next stop too.
+ *
+ * Single source of truth for both the Live Activity card (contentState.build)
+ * and the armed-journey pipeline's own trigger/alert timing
+ * (armedWatcher.js's readFeed) — they used to compute this independently and
+ * disagreed with each other.
+ *
+ * @param {Array|null} stops  feed stops (already name-filtered), or null/empty
+ * @param {number} bIdx       index of the boarding station in `stops`, or -1
+ * @param {number} nowSec
+ * @returns {{delaySec: number|null, refStation: string|null}}
+ */
+function currentDelay(stops, bIdx, nowSec) {
+    if (!stops || !stops.length) return { delaySec: null, refStation: null };
+
+    if (bIdx >= 0 && (stops[bIdx].arrivalTime ?? 0) >= nowSec) {
+        const s = stops[bIdx];
+        return { delaySec: s.departureDelay ?? s.arrivalDelay ?? null, refStation: s.station };
+    }
+
+    const upcoming = stops.filter(s => s.arrivalTime != null && s.arrivalTime >= nowSec);
+    const ref = upcoming[0] || stops[stops.length - 1];
+    if (!ref) return { delaySec: null, refStation: null };
+    return { delaySec: ref.arrivalDelay ?? ref.departureDelay ?? null, refStation: ref.station };
+}
+
+/**
  * Progress along the PASSENGER'S segment (boarding → destination), from the live
  * GPS position projected onto the trip's route geometry. Smooth and honest: it
  * reflects where the train actually is, and is correct for a late train (unlike
@@ -146,18 +183,18 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
     const bIdx = stops ? findStopIndex(stops, tokenRow.boarding_station) : -1;
     const dIdx = stops ? findStopIndex(stops, tokenRow.destination_station) : -1;
 
-    // Current delay = the delay where the train is heading next, matching what
-    // GET /api/realtime/train/:n reports as its headline.
-    let delayMinutes = null;
-    let nextStop = null;
-    if (stops && stops.length) {
-        const upcoming = stops.filter(s => s.arrivalTime != null && s.arrivalTime >= nowSec);
-        const ref = upcoming[0] || stops[stops.length - 1];
-        if (ref) {
-            delayMinutes = toMin(ref.arrivalDelay ?? ref.departureDelay);
-            nextStop = upcoming[0] ? upcoming[0].station : null;
-        }
-    }
+    // The delay THIS passenger cares about right now — not "wherever the
+    // train happens to be next", which can be an earlier stop it hasn't
+    // reached yet, still showing a smaller delay than what the feed already
+    // predicts by the time it reaches the boarding station. Real report: the
+    // card's headline said "+20 min" while the predicted departure/arrival
+    // times next to it already reflected +29 min — because the headline was
+    // reading the train's very next stop overall, upstream of boarding_station,
+    // while the times were correctly reading boarding_station/destination_station
+    // themselves. See currentDelay()'s own doc for the exact rule.
+    const { delaySec, refStation } = currentDelay(stops, bIdx, nowSec);
+    const delayMinutes = toMin(delaySec);
+    const nextStop = refStation;
 
     const phase = nowSec < schedDepSec ? 'preDeparture' : 'inTransit';
 
@@ -247,6 +284,6 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
 }
 
 module.exports = {
-    build, toSwiftDate, fromSwiftDate, normalizeStation, findStopIndex,
+    build, toSwiftDate, fromSwiftDate, normalizeStation, findStopIndex, currentDelay,
     computeProgress, geometrySegmentProgress, SWIFT_EPOCH_OFFSET, DELAY_THRESHOLD_MIN,
 };

@@ -305,6 +305,42 @@ test('content-state satisfies the Swift decoder', async (t) => {
         assert.strictEqual(contentState.build(makeRow(), rt(120), now).state.isDelayed, true, '2 min is delayed');
     });
 
+    await t.test('pre-departure delay is the BOARDING station\'s own, not an earlier stop the train hasn\'t reached yet', () => {
+        // Real report: card headline said "+20 min" while predictedDeparture
+        // right next to it already reflected +29 min, because the headline
+        // picked the train's very next stop overall (an earlier point on its
+        // route, still ahead of boarding_station, showing a smaller delay
+        // than what the feed already predicts by the time it reaches София).
+        const now = new Date('2026-07-23T11:00:00Z'); // scheduled_departure is 12:00Z — still pre-departure
+        const nowSec = Math.floor(now.getTime() / 1000);
+        const rt = {
+            stops: [
+                // Earlier stop the train is still approaching — smaller delay.
+                { station: 'Мездра',  arrivalTime: nowSec + 300,  arrivalDelay: 1200 }, // +20 min
+                // The passenger's own boarding station, further ahead — larger delay.
+                { station: 'София',   arrivalTime: nowSec + 1200, arrivalDelay: 1740, departureDelay: 1740 }, // +29 min
+                { station: 'Пловдив', arrivalTime: nowSec + 8000, arrivalDelay: 1740 },
+            ],
+        };
+        const { state } = contentState.build(makeRow(), rt, now);
+        assert.strictEqual(state.delayMinutes, 29, 'must match София\'s own delay, not Мездра\'s');
+        assert.strictEqual(state.predictedDeparture, contentState.toSwiftDate(nowSec + 1200),
+            'sanity: the predicted time was already correct — the headline number was the bug');
+    });
+
+    await t.test('once boarded (boarding stop already behind), the headline follows the next stop AHEAD, as before', () => {
+        const now = new Date('2026-07-23T13:00:00Z');
+        const nowSec = Math.floor(now.getTime() / 1000);
+        const rt = {
+            stops: [
+                { station: 'София',   arrivalTime: nowSec - 600, departureTime: nowSec - 500, arrivalDelay: 1740, departureDelay: 1740 },
+                { station: 'Пловдив', arrivalTime: nowSec + 900, arrivalDelay: 300 }, // caught up along the way
+            ],
+        };
+        const { state } = contentState.build(makeRow(), rt, now);
+        assert.strictEqual(state.delayMinutes, 5, 'now the CURRENT delay ahead of the passenger, not the departed boarding stop\'s stale one');
+    });
+
     await t.test('isGPSTracked is set only when a position exists without a feed', () => {
         const now = new Date('2026-07-23T13:00:00Z');
         const nowSec = Math.floor(now.getTime() / 1000);
