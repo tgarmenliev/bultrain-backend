@@ -17,7 +17,23 @@ require('dotenv').config({ override: true });
 
 // ── Database bootstrap ──────────────────────────────────────────────────────
 // Must run before any route module below, because they open the database
-// readonly at require() time and readonly connections cannot set WAL mode.
+// readonly at require() time — a readonly connection against a stale schema
+// fails as soon as a controller queries a column that migration hasn't added
+// yet, and a readonly connection cannot set WAL mode either way.
+//
+// Migrating here (not just relying on the daily GTFS refresh, which happens
+// to run `node database/migrate.js` as its own first step) is the fix for a
+// real incident: POST /arm started throwing 500 for every caller right after
+// migration 015 shipped, because `pm2 restart` alone does not apply new
+// migrations — only the nightly timer did, and only once it next ran. A
+// migration that ships and deploys in the same sitting, ahead of that timer,
+// left the column missing for however long stood in between.
+// Explicit path, not the bare no-arg call: migrate.js's own default falls
+// back to process.argv[2] (its CLI-arg convention), which here would be
+// whatever server.js itself happened to be launched with — not a database
+// path at all in the normal case. BULTRAIN_DB stays the one override, same
+// as every other module in this codebase.
+require('./database/migrate')(process.env.BULTRAIN_DB || path.join(__dirname, 'bultrain.sqlite'));
 require('./database/ensureWal')();
 
 // ── Middleware ──────────────────────────────────────────────────────────────
