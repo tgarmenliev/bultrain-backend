@@ -32,6 +32,16 @@ require('../database/migrate')(TMP);
 const cache = require('../services/realtime/cache');
 const scheduleController = require('../controllers/scheduleController');
 
+// A station with both names, for the English-search regression below — the
+// feed only ever knows the Bulgarian one.
+const Database = require('better-sqlite3');
+{
+    const db = new Database(TMP);
+    db.prepare('INSERT OR REPLACE INTO stations (id, name, english_name, lat, lon) VALUES (?, ?, ?, ?, ?)')
+        .run(9001, 'София', 'Sofia', 42.7121794, 23.3211294);
+    db.close();
+}
+
 test('a boarding station with a live TripUpdate reports its own delay, not a whole-trip headline', () => {
     const soon = Math.floor(Date.now() / 1000) + 600;
     cache.setTrips(new Map([['2612', [{ tripId: '2612-BV-x', stops: [
@@ -94,4 +104,35 @@ test('withLiveDelay does not mutate or drop the original leg fields', () => {
     const [enriched] = scheduleController.__test.withLiveDelay([original]);
     assert.strictEqual(enriched.depart, '10:00');
     assert.strictEqual(enriched.trainType, 'ПВ');
+});
+
+// ── Real incident: English-language search always came back hasLiveDelay:false ──
+// `from` is the DISPLAY name ("Sofia" for an 'en' search); the GTFS-RT feed's
+// own stops always carry the Bulgarian name regardless of search language —
+// matching the display name against the feed silently failed every time.
+
+test('an English-language leg still matches the feed, via _fromStationId resolving the Bulgarian name', () => {
+    const soon = Math.floor(Date.now() / 1000) + 600;
+    cache.setTrips(new Map([['2700', [{ tripId: '2700-BV-x', stops: [
+        { station: 'София', arrivalDelay: null, arrivalTime: null, departureDelay: 480, departureTime: soon },
+    ] }]]]), Date.now());
+    cache.setVehicles(new Map(), Date.now());
+
+    // What buildOptions actually hands off for an 'en' search: display name in
+    // English, the underlying station id carried alongside for exactly this.
+    const enriched = scheduleController.__test.withLiveDelay([
+        { from: 'Sofia', to: 'Plovdiv', trainNumber: '2700', _fromStationId: 9001 },
+    ]);
+
+    assert.strictEqual(enriched[0].hasLiveDelay, true, 'must match despite from being in English, not Bulgarian');
+    assert.strictEqual(enriched[0].delayMinutes, 8);
+    assert.strictEqual(enriched[0].from, 'Sofia', 'the DISPLAY name is untouched — only the match target changes');
+    assert.strictEqual('_fromStationId' in enriched[0], false, 'internal field must never reach the client');
+});
+
+test('without _fromStationId (older/synthetic caller), falls back to matching `from` directly', () => {
+    cache.setTrips(new Map(), Date.now());
+    cache.setVehicles(new Map(), Date.now());
+    const enriched = scheduleController.__test.withLiveDelay([{ from: 'Пловдив', to: 'Бургас', trainNumber: '1' }]);
+    assert.strictEqual('_fromStationId' in enriched[0], false);
 });

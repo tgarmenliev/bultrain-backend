@@ -227,15 +227,25 @@ function isSofiaToday(ymd) {
  * journey" / alarm window past the scheduled departure is warranted for THIS
  * specific leg. hasLiveDelay distinguishes "confirmed on time" (true, 0) from
  * "no coverage at all" (false, null) — never invent a delay from absence.
+ *
+ * Real incident: this always came back hasLiveDelay:false on an English-
+ * language search. `t.from` is the DISPLAY name (english_name for an 'en'
+ * search — "Sofia"), but the GTFS-RT feed's own stops always carry the
+ * Bulgarian name (station_map/stations.name — "София"), regardless of what
+ * language anyone searched in. Matching the display name against the feed
+ * silently failed every single time for 'en'; matching the station's
+ * Bulgarian name (via _fromStationId, resolved fresh here) works for both.
  */
 function withLiveDelay(trains) {
     return trains.map(t => {
+        const { _fromStationId, ...t2 } = t;
+        const bgName = _fromStationId != null ? getStationName(_fromStationId, 'bg') : t.from;
         const rt = cache.getTrain(t.trainNumber);
         const stops = rt && Array.isArray(rt.stops) ? rt.stops.filter(s => s.station) : null;
-        const idx = stops ? findStopIndex(stops, t.from) : -1;
-        if (idx < 0) return { ...t, hasLiveDelay: false, delayMinutes: null };
+        const idx = stops ? findStopIndex(stops, bgName) : -1;
+        if (idx < 0) return { ...t2, hasLiveDelay: false, delayMinutes: null };
         const s = stops[idx];
-        return { ...t, hasLiveDelay: true, delayMinutes: delayMinutesFrom(s.departureDelay ?? s.arrivalDelay) };
+        return { ...t2, hasLiveDelay: true, delayMinutes: delayMinutesFrom(s.departureDelay ?? s.arrivalDelay) };
     });
 }
 
@@ -286,6 +296,10 @@ function buildOptions(paths, dateStr, language) {
                 timeToWaitNext: isLast ? 0 : '__PENDING__',
                 _absDepart:    absDepart,
                 _absArrive:    absArrive,
+                // Internal only — lets withLiveDelay() resolve the station's
+                // Bulgarian name for feed-matching regardless of `from`'s
+                // display language. Stripped before the client ever sees it.
+                _fromStationId: leg.fromStationId,
             });
         }
 
@@ -390,9 +404,16 @@ exports.generateScheduleData = async (language, from, to, date) => {
     options.sort((a, b) => a.departMins - b.departMins);
 
     // Only for today: a delay reading is meaningless for a future date, so the
-    // fields are omitted there entirely (not sent as null/false).
+    // fields are omitted there entirely (not sent as null/false). Either way,
+    // _fromStationId (internal, added in buildOptions for withLiveDelay's own
+    // use) must never reach the client — stripped on both branches.
     if (isSofiaToday(date)) {
         options = options.map(opt => ({ ...opt, trains: withLiveDelay(opt.trains) }));
+    } else {
+        options = options.map(opt => ({
+            ...opt,
+            trains: opt.trains.map(({ _fromStationId, ...t }) => t),
+        }));
     }
 
     return {
