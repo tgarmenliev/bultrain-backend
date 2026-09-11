@@ -28,6 +28,7 @@ const laStore      = require('./store');
 const apns         = require('./apns');
 const fcm          = require('./fcm');
 const contentState = require('./contentState');
+const stationDisplay = require('../gtfs/stationDisplay');
 const logic        = require('./armedLogic');
 const metrics      = require('./metrics');
 const pushBody     = require('./pushBody');
@@ -80,6 +81,7 @@ function asTokenRow(row) {
         // The card's per-leg field wants the passenger-facing form. Prefer what
         // the client sent, else compose it from the train's GTFS category.
         train_number_display: row.train_number_display || trainCategory.displayFor(row.train_number, row.app_language),
+        app_language: row.app_language,
         boarding_station: row.boarding_station,
         destination_station: row.destination_station,
         direction_station: row.direction_station,
@@ -140,14 +142,21 @@ function buildStartBody(row, state, nowSec) {
     const totalDistanceKm = stationCoords.distanceKm(row.boarding_station, row.destination_station);
     if (totalDistanceKm == null) return null;
 
+    // row.boarding_station/destination_station are always Bulgarian — the
+    // client registers them that way so they line up with the feed (see
+    // stationDisplay.js) — so the passenger-facing text is translated here,
+    // not stored translated.
+    const originDisplay = stationDisplay.displayStationName(row.boarding_station, row.app_language);
+    const destinationDisplay = stationDisplay.displayStationName(row.destination_station, row.app_language);
+
     const attributes = {
         journeyId: row.journey_id,
         // The DISPLAY form ("БВ 3637") — the card names the train the way
         // the rest of the app does. The bare number stays in train_number
         // for feed matching and never reaches the passenger.
         trainNumber: trainLabel(row),
-        originStation: row.boarding_station,
-        destinationStation: row.destination_station,
+        originStation: originDisplay,
+        destinationStation: destinationDisplay,
         totalDistanceKm,
         scheduledDeparture: attrDate(row.scheduled_departure),
         scheduledArrival: attrDate(row.scheduled_arrival),
@@ -167,8 +176,8 @@ function buildStartBody(row, state, nowSec) {
             'alert': {
                 title: trainLabel(row),
                 body: row.app_language === 'en'
-                    ? `Travelling to ${row.destination_station}`
-                    : `Пътуване към ${row.destination_station}`,
+                    ? `Travelling to ${destinationDisplay}`
+                    : `Пътуване към ${destinationDisplay}`,
             },
             'stale-date': nowSec + 15 * 60,
         },
@@ -435,7 +444,10 @@ function connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec) {
 
 async function maybeAlert(row, feed, now, legCtx, siblings) {
     const phase = logic.legPhase(row, feed.predictedDepUnix, now);
-    const ctx = { phase, role: legCtx.role, language: row.app_language };
+    // row.destination_station is always Bulgarian (see stationDisplay.js) —
+    // translated here so alertText() (kept DB-free by design) never has to.
+    const destinationDisplay = stationDisplay.displayStationName(row.destination_station, row.app_language);
+    const ctx = { phase, role: legCtx.role, language: row.app_language, destinationDisplay };
 
     const d = logic.evaluateDelayAlert(row, feed.delayMin, now, ctx);
     if (!d.shouldAlert) {

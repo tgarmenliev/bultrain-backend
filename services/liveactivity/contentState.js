@@ -17,6 +17,7 @@
  */
 
 const progress = require('../realtime/progress');
+const stationDisplay = require('../gtfs/stationDisplay');
 
 // 2001-01-01T00:00:00Z expressed in Unix seconds.
 const SWIFT_EPOCH_OFFSET = 978307200;
@@ -230,7 +231,13 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
         isDelayed:             delayMinutes != null && delayMinutes >= DELAY_THRESHOLD_MIN,
         lastUpdated:           toSwiftDate(nowSec),
         phase,
-        directionStation:      tokenRow.direction_station || tokenRow.destination_station || '',
+        // The row stores the Bulgarian name (it has to, to match the feed —
+        // see stationDisplay.js's header) regardless of app_language, so the
+        // passenger-facing text is translated here, at the point it's read
+        // for display, not at the point it's stored.
+        directionStation: stationDisplay.displayStationName(
+            tokenRow.direction_station || tokenRow.destination_station || '', tokenRow.app_language
+        ),
         currentLegIndex:       tokenRow.current_leg_index ?? 0,
         isNextTransportBus:    !!tokenRow.is_next_transport_bus,
         isCurrentTransportBus: !!tokenRow.is_current_bus,
@@ -249,8 +256,12 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
     // destination here is the transfer station, not the end of the journey.
     const legLabel = tokenRow.train_number_display || null;
     if (legLabel) state.legTransportNumber = legLabel;
-    if (tokenRow.boarding_station)    state.legOriginStation = tokenRow.boarding_station;
-    if (tokenRow.destination_station) state.legDestinationStation = tokenRow.destination_station;
+    if (tokenRow.boarding_station) {
+        state.legOriginStation = stationDisplay.displayStationName(tokenRow.boarding_station, tokenRow.app_language);
+    }
+    if (tokenRow.destination_station) {
+        state.legDestinationStation = stationDisplay.displayStationName(tokenRow.destination_station, tokenRow.app_language);
+    }
     if (Number.isFinite(schedDepSec)) state.legScheduledDeparture = toSwiftDate(schedDepSec);
     if (Number.isFinite(schedArrSec)) state.legScheduledArrival = toSwiftDate(schedArrSec);
 

@@ -316,13 +316,19 @@ const ALERT_COPY = {
  * you leave" is nonsense, and a connection warning has to name itself as
  * being about the NEXT train or it will be read as being about the current
  * one. `ctx.language` — 'en' or anything else ('bg', missing, unrecognized).
+ *
+ * `ctx.destinationDisplay`, when given, is used in place of
+ * `row.destination_station` — this function stays free of the database, so
+ * it cannot translate the (always-Bulgarian, see stationDisplay.js) station
+ * name itself; the caller resolves it first. Falls back to the raw row value
+ * so existing callers that don't pass it keep working unchanged.
  */
 function alertText(row, delayMin, kind, label, ctx = {}) {
     const phase = ctx.phase || 'preDeparture';
     const role  = ctx.role  || 'active';
     const c = ALERT_COPY[ctx.language === 'en' ? 'en' : 'bg'];
     const train = label || c.bareTrain(row.train_number);
-    const to = row.destination_station;
+    const to = ctx.destinationDisplay || row.destination_station;
     const word = c.word(delayMin);
 
     if (role === 'connection') {
