@@ -18,6 +18,7 @@ const TMP = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bultrain-prio-')), 
 process.env.BULTRAIN_DB = TMP;
 require('../database/migrate')(TMP);
 
+const Database     = require('better-sqlite3');
 const armedStore   = require('../services/liveactivity/armedStore');
 const apns         = require('../services/liveactivity/apns');
 const testFeed     = require('../services/liveactivity/testFeed');
@@ -48,6 +49,15 @@ function armLeg(journeyId, legIndex, train, boarding, destination, depOffsetMs, 
     // negative depOffsetMs), so legPhase() reads 'inTransit'.
     const row = armedStore.listActive().find(r => r.journey_id === journeyId && r.leg_index === legIndex);
     armedStore.markStarted(row.id);
+
+    // These legs are already under way, not freshly armed this instant — back
+    // date created_at to match, so the arm-time alert grace period (which only
+    // exists to hold back a delay already sitting there the moment someone
+    // registers a journey) doesn't swallow the alert this test is checking for.
+    const db = new Database(TMP);
+    db.prepare('UPDATE armed_journeys SET created_at = ? WHERE id = ?')
+        .run(new Date(Date.now() - 15 * 60000).toISOString(), row.id);
+    db.close();
 }
 
 test.beforeEach(() => {

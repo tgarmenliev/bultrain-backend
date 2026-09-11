@@ -122,6 +122,12 @@ const ALERT_CHANGE_MIN     = 5;                // material change before departu
 const ALERT_CHANGE_MIN_IN_TRANSIT = 10;
 const ALERT_MIN_INTERVAL_MS = 10 * 60 * 1000;  // never two alerts back to back
 const ALERT_MAX_PER_LEG    = 5;
+// A delay already present at arm time reads as spam if the very first tick
+// after /arm fires it instantly — the passenger just registered the journey
+// and hasn't looked away yet, and the Live Activity already shows it without
+// waiting. Held back only for the leg's very first alert (see maybeAlert in
+// armedWatcher.js), never for one discovered after this window has passed.
+const ALERT_ARM_GRACE_MS = 4 * 60 * 1000;
 
 /**
  * @param {object} row      armed_journeys row (carries last_delay_min, alerts_sent)
@@ -369,5 +375,6 @@ module.exports = {
     connectionRiskBand, isAlertActionable,
     START_WINDOW_MS, ALERT_MIN_DELAY_MIN, ALERT_CHANGE_MIN,
     ALERT_CHANGE_MIN_IN_TRANSIT, ALERT_MIN_INTERVAL_MS, ALERT_MAX_PER_LEG,
+    ALERT_ARM_GRACE_MS,
     MAX_JOURNEY_AHEAD_MS, CONNECTION_ALERT_WINDOW_MS, COMFORTABLE_TRANSFER_MIN,
 };

@@ -446,6 +446,23 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
         return;
     }
 
+    // A delay already sitting there when the leg was armed shouldn't reach the
+    // passenger as an interruption seconds later — they just registered the
+    // journey, the Live Activity already shows it immediately, and in most
+    // cases they saw it in the schedule search results before arming at all.
+    // Held back only for this leg's very first alert; anything discovered
+    // after the grace window, or any alert once one has already been sent,
+    // fires exactly as before.
+    if (row.alerts_sent === 0) {
+        const sinceArm = now.getTime() - new Date(row.created_at).getTime();
+        if (sinceArm < logic.ALERT_ARM_GRACE_MS) {
+            if (feed.delayMin != null && feed.delayMin !== row.last_delay_min) {
+                store.recordDelaySeen(row.id, feed.delayMin);
+            }
+            return;
+        }
+    }
+
     const device = store.getToken(row.install_id, 'alert');
     if (!device) {
         console.warn(`[armed] no alert token for install=${row.install_id} — skipping delay alert j=${row.journey_id}`);
