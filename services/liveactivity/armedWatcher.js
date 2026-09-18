@@ -474,14 +474,20 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
     // Held back only for this leg's very first alert; anything discovered
     // after the grace window, or any alert once one has already been sent,
     // fires exactly as before.
+    //
+    // Real incident: this used to call recordDelaySeen() here too, which wrote
+    // last_delay_min during the hold-back — so once the grace window passed
+    // with the SAME delay still sitting there (the common case: a big delay
+    // that isn't changing tick to tick), evaluateDelayAlert compared the fresh
+    // reading against that already-recorded value, saw no material change, and
+    // never alerted AT ALL — not delayed 4 minutes, silently lost forever. Must
+    // leave last_delay_min untouched here so the leg's `last == null` branch
+    // still fires 'delay-appeared' the first tick after grace actually ends.
     if (row.alerts_sent === 0) {
         const sinceArm = now.getTime() - new Date(row.created_at).getTime();
         if (sinceArm < logic.ALERT_ARM_GRACE_MS) {
             console.log(`[armed] delay-check j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
                         `delay=${feed.delayMin}m decision=skip (arm-grace, ${Math.round(sinceArm / 1000)}s since arm)`);
-            if (feed.delayMin != null && feed.delayMin !== row.last_delay_min) {
-                store.recordDelaySeen(row.id, feed.delayMin);
-            }
             return;
         }
     }

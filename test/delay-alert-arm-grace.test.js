@@ -82,8 +82,63 @@ test('a delay already present at arm time does not alert on the very first tick'
     assert.strictEqual(mock.calls.length, 0, 'held back — the leg was armed seconds ago');
 
     const row = armedStore.listActive().find(r => r.journey_id === journeyId);
-    assert.strictEqual(row.last_delay_min, 15, 'still recorded via recordDelaySeen, so a later comparison is against truth, not stale null');
+    // Real incident: this used to assert last_delay_min===15 here, on the
+    // theory that recording it during the hold-back kept "the next comparison
+    // against truth." That was the bug itself — once grace passed with the
+    // delay still sitting at 15, evaluateDelayAlert saw last===current and
+    // called it 'no-material-change', and the withheld alert was never sent,
+    // ever, not just delayed. last_delay_min MUST stay null through the grace
+    // window so the leg's `last == null` branch still fires once grace ends.
+    assert.strictEqual(row.last_delay_min, null, 'must stay null through grace — see the arm-grace regression test below');
     assert.strictEqual(row.alerts_sent, 0);
+
+    armedStore.disarm(INSTALL, journeyId, 0);
+});
+
+test('REGRESSION: a delay that never changes still alerts once grace ends — not lost forever', async () => {
+    const journeyId = 'j-armgrace-unchanged-after-grace';
+    armedStore.arm({
+        install_id: INSTALL, journey_id: journeyId, leg_index: 0,
+        train_number: 'TEST-ARMGRACE-4', boarding_station: 'Board', destination_station: 'End',
+        direction_station: null,
+        scheduled_departure: new Date(Date.now() + 20 * 60000).toISOString(),
+        scheduled_arrival:   new Date(Date.now() + 80 * 60000).toISOString(),
+        is_current_bus: 0, next_transport_number: null,
+        next_transport_departure: null, is_next_transport_bus: 0,
+        now: armedStore.nowIso(),
+    });
+    const row0 = armedStore.listActive().find(r => r.journey_id === journeyId);
+    armedStore.markStarted(row0.id);
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const stops = { trip: { stops: [
+        { station: 'Board', arrivalTime: null, departureTime: nowSec + 20 * 60, arrivalDelay: null, departureDelay: 600 },
+        { station: 'End', arrivalTime: nowSec + 80 * 60, departureTime: null, arrivalDelay: 600, departureDelay: null },
+    ] } };
+    testFeed.set('TEST-ARMGRACE-4', stops);
+
+    // Tick #1: still inside the grace window — held back, exactly like the
+    // test above.
+    const mock = mockApns();
+    try {
+        await armedWatcher.tick();
+        assert.strictEqual(mock.calls.length, 0, 'first tick, still in grace — held back');
+
+        // The SAME 10-minute delay, completely unchanged, observed again after
+        // the grace window has elapsed. Nothing about the feed changed —
+        // only time passed.
+        setCreatedAt(row0.id, new Date(Date.now() - (logic.ALERT_ARM_GRACE_MS + 60000)).toISOString());
+        testFeed.set('TEST-ARMGRACE-4', stops);
+
+        await armedWatcher.tick();
+        assert.strictEqual(mock.calls.length, 1,
+            'grace ended with the delay still unchanged — the withheld alert must fire now, not be silently dropped');
+    } finally {
+        mock.restore();
+    }
+
+    const row = armedStore.listActive().find(r => r.journey_id === journeyId);
+    assert.strictEqual(row.alerts_sent, 1);
 
     armedStore.disarm(INSTALL, journeyId, 0);
 });
