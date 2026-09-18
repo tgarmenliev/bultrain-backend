@@ -449,8 +449,17 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
     const destinationDisplay = stationDisplay.displayStationName(row.destination_station, row.app_language);
     const ctx = { phase, role: legCtx.role, language: row.app_language, destinationDisplay };
 
+    // Logged unconditionally, same discipline as maybeStart's trigger log —
+    // this runs unattended overnight, and a silent "no alert" was exactly what
+    // made a real Android report ("delay_alert never arrives") unanswerable
+    // from the logs alone: evaluateDelayAlert can refuse for several reasons
+    // (no coverage, below threshold, cooldown, cap, arm-grace) and NONE of
+    // them used to leave a trace.
     const d = logic.evaluateDelayAlert(row, feed.delayMin, now, ctx);
     if (!d.shouldAlert) {
+        console.log(`[armed] delay-check j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
+                    `delay=${feed.delayMin ?? '—'}m was=${row.last_delay_min ?? '—'} role=${ctx.role} phase=${ctx.phase} ` +
+                    `decision=skip (${d.reason})`);
         // Still remember what we saw, so the next comparison is against truth.
         if (feed.delayMin != null && feed.delayMin !== row.last_delay_min && d.reason === 'below-threshold') {
             store.recordDelaySeen(row.id, feed.delayMin);
@@ -468,6 +477,8 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
     if (row.alerts_sent === 0) {
         const sinceArm = now.getTime() - new Date(row.created_at).getTime();
         if (sinceArm < logic.ALERT_ARM_GRACE_MS) {
+            console.log(`[armed] delay-check j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
+                        `delay=${feed.delayMin}m decision=skip (arm-grace, ${Math.round(sinceArm / 1000)}s since arm)`);
             if (feed.delayMin != null && feed.delayMin !== row.last_delay_min) {
                 store.recordDelaySeen(row.id, feed.delayMin);
             }
