@@ -29,6 +29,20 @@ function findByUsername(username) {
     ).get(String(username || '')) || null;
 }
 
+/** Active account for an id (the `uid` carried in the login token), or null. */
+function findById(id) {
+    return conn().prepare(
+        'SELECT id, username, password_hash, salt, role, active FROM users WHERE id = ? AND active = 1'
+    ).get(id) || null;
+}
+
+/** @returns {boolean} whether an active account was actually updated */
+function updatePassword(id, password_hash, salt) {
+    return conn().prepare(
+        'UPDATE users SET password_hash = ?, salt = ? WHERE id = ? AND active = 1'
+    ).run(password_hash, salt, id).changes === 1;
+}
+
 function create({ username, password_hash, salt, role = 'author' }) {
     return conn().prepare(
         'INSERT INTO users (username, password_hash, salt, role, created_at) VALUES (?, ?, ?, ?, ?)'
@@ -39,4 +53,4 @@ function count() {
     return conn().prepare('SELECT COUNT(*) AS c FROM users').get().c;
 }
 
-module.exports = { findByUsername, create, count };
+module.exports = { findByUsername, findById, updatePassword, create, count };

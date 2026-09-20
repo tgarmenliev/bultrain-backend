@@ -6,6 +6,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 const verifyAdmin = require('../middleware/verifyAdmin');
 const verifyRole = require('../middleware/verifyRole');
 const adminController = require('../controllers/adminController');
+const adminGtfsController = require('../controllers/adminGtfsController');
+const accountController = require('../controllers/accountController');
 const mediaController = require('../controllers/mediaController');
 const articlesController = require('../controllers/articlesController');
 const { createRateLimit } = require('../middleware/rateLimit');
@@ -43,6 +45,17 @@ router.post('/logout', adminController.logout);
 // Any authenticated account — used by the panel to learn its own role.
 router.get('/me', verifyRole(), adminController.getMe);
 
+// ── Own account (any authenticated user) ────────────────────────────────────
+// The old-password check is a password oracle for anyone holding a session
+// cookie, so it gets its own tight per-IP limit, applied before the work runs.
+const changePasswordLimit = createRateLimit({
+    windowMs: 60_000,
+    max: 5,
+    message: 'Too many attempts. Try again shortly.',
+});
+router.get('/account', verifyRole(), accountController.getAccount);
+router.post('/change-password', changePasswordLimit, verifyRole(), accountController.changePassword);
+
 // ── Media (admin OR author) ─────────────────────────────────────────────────
 router.post('/media', verifyRole('admin', 'author'), (req, res) => {
     mediaUpload(req, res, (err) => {
@@ -69,6 +82,11 @@ router.delete('/articles/:id',       authorOrAdmin, articlesController.remove);
 
 // ── Protected (requires valid admin JWT) ────────────────────────────────────
 router.get('/stats', verifyAdmin, adminController.getStats);
+
+// ── Saved GTFS schedule (what the app is served from) + dashboard overview ──
+router.get('/overview', verifyAdmin, adminGtfsController.overview);
+router.get('/gtfs/trains', verifyAdmin, adminGtfsController.listTrains);
+router.get('/gtfs/trains/:trainNo', verifyAdmin, adminGtfsController.getTrain);
 
 router.get('/guide', verifyAdmin, adminController.listTopics);
 router.post('/guide', verifyAdmin, adminController.createTopic);
