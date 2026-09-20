@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { ArrowDown, ArrowLeft, ArrowUp, Plus, X } from 'lucide-react';
 
 type BlockType = 'heading' | 'paragraph' | 'image' | 'quote' | 'tip' | 'route';
 
@@ -77,7 +78,7 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
     const L = {
         heading: isGuide ? 'Справочник' : 'Идеи за пътуване',
         sub: isGuide ? 'Съдържание на наръчника в приложението.' : 'Статии за еднодневни пътувания с влак.',
-        newBtn: isGuide ? '+ Нова тема' : '+ Нова статия',
+        newBtn: isGuide ? 'Нова тема' : 'Нова статия',
         empty: isGuide ? 'Още няма теми. Създай първата.' : 'Още няма статии. Създай първата.',
         loadError: isGuide ? 'Темата не се зареди' : 'Статията не се зареди',
         deleteConfirm: isGuide ? 'Да изтрия ли темата?' : 'Да изтрия ли статията?',
@@ -178,40 +179,41 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
     // ═══════════ LIST ═══════════
     if (!ed) {
         return (
-            <div className="space-y-8">
-                <div className="flex items-center justify-between">
+            <div key="list" className="view-enter space-y-6">
+                <div className="flex items-start justify-between gap-4">
                     <div>
-                        <h2 className="text-3xl font-bold text-gradient">{L.heading}</h2>
-                        <p className="text-slate-400 text-sm mt-2">{L.sub}</p>
+                        <h2 className="page-title">{L.heading}</h2>
+                        <p className="page-sub">{L.sub}</p>
                     </div>
-                    <button onClick={openNew} className="btn-glow px-6 py-3">{L.newBtn}</button>
+                    <button onClick={openNew} className="btn btn-primary shrink-0"><Plus size={16} strokeWidth={2.25} aria-hidden="true" />{L.newBtn}</button>
                 </div>
                 {error && <ErrorBox msg={error} />}
-                {loading ? <p className="text-slate-400">Зареждане…</p> : (
-                    <div className="grid gap-4">
-                        {items.length === 0 && <p className="text-slate-500">{L.empty}</p>}
+                {loading ? <p className="text-muted">Зареждане…</p> : items.length === 0 ? (
+                    <div className="card card-pad text-center text-muted">{L.empty}</div>
+                ) : (
+                    <ul className="card divide-list overflow-hidden">
                         {items.map(a => (
-                            <div key={a.id} className="glass-card rounded-2xl p-5 flex items-center gap-4">
-                                <div className="w-20 h-14 rounded-lg bg-slate-800 overflow-hidden shrink-0">
-                                    {a.cover_image && <img src={IMG(a.cover_image)} alt="" className="w-full h-full object-cover" />}
+                            <li key={a.id} className="flex items-center gap-4 p-4">
+                                <div className="h-12 w-[4.5rem] shrink-0 overflow-hidden rounded-md bg-sunken">
+                                    {a.cover_image && <img src={IMG(a.cover_image)} alt="" className="h-full w-full object-cover" />}
                                 </div>
-                                <div className="flex-1 min-w-0">
+                                <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                        <h3 className="font-bold text-white truncate">{a.title}</h3>
+                                        <h3 className="min-w-0 truncate font-medium">{a.title}</h3>
                                         <StatusBadge status={a.status} />
-                                        {!isGuide && !!a.featured && <span className="text-[10px] font-black uppercase text-purple-300 bg-purple-500/15 px-2 py-0.5 rounded-md border border-purple-500/25">Топ</span>}
+                                        {!isGuide && !!a.featured && <span className="badge badge-accent">Топ</span>}
                                     </div>
                                     {!isGuide && (
-                                        <p className="text-xs text-slate-400 mt-1 truncate">
+                                        <p className="mt-0.5 truncate text-[0.8125rem] text-muted">
                                             {[a.region, a.season, a.duration_min ? `${a.duration_min} мин` : null, a.related_train ? `влак ${a.related_train}` : null].filter(Boolean).join(' · ') || '—'}
                                         </p>
                                     )}
                                 </div>
-                                <button onClick={() => openEdit(a.id)} className="px-4 py-2 rounded-lg text-sm font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/25 hover:bg-indigo-500/20">Редактирай</button>
-                                <button onClick={() => del(a.id)} className="px-3 py-2 rounded-lg text-sm font-bold text-rose-300 bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/20">Изтрий</button>
-                            </div>
+                                <button onClick={() => openEdit(a.id)} className="btn btn-secondary btn-sm">Редактирай</button>
+                                <button onClick={() => del(a.id)} className="btn btn-danger btn-sm">Изтрий</button>
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                 )}
             </div>
         );
@@ -219,41 +221,41 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
 
     // ═══════════ EDITOR ═══════════
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-                <button onClick={() => setEd(null)} className="text-slate-400 hover:text-white text-sm font-bold">← Назад към списъка</button>
-                <div className="flex items-center gap-2">
+        <div key="editor" className="view-enter space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <button onClick={() => setEd(null)} className="btn btn-ghost btn-sm -ml-2.5"><ArrowLeft size={15} strokeWidth={2} aria-hidden="true" />Назад към списъка</button>
+                <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={ed.status} />
-                    <button onClick={save} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-200 bg-slate-700/50 border border-white/10 hover:bg-slate-700 disabled:opacity-50">{busy ? 'Записване…' : 'Запази чернова'}</button>
-                    <button onClick={makePreview} className="px-4 py-2 rounded-lg text-sm font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20">Линк за преглед</button>
+                    <button onClick={save} disabled={busy} className="btn btn-secondary">{busy ? 'Записване…' : 'Запази чернова'}</button>
+                    <button onClick={makePreview} className="btn btn-secondary">Линк за преглед</button>
                     {ed.status === 'published'
-                        ? <button onClick={() => setStatus('unpublish')} className="px-4 py-2 rounded-lg text-sm font-bold text-amber-300 bg-amber-500/10 border border-amber-500/25 hover:bg-amber-500/20">Скрий</button>
-                        : <button onClick={() => setStatus('publish')} className="btn-glow px-5 py-2 text-sm">Публикувай</button>}
+                        ? <button onClick={() => setStatus('unpublish')} className="btn btn-secondary">Скрий</button>
+                        : <button onClick={() => setStatus('publish')} className="btn btn-primary">Публикувай</button>}
                 </div>
             </div>
 
             {error && <ErrorBox msg={error} />}
             {preview && (
-                <div className="p-5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex flex-col sm:flex-row items-center gap-5">
-                    <div className="bg-white p-3 rounded-xl shrink-0">
+                <div className="card card-pad flex flex-col items-center gap-5 sm:flex-row">
+                    <div className="shrink-0 rounded-lg border border-line bg-white p-3">
                         <QRCodeSVG value={preview.deepLink} size={240} />
                     </div>
-                    <div className="text-sm text-cyan-200 space-y-2 min-w-0">
-                        <p className="font-bold text-cyan-100 text-base">Преглед в приложението (важи 30 мин)</p>
-                        <p>Сканирай QR кода с телефона си, за да отвориш черновата директно в приложението.</p>
-                        <p className="font-mono text-xs break-all opacity-70">{preview.deepLink}</p>
+                    <div className="min-w-0 space-y-2 text-sm">
+                        <p className="section-title">Преглед в приложението (важи 30 мин)</p>
+                        <p className="text-muted">Сканирай QR кода с телефона си, за да отвориш черновата директно в приложението.</p>
+                        <p className="break-all font-mono text-xs text-muted">{preview.deepLink}</p>
                     </div>
                 </div>
             )}
 
-            <div className="grid lg:grid-cols-2 gap-6">
+            <div className="grid gap-6 lg:grid-cols-2">
                 {/* ── FORM ── */}
                 <div className="space-y-5">
-                    <div className="glass-card rounded-2xl p-5 space-y-4">
-                        <Field label="Заглавие"><input className="input-premium w-full" value={ed.title} onChange={e => setEd({ ...ed, title: e.target.value })} /></Field>
-                        <Field label="Подзаглавие"><input className="input-premium w-full" value={ed.subtitle} onChange={e => setEd({ ...ed, subtitle: e.target.value })} /></Field>
+                    <div className="card card-pad space-y-4">
+                        <Field label="Заглавие"><input className="input" value={ed.title} onChange={e => setEd({ ...ed, title: e.target.value })} /></Field>
+                        <Field label="Подзаглавие"><input className="input" value={ed.subtitle} onChange={e => setEd({ ...ed, subtitle: e.target.value })} /></Field>
                         <Field label="Език">
-                            <select className="input-premium w-full" value={ed.language} onChange={e => setEd({ ...ed, language: e.target.value as 'bg' | 'en' })}>
+                            <select className="input" value={ed.language} onChange={e => setEd({ ...ed, language: e.target.value as 'bg' | 'en' })}>
                                 <option value="bg">Български</option>
                                 <option value="en">English</option>
                             </select>
@@ -262,53 +264,53 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
                         {!isGuide && (
                             <>
                                 <div className="grid grid-cols-2 gap-3">
-                                    <Field label="Регион"><input className="input-premium w-full" value={ed.region} onChange={e => setEd({ ...ed, region: e.target.value })} /></Field>
-                                    <Field label="Сезон"><input className="input-premium w-full" value={ed.season} onChange={e => setEd({ ...ed, season: e.target.value })} placeholder="напр. есен" /></Field>
-                                    <Field label="Времетраене (мин)"><input type="number" className="input-premium w-full" value={ed.duration_min} onChange={e => setEd({ ...ed, duration_min: e.target.value })} /></Field>
-                                    <Field label="Свързан влак"><input className="input-premium w-full" value={ed.related_train} onChange={e => setEd({ ...ed, related_train: e.target.value })} placeholder="номер" /></Field>
+                                    <Field label="Регион"><input className="input" value={ed.region} onChange={e => setEd({ ...ed, region: e.target.value })} /></Field>
+                                    <Field label="Сезон"><input className="input" value={ed.season} onChange={e => setEd({ ...ed, season: e.target.value })} placeholder="напр. есен" /></Field>
+                                    <Field label="Времетраене (мин)"><input type="number" className="input" value={ed.duration_min} onChange={e => setEd({ ...ed, duration_min: e.target.value })} /></Field>
+                                    <Field label="Свързан влак"><input className="input" value={ed.related_train} onChange={e => setEd({ ...ed, related_train: e.target.value })} placeholder="номер" /></Field>
                                 </div>
-                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                                <label className="flex items-center gap-2 text-sm font-medium">
                                     <input type="checkbox" checked={ed.featured} onChange={e => setEd({ ...ed, featured: e.target.checked })} /> Featured
                                 </label>
                             </>
                         )}
                     </div>
 
-                    <div className="glass-card rounded-2xl p-5 space-y-3">
-                        <h4 className="text-sm font-black uppercase tracking-wider text-slate-400">Съдържание</h4>
+                    <div className="card card-pad space-y-3">
+                        <h4 className="section-title">Съдържание</h4>
                         {ed.blocks.map((b, i) => (
-                            <div key={i} className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
+                            <div key={i} className="space-y-2 rounded-lg border border-line bg-canvas p-3">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black uppercase text-purple-300 bg-purple-500/15 px-2 py-0.5 rounded">{BLOCK_LABELS[b.block_type]}</span>
+                                    <span className="badge">{BLOCK_LABELS[b.block_type]}</span>
                                     <div className="ml-auto flex gap-1">
-                                        <button onClick={() => moveBlock(i, -1)} className="px-2 py-0.5 rounded text-xs font-bold text-slate-300 bg-slate-700/40 border border-white/10 hover:bg-slate-700">↑</button>
-                                        <button onClick={() => moveBlock(i, 1)} className="px-2 py-0.5 rounded text-xs font-bold text-slate-300 bg-slate-700/40 border border-white/10 hover:bg-slate-700">↓</button>
-                                        <button onClick={() => removeBlock(i)} className="px-2 py-0.5 rounded text-xs font-bold text-slate-300 bg-slate-700/40 border border-white/10 hover:bg-slate-700 !text-rose-300">✕</button>
+                                        <button onClick={() => moveBlock(i, -1)} aria-label="Премести нагоре" className="btn btn-ghost btn-icon btn-sm"><ArrowUp size={15} aria-hidden="true" /></button>
+                                        <button onClick={() => moveBlock(i, 1)} aria-label="Премести надолу" className="btn btn-ghost btn-icon btn-sm"><ArrowDown size={15} aria-hidden="true" /></button>
+                                        <button onClick={() => removeBlock(i)} aria-label="Премахни блока" className="btn btn-danger-ghost btn-icon btn-sm"><X size={15} aria-hidden="true" /></button>
                                     </div>
                                 </div>
                                 {b.block_type === 'image'
                                     ? <ImageField label="" value={b.image} onUpload={async f => patchBlock(i, { image: await uploadImage(f) })} onClear={() => patchBlock(i, { image: null })} setError={setError} caption={b.text_body} onCaption={v => patchBlock(i, { text_body: v })} />
-                                    : <textarea className="input-premium w-full min-h-[70px]" value={b.text_body} onChange={e => patchBlock(i, { text_body: e.target.value })} placeholder={b.block_type === 'route' ? 'Напр. Влак 10112 · София → Копривщица' : 'Текст…'} />}
+                                    : <textarea className="input min-h-[70px]" value={b.text_body} onChange={e => patchBlock(i, { text_body: e.target.value })} placeholder={b.block_type === 'route' ? 'Напр. Влак 10112 · София → Копривщица' : 'Текст…'} />}
                             </div>
                         ))}
                         <div className="flex flex-wrap gap-2 pt-1">
                             {(Object.keys(BLOCK_LABELS) as BlockType[]).map(t => (
-                                <button key={t} onClick={() => addBlock(t)} className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-300 bg-slate-700/40 border border-white/10 hover:bg-slate-700">+ {BLOCK_LABELS[t]}</button>
+                                <button key={t} onClick={() => addBlock(t)} className="btn btn-secondary btn-sm"><Plus size={13} strokeWidth={2.25} aria-hidden="true" />{BLOCK_LABELS[t]}</button>
                             ))}
                         </div>
                     </div>
                 </div>
 
                 {/* ── LIVE PREVIEW ── */}
-                <div className="lg:sticky lg:top-4 h-fit">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Преглед</p>
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/60 overflow-hidden">
-                        {ed.cover_image && <img src={IMG(ed.cover_image)} alt="" className="w-full h-44 object-cover" />}
-                        <div className="p-5 space-y-3">
-                            <h1 className="text-2xl font-black text-white">{ed.title || 'Без заглавие'}</h1>
-                            {ed.subtitle && <p className="text-slate-400">{ed.subtitle}</p>}
+                <div className="h-fit lg:sticky lg:top-0">
+                    <p className="hint mb-2">Преглед</p>
+                    <div className="card overflow-hidden">
+                        {ed.cover_image && <img src={IMG(ed.cover_image)} alt="" className="h-44 w-full object-cover" />}
+                        <div className="space-y-3 p-5">
+                            <h1 className="text-2xl font-semibold tracking-tight">{ed.title || 'Без заглавие'}</h1>
+                            {ed.subtitle && <p className="text-muted">{ed.subtitle}</p>}
                             {!isGuide && (ed.region || ed.season || ed.duration_min || ed.related_train) && (
-                                <p className="text-xs text-purple-300">{[ed.region, ed.season, ed.duration_min && `${ed.duration_min} мин`, ed.related_train && `влак ${ed.related_train}`].filter(Boolean).join(' · ')}</p>
+                                <p className="text-xs font-medium text-link">{[ed.region, ed.season, ed.duration_min && `${ed.duration_min} мин`, ed.related_train && `влак ${ed.related_train}`].filter(Boolean).join(' · ')}</p>
                             )}
                             <div className="space-y-3 pt-2">
                                 {ed.blocks.map((b, i) => <PreviewBlock key={i} b={b} />)}
@@ -323,14 +325,14 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
 
 // ── small pieces ──
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-    return <div className="space-y-1.5">{label && <label className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</label>}{children}</div>;
+    return <label className="block">{label && <span className="label">{label}</span>}{children}</label>;
 }
 function ErrorBox({ msg }: { msg: string }) {
-    return <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-sm font-medium text-rose-400">{msg}</div>;
+    return <div role="alert" className="alert alert-danger">{msg}</div>;
 }
 function StatusBadge({ status }: { status: string }) {
     const pub = status === 'published';
-    return <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${pub ? 'text-emerald-300 bg-emerald-500/15 border-emerald-500/25' : 'text-slate-400 bg-slate-500/15 border-slate-500/25'}`}>{pub ? 'Публикувана' : 'Чернова'}</span>;
+    return <span className={`badge badge-dot ${pub ? 'badge-success' : ''}`}>{pub ? 'Публикувана' : 'Чернова'}</span>;
 }
 function ImageField({ label, value, onUpload, onClear, setError, caption, onCaption }: {
     label: string; value: string | null; onUpload: (f: File) => Promise<void>; onClear: () => void;
@@ -339,33 +341,33 @@ function ImageField({ label, value, onUpload, onClear, setError, caption, onCapt
     const [up, setUp] = useState(false);
     return (
         <div className="space-y-2">
-            {label && <label className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</label>}
+            {label && <span className="label">{label}</span>}
             <div className="flex items-center gap-3">
-                <div className="w-24 h-16 rounded-lg bg-slate-800 overflow-hidden shrink-0 border border-white/10">
-                    {value && <img src={IMG(value)} alt="" className="w-full h-full object-cover" />}
+                <div className="h-16 w-24 shrink-0 overflow-hidden rounded-md border border-line bg-sunken">
+                    {value && <img src={IMG(value)} alt="" className="h-full w-full object-cover" />}
                 </div>
-                <div className="space-y-1">
-                    <label className="px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/25 hover:bg-indigo-500/20 cursor-pointer inline-block">
+                <div className="flex items-center gap-2">
+                    <label className="btn btn-secondary btn-sm focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
                         {up ? 'Качване…' : (value ? 'Смени' : 'Качи')}
-                        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={async e => {
+                        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={async e => {
                             const f = e.target.files?.[0]; if (!f) return;
                             setUp(true); try { await onUpload(f); } catch (err: any) { setError(err.message); } finally { setUp(false); }
                         }} />
                     </label>
-                    {value && <button onClick={onClear} className="ml-2 text-xs text-rose-300 hover:underline">махни</button>}
+                    {value && <button onClick={onClear} className="btn btn-danger-ghost btn-sm">Махни</button>}
                 </div>
             </div>
-            {onCaption && <input className="input-premium w-full text-sm" value={caption || ''} onChange={e => onCaption(e.target.value)} placeholder="Надпис (по избор)" />}
+            {onCaption && <input className="input" value={caption || ''} onChange={e => onCaption(e.target.value)} placeholder="Надпис (по избор)" />}
         </div>
     );
 }
 function PreviewBlock({ b }: { b: Block }) {
     switch (b.block_type) {
-        case 'heading': return <h2 className="text-lg font-bold text-white">{b.text_body}</h2>;
-        case 'image': return b.image ? <figure><img src={IMG(b.image)} alt="" className="w-full rounded-xl" />{b.text_body && <figcaption className="text-xs text-slate-500 mt-1">{b.text_body}</figcaption>}</figure> : null;
-        case 'quote': return <blockquote className="border-l-2 border-purple-400 pl-3 italic text-slate-300">{b.text_body}</blockquote>;
-        case 'tip': return <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3 text-sm text-emerald-200">💡 {b.text_body}</div>;
-        case 'route': return <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3 text-sm text-indigo-200">🚆 {b.text_body}</div>;
-        default: return <p className="text-slate-300 leading-relaxed">{b.text_body}</p>;
+        case 'heading': return <h2 className="text-lg font-semibold">{b.text_body}</h2>;
+        case 'image': return b.image ? <figure><img src={IMG(b.image)} alt="" className="w-full rounded-lg" />{b.text_body && <figcaption className="mt-1 text-xs text-muted">{b.text_body}</figcaption>}</figure> : null;
+        case 'quote': return <blockquote className="border-l-2 border-accent pl-3 italic text-muted">{b.text_body}</blockquote>;
+        case 'tip': return <div className="rounded-lg border border-line bg-warning-soft p-3 text-sm">💡 {b.text_body}</div>;
+        case 'route': return <div className="rounded-lg border border-line bg-accent-soft p-3 text-sm">🚆 {b.text_body}</div>;
+        default: return <p className="leading-relaxed">{b.text_body}</p>;
     }
 }

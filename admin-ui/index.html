@@ -2,9 +2,16 @@
 <html lang="bg">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Админ Панел | BulTrain</title>
+    <title>Админ панел | BulTrain</title>
+    <!-- Apply the saved theme before first paint so there is no light/dark flash. -->
+    <script>
+      try {
+        var t = localStorage.getItem('bultrain-admin-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

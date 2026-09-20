@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+import { Plus, Search, X } from 'lucide-react';
+import Modal from './Modal';
 
 export interface Train {
     train_number: string;
@@ -220,240 +221,193 @@ export default function TrainManager() {
     };
 
     if (loading && trains.length === 0) {
-        return <div className="p-8 text-neutral-400">Зареждане на влаковете...</div>;
+        return <div className="py-8 text-muted">Зареждане на влаковете...</div>;
     }
 
     if (error) {
-        return <div className="p-8 text-red-500">Грешка: {error}</div>;
+        return <div role="alert" className="alert alert-danger">Грешка: {error}</div>;
     }
 
+    const closeIcon = <X size={16} strokeWidth={2} aria-hidden="true" />;
+
     return (
-        <div className="space-y-8 animate-in-fade relative z-10" style={{ animationDelay: '0.2s' }}>
-            <div className="flex justify-between items-center">
+        <div className="view-enter space-y-6">
+            <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-gradient">Управление на Влакове</h2>
-                    <p className="text-slate-400 text-sm mt-2">Преглед, изтриване и редакция на разписания.</p>
+                    <h2 className="page-title">Управление на влакове</h2>
+                    <p className="page-sub">Преглед, изтриване и редакция на разписания.</p>
                 </div>
-                <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="btn-glow"
-                >
+                <button onClick={() => setIsCreateModalOpen(true)} className="btn btn-primary shrink-0">
+                    <Plus size={16} strokeWidth={2.25} aria-hidden="true" />
                     Добави нов влак
                 </button>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative group">
+            {/* Search */}
+            <div className="relative max-w-sm">
+                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" aria-hidden="true" />
                 <input
                     type="text"
+                    aria-label="Търсене на влак"
                     placeholder="Търсене по номер или категория..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="input-premium w-full max-w-md pr-10 shadow-lg"
+                    className="input pl-9"
                 />
-                <div className="absolute inset-y-0 right-0 max-w-sm pr-3 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+            </div>
+
+            {/* Trains table */}
+            <div className="card overflow-hidden">
+                <div className="max-h-[600px] overflow-y-auto">
+                    <table className="table">
+                        <thead>
+                            <tr>
+                                <th>Влак №</th>
+                                <th>Категория</th>
+                                <th className="text-right">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredTrains.map((train) => (
+                                <tr key={train.train_number}>
+                                    <td className="num font-mono text-base font-semibold">{train.train_number}</td>
+                                    <td><span className="badge">{train.category}</span></td>
+                                    <td className="text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button onClick={() => handleOpenModal(train)} className="btn btn-secondary btn-sm">
+                                                Разписание / Редакция
+                                            </button>
+                                            <button onClick={() => handleDeleteTrain(train.train_number)} className="btn btn-danger btn-sm">
+                                                Изтрий
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {filteredTrains.length === 0 && (
+                                <tr>
+                                    <td colSpan={3} className="!py-12 text-center text-muted">Няма намерени влакове.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            {/* Trains Table */}
-            <div className="glass-card rounded-2xl overflow-hidden shadow-2xl max-h-[600px] overflow-y-auto">
-                <table className="w-full text-left text-sm text-slate-300">
-                    <thead className="bg-slate-950/80 backdrop-blur-md text-slate-400 border-b border-slate-800 uppercase text-xs tracking-wider sticky top-0 z-10">
-                        <tr>
-                            <th className="px-6 py-4 font-medium">Влак №</th>
-                            <th className="px-6 py-4 font-medium">Категория</th>
-                            <th className="px-6 py-4 font-medium text-right">Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-800/50">
-                        {filteredTrains.map((train) => (
-                            <tr key={train.train_number} className="hover:bg-slate-800/40 transition-colors">
-                                <td className="px-6 py-4 font-black text-white font-mono text-base">{train.train_number}</td>
-                                <td className="px-6 py-4">
-                                    <span className="px-3 py-1 bg-indigo-500/10 text-indigo-300 rounded-md text-xs font-bold border border-indigo-500/20 shadow-sm shadow-indigo-500/10 tracking-widest">
-                                        {train.category}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end space-x-3">
-                                        <button
-                                            onClick={() => handleOpenModal(train)}
-                                            className="px-4 py-2 bg-slate-800/50 hover:bg-indigo-500/20 text-slate-300 hover:text-indigo-400 rounded-lg text-sm font-medium transition-all duration-300 border border-transparent hover:border-indigo-500/30"
-                                        >
-                                            Разписание / Редакция
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteTrain(train.train_number)}
-                                            className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 rounded-lg text-sm font-medium transition-all duration-300 border border-transparent hover:border-rose-500/30"
-                                        >
-                                            Изтрий
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                        {filteredTrains.length === 0 && (
-                            <tr>
-                                <td colSpan={3} className="px-6 py-12 text-center text-slate-500 font-medium">
-                                    Няма намерени влакове.
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            {/* Train schedule modal */}
+            {modalTrain && (
+                <Modal label={`Влак ${modalTrain.train_number}`} onClose={handleCloseModal}>
+                    {(close) => (
+                    <div className="modal-panel max-w-3xl">
 
-            {/* Train Schedule Modal */}
-            {modalTrain && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in-fade">
-                    <div className="glass-card w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden ring-1 ring-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-
-                        {/* Modal Header */}
-                        <div className="px-6 py-5 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/50">
-                            <div>
-                                <h3 className="text-2xl font-black text-white flex items-center space-x-3">
-                                    <span className="bg-indigo-500/20 text-indigo-400 px-3 py-1 rounded-lg text-sm tracking-widest border border-indigo-500/30 shadow-inner">
-                                        {modalTrain.category}
-                                    </span>
-                                    <span>Влак {modalTrain.train_number}</span>
-                                </h3>
-                            </div>
-                            <button onClick={handleCloseModal} className="text-slate-500 hover:text-white transition-colors bg-slate-800/50 hover:bg-slate-700/50 p-2 rounded-full">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+                            <h3 className="flex items-center gap-3 text-lg font-semibold">
+                                <span className="badge">{modalTrain.category}</span>
+                                <span>Влак {modalTrain.train_number}</span>
+                            </h3>
+                            <button onClick={close} aria-label="Затвори" className="btn btn-ghost btn-icon">
+                                {closeIcon}
                             </button>
                         </div>
 
-                        {/* Modal Tabs */}
-                        <div className="flex border-b border-slate-800/50 px-8 pt-4 space-x-8 bg-slate-900/30">
-                            <button
-                                onClick={() => setActiveTab('timeline')}
-                                className={`pb-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${activeTab === 'timeline' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-                                    }`}
-                            >
+                        <div role="tablist" className="flex gap-6 border-b border-line px-6">
+                            <button role="tab" aria-selected={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} className="tab">
                                 Маршрут
-                                {activeTab === 'timeline' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-t-full shadow-[0_-2px_10px_rgba(99,102,241,0.5)]" />}
                             </button>
-                            <button
-                                onClick={() => setActiveTab('json')}
-                                className={`pb-4 text-sm font-bold uppercase tracking-wider transition-colors relative ${activeTab === 'json' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'
-                                    }`}
-                            >
+                            <button role="tab" aria-selected={activeTab === 'json'} onClick={() => setActiveTab('json')} className="tab">
                                 Обнови чрез JSON
-                                {activeTab === 'json' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-t-full shadow-[0_-2px_10px_rgba(99,102,241,0.5)]" />}
                             </button>
                         </div>
 
-                        {/* Modal Content Area */}
-                        <div className="p-6 overflow-y-auto flex-1 min-h-0">
+                        <div className="min-h-0 flex-1 overflow-y-auto p-6">
 
                             {/* TIMELINE TAB */}
                             {activeTab === 'timeline' && (
-                                <div className="space-y-6">
+                                <div className="view-enter space-y-6">
                                     {scheduleLoading ? (
-                                        <div className="text-neutral-400 text-center py-10">Зареждане на маршрута...</div>
+                                        <div className="py-10 text-center text-muted">Зареждане на маршрута...</div>
                                     ) : validities.length === 0 ? (
-                                        <div className="text-neutral-500 text-center py-10">Няма намерено разписание за този влак.</div>
+                                        <div className="py-10 text-center text-muted">Няма намерено разписание за този влак.</div>
                                     ) : (
                                         <>
-                                            {/* Validity Selector */}
-                                            {validities.length > 0 && (
-                                                <div className="flex flex-col gap-4 pb-4 border-b border-neutral-800">
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {validities.map((v, i) => (
-                                                            <button
-                                                                key={v.validity_id}
-                                                                onClick={() => setSelectedValidityIndex(i)}
-                                                                className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 border ${selectedValidityIndex === i
-                                                                    ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 border-white/20 text-white shadow-[0_0_20px_rgba(99,102,241,0.4)]'
-                                                                    : 'bg-slate-900/50 border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white hover:border-slate-600 shadow-inner'
-                                                                    }`}
-                                                            >
-                                                                {`Вариант ${i + 1}`}
-                                                                <span className="ml-2 opacity-70 border-l border-current pl-2 text-xs">
-                                                                    {getDaysLabel(v.days)}
+                                            {/* Validity selector */}
+                                            <div className="space-y-3 border-b border-line pb-5">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {validities.map((v, i) => (
+                                                        <button
+                                                            key={v.validity_id}
+                                                            onClick={() => setSelectedValidityIndex(i)}
+                                                            aria-pressed={selectedValidityIndex === i}
+                                                            className={`btn btn-secondary h-auto py-2 ${selectedValidityIndex === i ? 'border-accent bg-accent-soft text-link' : ''}`}
+                                                        >
+                                                            {`Вариант ${i + 1}`}
+                                                            <span className="border-l border-current pl-2 text-xs opacity-80">
+                                                                {getDaysLabel(v.days)}
+                                                            </span>
+                                                            {v.valid_from && v.valid_to && (
+                                                                <span className="font-mono text-[0.6875rem] opacity-70">
+                                                                    {v.valid_from} → {v.valid_to}
                                                                 </span>
-                                                                {v.valid_from && v.valid_to && (
-                                                                    <span className="ml-2 text-[10px] font-mono opacity-60">
-                                                                        {v.valid_from} → {v.valid_to}
-                                                                    </span>
-                                                                )}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-
-                                                    {/* Active Validity Actions */}
-                                                    {validities[selectedValidityIndex] && (
-                                                        <div className="flex justify-end">
-                                                            <button
-                                                                onClick={() => handleDeleteValidity(validities[selectedValidityIndex].validity_id)}
-                                                                className="text-xs font-medium text-red-400 hover:text-white bg-red-950/30 hover:bg-red-900/50 px-3 py-1.5 rounded-lg border border-red-900/30 transition-colors"
-                                                            >
-                                                                Изтрий този вариант
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                            )}
+                                                        </button>
+                                                    ))}
                                                 </div>
-                                            )}
 
-                                            {/* Display Selected Timeline */}
+                                                {validities[selectedValidityIndex] && (
+                                                    <div className="flex justify-end">
+                                                        <button
+                                                            onClick={() => handleDeleteValidity(validities[selectedValidityIndex].validity_id)}
+                                                            className="btn btn-danger btn-sm"
+                                                        >
+                                                            Изтрий този вариант
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Selected timeline */}
                                             {validities[selectedValidityIndex] && (
-                                                <div className="relative pl-6 py-4 mx-auto max-w-lg">
-                                                    {/* The continuous vertical line */}
-                                                    <div className="absolute top-10 bottom-10 left-[62px] w-[2px] bg-gradient-to-b from-indigo-500 via-slate-800 to-indigo-500 rounded-full opacity-50" />
+                                                <ol key={selectedValidityIndex} className="mx-auto max-w-md pt-1">
+                                                    {validities[selectedValidityIndex]?.schedule?.map((stop, index) => {
+                                                        const isFirst = index === 0;
+                                                        const isLast = index === validities[selectedValidityIndex].schedule.length - 1;
+                                                        const tArr = stop.arrival_time;
+                                                        const tDep = stop.departure_time;
 
-                                                    <div className="space-y-0">
-                                                        {validities[selectedValidityIndex]?.schedule?.map((stop, index) => {
-                                                            const isFirst = index === 0;
-                                                            const isLast = index === validities[selectedValidityIndex].schedule.length - 1;
-                                                            const tArr = stop.arrival_time;
-                                                            const tDep = stop.departure_time;
-
-                                                            // Cleaner Time Logic
-                                                            let displayTime = '';
-                                                            if (isFirst) displayTime = tDep || tArr || '--:--';
-                                                            else if (isLast) displayTime = tArr || tDep || '--:--';
-                                                            else {
-                                                                if (tArr && tDep && tArr !== tDep) {
-                                                                    displayTime = `${tArr}\n${tDep}`;
-                                                                } else {
-                                                                    displayTime = tArr || tDep || '--:--';
-                                                                }
+                                                        let displayTime = '';
+                                                        if (isFirst) displayTime = tDep || tArr || '--:--';
+                                                        else if (isLast) displayTime = tArr || tDep || '--:--';
+                                                        else {
+                                                            if (tArr && tDep && tArr !== tDep) {
+                                                                displayTime = `${tArr}\n${tDep}`;
+                                                            } else {
+                                                                displayTime = tArr || tDep || '--:--';
                                                             }
+                                                        }
 
-                                                            return (
-                                                                <div key={index} className="relative flex items-center group py-4">
-                                                                    {/* Absolute times on the left */}
-                                                                    <div className="w-16 flex-shrink-0 text-right pr-4 z-10 py-1 bg-slate-950 shadow-[10px_0_15px_-5px_var(--tw-shadow-color)] shadow-slate-950">
-                                                                        <pre className={`text-sm font-mono font-bold leading-tight ${isFirst || isLast ? 'text-indigo-400' : 'text-slate-300 group-hover:text-white transition-colors'}`}>
-                                                                            {displayTime}
-                                                                        </pre>
-                                                                    </div>
-
-                                                                    {/* Node Dot Overlay on the line */}
-                                                                    <div className={`z-10 bg-slate-950 border-[3px] rounded-full absolute transition-all duration-500 ${isFirst || isLast
-                                                                        ? 'w-[16px] h-[16px] left-[55px] border-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.6)]'
-                                                                        : 'w-[12px] h-[12px] left-[57px] border-slate-600 group-hover:border-cyan-400 group-hover:bg-cyan-500 group-hover:shadow-[0_0_15px_rgba(34,211,238,0.6)] group-hover:scale-125'
-                                                                        }`} />
-
-                                                                    {/* Station Name */}
-                                                                    <div className="pl-12 flex-1 pt-0.5">
-                                                                        <p className={`text-base tracking-wide transition-colors duration-300 ${isFirst || isLast ? 'font-black text-white text-lg drop-shadow-md' : 'font-bold text-slate-300 group-hover:text-cyan-300'}`}>
-                                                                            {stop.station_name}
-                                                                        </p>
-                                                                        <p className={`text-[10px] mt-1 uppercase tracking-widest font-black ${isFirst || isLast ? 'text-indigo-400/80' : 'text-slate-600 group-hover:text-slate-400 transition-colors'}`}>
-                                                                            {isFirst ? 'Начална гара' : isLast ? 'Крайна гара' : `Спирка ${index}`}
-                                                                        </p>
-                                                                    </div>
+                                                        return (
+                                                            <li
+                                                                key={index}
+                                                                className="tl-row"
+                                                                style={{ '--i': Math.min(index, 14) } as React.CSSProperties}
+                                                                data-first={isFirst ? '' : undefined}
+                                                                data-last={isLast ? '' : undefined}
+                                                                data-edge={isFirst || isLast ? '' : undefined}
+                                                            >
+                                                                <span className="tl-time">{displayTime}</span>
+                                                                <span className="tl-rail"><i className="tl-dot" /></span>
+                                                                <div className="tl-name">
+                                                                    <p className={isFirst || isLast ? 'font-semibold' : 'font-medium'}>
+                                                                        {stop.station_name}
+                                                                    </p>
+                                                                    <p className="text-xs text-muted">
+                                                                        {isFirst ? 'Начална гара' : isLast ? 'Крайна гара' : `Спирка ${index}`}
+                                                                    </p>
                                                                 </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ol>
                                             )}
                                         </>
                                     )}
@@ -462,61 +416,44 @@ export default function TrainManager() {
 
                             {/* JSON IMPORT TAB */}
                             {activeTab === 'json' && (
-                                <div className="space-y-6 flex flex-col h-full">
-                                    <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-5 space-y-5">
+                                <div className="view-enter flex h-full flex-col gap-5">
+                                    <div className="space-y-5 rounded-lg border border-line bg-canvas p-4">
                                         <div>
-                                            <h4 className="text-sm font-bold text-white mb-4">Дни на движение</h4>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                            <h4 className="section-title mb-3">Дни на движение</h4>
+                                            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                                                 {DAYS_MAP.map((day) => (
-                                                    <label key={day.key} className="flex items-center space-x-3 cursor-pointer group">
-                                                        <div className="relative flex items-center justify-center">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={importDays[day.key as keyof typeof importDays]}
-                                                                onChange={(e) => setImportDays({ ...importDays, [day.key]: e.target.checked })}
-                                                                className="peer appearance-none w-5 h-5 border border-neutral-600 rounded bg-neutral-950 checked:bg-blue-600 checked:border-blue-500 transition-colors cursor-pointer"
-                                                            />
-                                                            <svg className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                            </svg>
-                                                        </div>
-                                                        <span className="text-sm font-medium text-neutral-300 group-hover:text-white transition-colors">
-                                                            {day.label}
-                                                        </span>
+                                                    <label key={day.key} className="flex cursor-pointer items-center gap-2 text-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={importDays[day.key as keyof typeof importDays]}
+                                                            onChange={(e) => setImportDays({ ...importDays, [day.key]: e.target.checked })}
+                                                            className="h-4 w-4 cursor-pointer"
+                                                        />
+                                                        {day.label}
                                                     </label>
                                                 ))}
                                             </div>
                                         </div>
 
-                                        <div className="border-t border-neutral-800 pt-4">
-                                            <h4 className="text-sm font-bold text-white mb-1">Временен период <span className="text-neutral-500 font-normal text-xs">(незадължително)</span></h4>
-                                            <p className="text-xs text-neutral-500 mb-3">Остави празно за постоянно (общо) разписание.</p>
+                                        <div className="border-t border-line pt-4">
+                                            <h4 className="section-title">Временен период <span className="font-normal text-muted">(незадължително)</span></h4>
+                                            <p className="hint mb-3 mt-0.5">Остави празно за постоянно (общо) разписание.</p>
                                             <div className="flex flex-wrap gap-4">
-                                                <div className="space-y-1 flex-1 min-w-[140px]">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Валидно от</label>
-                                                    <input
-                                                        type="date"
-                                                        value={importValidFrom}
-                                                        onChange={e => setImportValidFrom(e.target.value)}
-                                                        className="input-premium w-full"
-                                                    />
+                                                <div className="min-w-[140px] flex-1">
+                                                    <label htmlFor="imp-from" className="label">Валидно от</label>
+                                                    <input id="imp-from" type="date" value={importValidFrom} onChange={e => setImportValidFrom(e.target.value)} className="input" />
                                                 </div>
-                                                <div className="space-y-1 flex-1 min-w-[140px]">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Валидно до</label>
-                                                    <input
-                                                        type="date"
-                                                        value={importValidTo}
-                                                        onChange={e => setImportValidTo(e.target.value)}
-                                                        className="input-premium w-full"
-                                                    />
+                                                <div className="min-w-[140px] flex-1">
+                                                    <label htmlFor="imp-to" className="label">Валидно до</label>
+                                                    <input id="imp-to" type="date" value={importValidTo} onChange={e => setImportValidTo(e.target.value)} className="input" />
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 text-sm text-neutral-400">
+                                    <div className="alert alert-info block">
                                         <p>Поставете JSON масив с гарите тук. Това ще създаде <strong>нов вариант</strong> на разписание за избраните дни.</p>
-                                        <p className="mt-2 text-xs opacity-70">
+                                        <p className="mt-1.5 text-xs text-muted">
                                             За да замените напълно старо разписание, изтрийте старите варианти от таб "Маршрут".
                                         </p>
                                     </div>
@@ -525,25 +462,19 @@ export default function TrainManager() {
                                         value={jsonInput}
                                         onChange={(e) => setJsonInput(e.target.value)}
                                         placeholder="Вмъкнете JSON масив тук..."
-                                        className="flex-1 w-full min-h-[250px] bg-neutral-950 border border-neutral-800 rounded-xl p-4 text-green-400 font-mono text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors resize-y shadow-inner block"
+                                        aria-label="JSON с разписанието"
+                                        className="input min-h-[250px] flex-1 font-mono text-[0.8125rem]"
                                     />
 
                                     {importStatus && (
-                                        <div className={`p-4 rounded-xl text-sm font-medium border ${importStatus.type === 'success'
-                                            ? 'bg-green-950/30 text-green-400 border-green-900/50'
-                                            : 'bg-red-950/30 text-red-400 border-red-900/50'
-                                            }`}>
+                                        <div role="alert" className={`alert ${importStatus.type === 'success' ? 'alert-success' : 'alert-danger'}`}>
                                             {importStatus.msg}
                                         </div>
                                     )}
 
-                                    <div className="flex justify-end pt-2">
-                                        <button
-                                            onClick={handleImportJson}
-                                            disabled={!jsonInput.trim()}
-                                            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold tracking-wide transition-all shadow-lg hover:shadow-blue-900/50"
-                                        >
-                                            Създай График
+                                    <div className="flex justify-end">
+                                        <button onClick={handleImportJson} disabled={!jsonInput.trim()} className="btn btn-primary">
+                                            Създай график
                                         </button>
                                     </div>
                                 </div>
@@ -551,84 +482,68 @@ export default function TrainManager() {
 
                         </div>
                     </div>
-                </div>,
-                document.body
+                    )}
+                </Modal>
             )}
 
-            {/* Create Train Modal */}
-            {isCreateModalOpen && createPortal(
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in-fade">
-                    <div className="glass-card w-full max-w-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-3xl overflow-hidden ring-1 ring-white/10">
-                        <div className="px-8 py-6 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/50">
-                            <h3 className="text-2xl font-black text-white">Добави нов влак</h3>
-                            <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-500 hover:text-white transition-colors bg-slate-800/50 hover:bg-slate-700/50 p-2 rounded-full">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+            {/* Create train modal */}
+            {isCreateModalOpen && (
+                <Modal label="Добави нов влак" onClose={() => setIsCreateModalOpen(false)}>
+                    {(close) => (
+                    <div className="modal-panel max-w-lg">
+                        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+                            <h3 className="text-lg font-semibold">Добави нов влак</h3>
+                            <button onClick={close} aria-label="Затвори" className="btn btn-ghost btn-icon">
+                                {closeIcon}
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateTrain} className="p-8 space-y-6">
+                        <form onSubmit={handleCreateTrain} className="space-y-5 p-6">
                             {createError && (
-                                <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                                    <p className="text-sm font-bold text-rose-400">{createError}</p>
-                                </div>
+                                <div role="alert" className="alert alert-danger">{createError}</div>
                             )}
 
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Номер на влак</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={newTrainData.train_number}
-                                        onChange={(e) => setNewTrainData({ ...newTrainData, train_number: e.target.value })}
-                                        placeholder="Напр. 1611"
-                                        className="input-premium w-full !py-3 !px-4 text-lg font-mono"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Категория</label>
-                                    <select
-                                        value={newTrainData.category}
-                                        onChange={(e) => setNewTrainData({ ...newTrainData, category: e.target.value })}
-                                        className="input-premium w-full !py-3 !px-4 text-base font-bold text-indigo-300"
-                                    >
-                                        <option value="ПВ">ПВ (Пътнически влак)</option>
-                                        <option value="БВ">БВ (Бърз влак)</option>
-                                        <option value="БВЗР">БВЗР (Бърз влак със задължителна резервация)</option>
-                                        <option value="МБВ">МБВ (Международен бърз влак)</option>
-                                        <option value="КПВ">КПВ (Крайградски пътнически влак)</option>
-                                    </select>
-                                </div>
+                            <div>
+                                <label htmlFor="new-train-no" className="label">Номер на влак</label>
+                                <input
+                                    id="new-train-no"
+                                    type="text"
+                                    required
+                                    value={newTrainData.train_number}
+                                    onChange={(e) => setNewTrainData({ ...newTrainData, train_number: e.target.value })}
+                                    placeholder="Напр. 1611"
+                                    className="input font-mono"
+                                />
                             </div>
 
-                            <div className="pt-6 border-t border-slate-800/50 flex justify-end space-x-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsCreateModalOpen(false)}
-                                    className="px-6 py-2.5 hover:bg-slate-800 text-slate-300 rounded-xl font-bold transition-all duration-300 border border-transparent hover:border-slate-700"
+                            <div>
+                                <label htmlFor="new-train-cat" className="label">Категория</label>
+                                <select
+                                    id="new-train-cat"
+                                    value={newTrainData.category}
+                                    onChange={(e) => setNewTrainData({ ...newTrainData, category: e.target.value })}
+                                    className="input"
                                 >
+                                    <option value="ПВ">ПВ (Пътнически влак)</option>
+                                    <option value="БВ">БВ (Бърз влак)</option>
+                                    <option value="БВЗР">БВЗР (Бърз влак със задължителна резервация)</option>
+                                    <option value="МБВ">МБВ (Международен бърз влак)</option>
+                                    <option value="КПВ">КПВ (Крайградски пътнически влак)</option>
+                                </select>
+                            </div>
+
+                            <div className="flex justify-end gap-2 border-t border-line pt-5">
+                                <button type="button" onClick={close} className="btn btn-ghost">
                                     Отказ
                                 </button>
-                                <button
-                                    type="submit"
-                                    disabled={createLoading}
-                                    className="btn-glow px-8 group disabled:opacity-50"
-                                >
+                                <button type="submit" disabled={createLoading} className="btn btn-primary">
                                     {createLoading ? 'Създаване...' : 'Създай влак'}
-                                    {!createLoading && (
-                                        <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                        </svg>
-                                    )}
                                 </button>
                             </div>
                         </form>
                     </div>
-                </div>,
-                document.body
+                    )}
+                </Modal>
             )}
         </div>
     );

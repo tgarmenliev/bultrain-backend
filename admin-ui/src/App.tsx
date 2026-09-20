@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import Login from './components/Login';
 import TrainManager from './components/TrainManager';
-import DataSync from './components/DataSync';
+import TrainSchedules from './components/TrainSchedules';
+import Dashboard from './components/Dashboard';
 import ExceptionsManager from './components/ExceptionsManager';
 import ArticlesManager from './components/ArticlesManager';
+import ThemeToggle from './components/ThemeToggle';
+import PasswordModal from './components/PasswordModal';
+import { FEATURES } from './features';
+import type { Overview } from './types';
+import {
+  LayoutDashboard, TrainFront, BookOpen, Route, CalendarDays, LogOut, KeyRound,
+  type LucideIcon,
+} from 'lucide-react';
 
 type View = 'dashboard' | 'guide' | 'trains' | 'exceptions' | 'articles';
 type Role = 'admin' | 'author';
@@ -11,16 +20,49 @@ type Role = 'admin' | 'author';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [role, setRole] = useState<Role>('admin');
-  const [stats, setStats] = useState<{ trains: number; stations: number; guideTopics: number } | null>(null);
+  const [overview, setOverview] = useState<Overview | null>(null);
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [checking, setChecking] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const navRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const [indicator, setIndicator] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [indicatorReady, setIndicatorReady] = useState(false);
 
   useEffect(() => {
     checkAuth();
   }, []);
 
-  // Auth is decided by /me (any account), NOT the admin-only /stats — so an
-  // author passes the gate. Admins additionally pull the dashboard stats.
+  // Slide the highlight to whichever nav item is current. The first placement
+  // is not animated (it only becomes visible one frame later), so the pill
+  // never sweeps in from the corner on load.
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const measure = () => {
+      const el = nav.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!el) return;
+      setIndicator({ x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight });
+      el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    };
+    measure();
+    const raf = requestAnimationFrame(() => setIndicatorReady(true));
+    window.addEventListener('resize', measure);
+    document.fonts?.ready.then(measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+    };
+  }, [currentView, isAuthenticated, checking]);
+
+  // A new view starts at the top, like a new page would.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [currentView]);
+
+  // Auth is decided by /me (any account), NOT the admin-only /overview — so an
+  // author passes the gate. Admins additionally load the dashboard overview.
   const checkAuth = async () => {
     try {
       const res = await fetch('/api/admin/me');
@@ -30,7 +72,6 @@ function App() {
       setRole(r);
       setIsAuthenticated(true);
       setCurrentView(r === 'author' ? 'articles' : 'dashboard');
-      if (r === 'admin') fetchStats();
     } catch {
       setIsAuthenticated(false);
     } finally {
@@ -38,20 +79,29 @@ function App() {
     }
   };
 
-  const fetchStats = async () => {
+  const fetchOverview = async () => {
     try {
-      const response = await fetch('/api/admin/stats');
-      if (response.ok) setStats(await response.json());
+      const response = await fetch('/api/admin/overview');
+      if (response.ok) setOverview(await response.json());
     } catch (error) {
-      console.error('Failed to fetch stats:', error);
+      console.error('Failed to fetch overview:', error);
     }
   };
+
+  // The overview is live data (realtime health, tracking, today's trains): load
+  // it on landing and refresh it every minute while the overview is on screen.
+  useEffect(() => {
+    if (!isAuthenticated || role !== 'admin' || currentView !== 'dashboard') return;
+    fetchOverview();
+    const id = window.setInterval(fetchOverview, 60_000);
+    return () => window.clearInterval(id);
+  }, [isAuthenticated, role, currentView]);
 
   const handleLogout = async () => {
     try {
       await fetch('/api/admin/logout', { method: 'POST' });
       setIsAuthenticated(false);
-      setStats(null);
+      setOverview(null);
     } catch (error) {
       console.error('Logout failed:', error);
     }
@@ -61,96 +111,93 @@ function App() {
   if (!isAuthenticated) return <Login onLoginSuccess={checkAuth} />;
 
   const isAdmin = role === 'admin';
-  // Fixed classes only — Tailwind can't generate class names built from variables.
-  const navBtn = (view: View, label: string) => (
+
+  const navBtn = (view: View, label: string, Icon: LucideIcon) => (
     <button
       onClick={() => setCurrentView(view)}
-      className={`w-full text-left px-4 py-3 rounded-xl font-bold tracking-wide transition-all duration-300 ${currentView === view
-        ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
-        : 'text-slate-400 hover:bg-slate-800/50 hover:text-white border border-transparent'}`}
+      aria-current={currentView === view ? 'page' : undefined}
+      className="nav-item md:w-full"
     >
+      <Icon size={17} strokeWidth={2} aria-hidden="true" />
       {label}
     </button>
   );
 
   return (
-    <div className="h-screen w-full flex overflow-hidden text-slate-100 font-sans animate-in-fade">
-      <aside className="w-72 h-full glassmorphism border-r border-white/5 flex flex-col z-20 shrink-0">
-        <div className="p-6 pb-4">
-          <h1 className="text-2xl font-black text-gradient-brand tracking-tight">Админ Панел</h1>
-          <p className="text-slate-400 text-sm mt-1 font-medium">
-            {isAdmin ? 'Система за Управление' : 'Автор на статии'}
-          </p>
-        </div>
-
-        <nav className="flex-1 space-y-2 px-6">
-          {isAdmin && navBtn('dashboard', 'Общ изглед')}
-          {isAdmin && navBtn('trains', 'Влакове и Разписания')}
-          {isAdmin && navBtn('guide', 'Справочник')}
-          {navBtn('articles', 'Идеи за пътуване')}
-          {isAdmin && navBtn('exceptions', 'Празници / Изключения')}
-        </nav>
-
-        {stats && (
-          <div className="px-6 pb-6 mt-4">
-            <div className="p-4 bg-slate-900/40 rounded-2xl border border-white/5 shadow-inner">
-              <h3 className="text-[10px] font-black tracking-widest text-slate-500 mb-3 uppercase">Текущи данни</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-slate-400">Влакове</span>
-                  <span className="text-sm font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">{stats.trains}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-slate-400">Гари</span>
-                  <span className="text-sm font-black text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20">{stats.stations}</span>
-                </div>
-              </div>
+    <div className="md:flex md:h-screen">
+      <aside className="flex shrink-0 flex-col border-b border-line bg-surface md:h-full md:w-64 md:border-b-0 md:border-r">
+        <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-5">
+          <div className="brand">
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" className="brand-mark" />
+            <div>
+              <div className="brand-name">BulTrain</div>
+              <div className="brand-sub">{isAdmin ? 'Админ панел' : 'Автор на статии'}</div>
             </div>
           </div>
-        )}
+          <div className="md:hidden"><ThemeToggle /></div>
+        </div>
 
-        <div className="p-6 pt-0 mt-auto">
-          <button
-            onClick={handleLogout}
-            className="w-full px-4 py-3 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-xl text-sm font-bold transition-all duration-300 border border-rose-500/20 hover:border-rose-500/40 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)]"
-          >
+        <nav ref={navRef} aria-label="Навигация" className="relative flex gap-1 overflow-x-auto px-3 pb-3 [scrollbar-width:none] md:flex-1 md:flex-col md:overflow-visible">
+          <span
+            aria-hidden="true"
+            className="nav-indicator"
+            data-ready={indicator && indicatorReady ? '' : undefined}
+            style={indicator ? { transform: `translate(${indicator.x}px, ${indicator.y}px)`, width: indicator.w, height: indicator.h } : undefined}
+          />
+          {isAdmin && navBtn('dashboard', 'Общ изглед', LayoutDashboard)}
+          {isAdmin && navBtn('trains', 'Влакове и разписания', TrainFront)}
+          {isAdmin && navBtn('guide', 'Справочник', BookOpen)}
+          {navBtn('articles', 'Идеи за пътуване', Route)}
+          {isAdmin && FEATURES.exceptions && navBtn('exceptions', 'Празници / изключения', CalendarDays)}
+          <button onClick={() => setShowPassword(true)} className="nav-item md:hidden">
+            <KeyRound size={17} strokeWidth={2} aria-hidden="true" />
+            Парола
+          </button>
+          <button onClick={handleLogout} className="nav-item md:hidden">
+            <LogOut size={17} strokeWidth={2} aria-hidden="true" />
             Изход
           </button>
+        </nav>
+
+        {overview && (
+          <dl className="mx-5 hidden space-y-2 border-t border-line py-4 text-[0.8125rem] md:block">
+            <div className="flex items-baseline justify-between">
+              <dt className="text-muted">Влакове</dt>
+              <dd className="num font-semibold">{overview.trains}</dd>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <dt className="text-muted">Гари</dt>
+              <dd className="num font-semibold">{overview.stations}</dd>
+            </div>
+          </dl>
+        )}
+
+        <div className="hidden border-t border-line p-3 md:block">
+          <button onClick={() => setShowPassword(true)} className="btn btn-ghost btn-sm w-full justify-start">
+            <KeyRound size={15} strokeWidth={2} aria-hidden="true" />
+            Смяна на парола
+          </button>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <button onClick={handleLogout} className="btn btn-ghost btn-sm">
+              <LogOut size={15} strokeWidth={2} aria-hidden="true" />
+              Изход
+            </button>
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto w-full relative z-10 custom-scrollbar">
-        <div className="p-8 md:p-12 max-w-6xl mx-auto animate-in-fade" style={{ animationDelay: '0.1s' }}>
-          {isAdmin && currentView === 'dashboard' && (
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-3xl font-bold text-gradient">Общ изглед</h2>
-                <p className="text-slate-400 text-sm mt-2">Системна статистика и обобщение.</p>
-              </div>
-              <DataSync />
-              <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-8 glass-card rounded-2xl cursor-default group hover:shadow-indigo-500/10 hover:border-indigo-500/30">
-                  <h2 className="text-slate-400 text-sm font-semibold mb-3 tracking-wide uppercase">Общо Влакове</h2>
-                  <p className="text-5xl font-black text-white group-hover:text-indigo-400 transition-colors">{stats?.trains || 0}</p>
-                </div>
-                <div className="p-8 glass-card rounded-2xl cursor-default group hover:shadow-cyan-500/10 hover:border-cyan-500/30">
-                  <h2 className="text-slate-400 text-sm font-semibold mb-3 tracking-wide uppercase">Общо Гари</h2>
-                  <p className="text-5xl font-black text-white group-hover:text-cyan-400 transition-colors">{stats?.stations || 0}</p>
-                </div>
-                <div className="p-8 glass-card rounded-2xl cursor-default group hover:shadow-purple-500/10 hover:border-purple-500/30">
-                  <h2 className="text-slate-400 text-sm font-semibold mb-3 tracking-wide uppercase">Теми в Справочника</h2>
-                  <p className="text-5xl font-black text-white group-hover:text-purple-400 transition-colors">{stats?.guideTopics || 0}</p>
-                </div>
-              </section>
-            </div>
-          )}
-
+      <main ref={mainRef} className="w-full flex-1 md:overflow-y-auto">
+        <div key={currentView} className="mx-auto max-w-5xl px-5 py-6 md:px-10 md:py-10">
+          {isAdmin && currentView === 'dashboard' && <Dashboard overview={overview} />}
           {isAdmin && currentView === 'guide' && <ArticlesManager category="guide" />}
-          {isAdmin && currentView === 'trains' && <TrainManager />}
-          {isAdmin && currentView === 'exceptions' && <ExceptionsManager />}
+          {isAdmin && currentView === 'trains' && (FEATURES.legacyTrainEditor ? <TrainManager /> : <TrainSchedules />)}
+          {isAdmin && FEATURES.exceptions && currentView === 'exceptions' && <ExceptionsManager />}
           {currentView === 'articles' && <ArticlesManager />}
         </div>
       </main>
+
+      {showPassword && <PasswordModal onClose={() => setShowPassword(false)} />}
     </div>
   );
 }

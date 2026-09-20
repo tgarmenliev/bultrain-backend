@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { CircleAlert } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
 export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }) {
     const [username, setUsername] = useState('');
@@ -40,72 +42,49 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 animate-in-fade">
-            <div className="max-w-md w-full glass-card rounded-3xl p-10 space-y-8 relative overflow-hidden group">
-                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-indigo-500 via-cyan-500 to-indigo-500"></div>
+        <div className="relative flex min-h-screen items-center justify-center p-4">
+            <div className="absolute right-4 top-4"><ThemeToggle /></div>
 
-                <div className="text-center space-y-3 relative z-10">
-                    <h1 className="text-4xl font-black tracking-tight text-gradient-brand pb-1">
-                        Админ Панел
-                    </h1>
-                    <p className="text-slate-400 text-sm font-medium">
-                        Въведете данните си за достъп.
-                    </p>
+            <div className="w-full max-w-sm">
+                <div className="mb-8 flex flex-col items-center text-center">
+                    <img src={`${import.meta.env.BASE_URL}logo.png`} alt="BulTrain" className="h-auto w-24" />
+                    <h1 className="page-title mt-5">Админ панел</h1>
+                    <p className="page-sub">Въведете данните си за достъп.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="username"
-                            className="text-sm font-bold text-slate-300 uppercase tracking-wider"
-                        >
-                            Потребител
-                        </label>
+                <form onSubmit={handleSubmit} className="card card-pad space-y-4">
+                    <div>
+                        <label htmlFor="username" className="label">Потребител</label>
                         <input
                             id="username"
                             type="text"
                             autoComplete="username"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className="input-premium w-full"
-                            placeholder=""
+                            className="input"
                         />
                     </div>
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="password"
-                            className="text-sm font-bold text-slate-300 uppercase tracking-wider"
-                        >
-                            Парола
-                        </label>
+                    <div>
+                        <label htmlFor="password" className="label">Парола</label>
                         <input
                             id="password"
                             type="password"
                             autoComplete="current-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="input-premium w-full text-lg tracking-widest text-center"
-                            placeholder="••••••••••••"
+                            className="input"
                             required
                         />
                     </div>
 
                     {error && (
-                        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center shadow-inner animate-in-fade">
-                            <svg className="w-5 h-5 mr-3 flex-shrink-0 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <p className="text-sm font-medium text-rose-400">
-                                {error}
-                            </p>
+                        <div role="alert" className="alert alert-danger">
+                            <CircleAlert size={16} aria-hidden="true" />
+                            <span>{error}</span>
                         </div>
                     )}
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="btn-glow w-full py-4 mt-4 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
+                    <button type="submit" disabled={loading} className="btn btn-primary w-full">
                         {loading ? 'Удостоверяване...' : 'Влез в профила'}
                     </button>
                 </form>

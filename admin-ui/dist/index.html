@@ -2,11 +2,18 @@
 <html lang="bg">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/admin/vite.svg" />
+    <link rel="icon" type="image/png" href="/admin/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Админ Панел | BulTrain</title>
-    <script type="module" crossorigin src="/admin/assets/index-C9-23DpC.js"></script>
-    <link rel="stylesheet" crossorigin href="/admin/assets/index-CSIHHIEF.css">
+    <title>Админ панел | BulTrain</title>
+    <!-- Apply the saved theme before first paint so there is no light/dark flash. -->
+    <script>
+      try {
+        var t = localStorage.getItem('bultrain-admin-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/admin/assets/index-BTLCHCin.js"></script>
+    <link rel="stylesheet" crossorigin href="/admin/assets/index-B2iruiDn.css">
   </head>
   <body>
     <div id="root"></div>

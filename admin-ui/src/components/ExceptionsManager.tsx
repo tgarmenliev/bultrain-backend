@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 
 interface ScheduleException {
     exception_date: string;
@@ -20,14 +21,10 @@ const DAY_LABELS: Record<string, string> = {
     thursday: 'Четвъртък', friday: 'Петък', saturday: 'Събота', sunday: 'Неделя',
 };
 
+// Weekdays stay neutral; only the two non-working schedule types get a colour.
 const BADGE_COLORS: Record<string, string> = {
-    saturday: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
-    sunday:   'bg-purple-500/10 text-purple-300 border-purple-500/20',
-    monday: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20',
-    tuesday: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20',
-    wednesday: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20',
-    thursday: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20',
-    friday: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20',
+    saturday: 'badge-accent',
+    sunday:   'badge-warning',
 };
 
 export default function ExceptionsManager() {
@@ -79,89 +76,83 @@ export default function ExceptionsManager() {
     };
 
     return (
-        <div className="space-y-8 animate-in-fade" style={{ animationDelay: '0.2s' }}>
+        <div className="view-enter space-y-8">
             <div>
-                <h2 className="text-3xl font-bold text-gradient">Празници и Изключения</h2>
-                <p className="text-slate-400 text-sm mt-2">
+                <h2 className="page-title">Празници и изключения</h2>
+                <p className="page-sub">
                     Задайте конкретна дата да използва различен тип разписание (напр. национален празник → неделно разписание).
                 </p>
             </div>
 
             {/* Add form */}
-            <div className="glass-card rounded-2xl p-6">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-5">Добави изключение</h3>
-                <form onSubmit={handleAdd} className="flex flex-wrap gap-4 items-end">
-                    <div className="space-y-2 flex-1 min-w-[160px]">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Дата</label>
+            <div className="card card-pad">
+                <h3 className="section-title mb-4">Добави изключение</h3>
+                <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-4">
+                    <div className="min-w-[160px] flex-1">
+                        <label htmlFor="ex-date" className="label">Дата</label>
                         <input
+                            id="ex-date"
                             type="date"
                             required
                             value={formDate}
                             onChange={e => setFormDate(e.target.value)}
-                            className="input-premium w-full"
+                            className="input"
                         />
                     </div>
-                    <div className="space-y-2 flex-1 min-w-[200px]">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Тип разписание</label>
+                    <div className="min-w-[200px] flex-1">
+                        <label htmlFor="ex-type" className="label">Тип разписание</label>
                         <select
+                            id="ex-type"
                             value={formOverride}
                             onChange={e => setFormOverride(e.target.value)}
-                            className="input-premium w-full"
+                            className="input"
                         >
                             {DAY_OPTIONS.map(o => (
                                 <option key={o.value} value={o.value}>{o.label}</option>
                             ))}
                         </select>
                     </div>
-                    <button
-                        type="submit"
-                        disabled={submitting}
-                        className="btn-glow px-6 py-3 disabled:opacity-50 shrink-0"
-                    >
+                    <button type="submit" disabled={submitting} className="btn btn-primary shrink-0">
+                        {!submitting && <Plus size={16} strokeWidth={2.25} aria-hidden="true" />}
                         {submitting ? 'Запазване...' : 'Добави'}
                     </button>
                 </form>
                 {formError && (
-                    <p className="mt-3 text-sm text-rose-400 font-medium">{formError}</p>
+                    <p role="alert" className="mt-3 text-sm text-danger">{formError}</p>
                 )}
             </div>
 
             {/* Exceptions table */}
-            <div className="glass-card rounded-2xl overflow-hidden">
-                <table className="w-full text-left text-sm text-slate-300">
-                    <thead className="bg-slate-950/80 backdrop-blur-md text-slate-400 border-b border-slate-800 uppercase text-xs tracking-wider">
+            <div className="card overflow-hidden">
+                <table className="table">
+                    <thead>
                         <tr>
-                            <th className="px-6 py-4 font-medium">Дата</th>
-                            <th className="px-6 py-4 font-medium">Тип разписание</th>
-                            <th className="px-6 py-4 font-medium text-right">Действия</th>
+                            <th>Дата</th>
+                            <th>Тип разписание</th>
+                            <th className="text-right">Действия</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody>
                         {loading && (
                             <tr>
-                                <td colSpan={3} className="px-6 py-10 text-center text-slate-500">Зареждане...</td>
+                                <td colSpan={3} className="!py-10 text-center text-muted">Зареждане...</td>
                             </tr>
                         )}
                         {!loading && exceptions.length === 0 && (
                             <tr>
-                                <td colSpan={3} className="px-6 py-10 text-center text-slate-500 font-medium">
-                                    Няма добавени изключения.
-                                </td>
+                                <td colSpan={3} className="!py-10 text-center text-muted">Няма добавени изключения.</td>
                             </tr>
                         )}
                         {exceptions.map(ex => (
-                            <tr key={ex.exception_date} className="hover:bg-slate-800/40 transition-colors">
-                                <td className="px-6 py-4 font-mono font-bold text-white">{ex.exception_date}</td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-3 py-1 rounded-md text-xs font-bold border tracking-widest ${BADGE_COLORS[ex.schedule_type_override] ?? 'bg-slate-700/30 text-slate-300 border-slate-700'}`}>
+                            <tr key={ex.exception_date}>
+                                <td className="num font-mono font-medium">{ex.exception_date}</td>
+                                <td>
+                                    <span className={`badge ${BADGE_COLORS[ex.schedule_type_override] ?? ''}`}>
                                         {DAY_LABELS[ex.schedule_type_override] ?? ex.schedule_type_override}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => handleDelete(ex.exception_date)}
-                                        className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 rounded-lg text-sm font-medium transition-all duration-300 border border-transparent hover:border-rose-500/30"
-                                    >
+                                <td className="text-right">
+                                    <button onClick={() => handleDelete(ex.exception_date)} className="btn btn-danger btn-sm">
                                         Изтрий
                                     </button>
                                 </td>
