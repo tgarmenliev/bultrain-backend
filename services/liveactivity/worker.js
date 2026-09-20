@@ -32,6 +32,7 @@ const armedWatcher = require('./armedWatcher');
 const apns         = require('./apns');
 const contentState = require('./contentState');
 const metrics      = require('./metrics');
+const realtimeGate = require('./realtimeGate');
 const { buildBody, STALE_AFTER_MS } = require('./pushBody');
 
 // See testFeed.js: a reserved TEST-prefixed number resolves synthetic data for
@@ -159,8 +160,14 @@ async function tick(now = new Date()) {
     const nowMs  = now.getTime();
     const nowSec = Math.floor(nowMs / 1000);
 
-    const rows = store.listActive();
-    if (!rows.length) return { sent: 0, skipped: 0 };
+    const active = store.listActive();
+    if (!active.length) return { sent: 0, skipped: 0 };
+
+    // No usable feed (just after a restart, or the feed has gone stale) and an
+    // update built from no data would end a late train's activity or blank its
+    // delay. Leave those tokens exactly as they are — bounded, see realtimeGate.js.
+    const rows = active.filter(r => !realtimeGate.holds(r.train_number, nowMs, r.scheduled_arrival));
+    if (!rows.length) return { sent: 0, skipped: 0, held: active.length };
 
     // Group by train so the realtime lookup happens once per train.
     const byTrain = new Map();
@@ -286,6 +293,8 @@ function scheduleDepartures(now = new Date()) {
             try {
                 const fresh = store.getByToken(row.token);
                 if (!fresh) return;
+                // The next tick sees the phase change and pushes it, once the cache has data.
+                if (realtimeGate.holds(fresh.train_number, Date.now(), fresh.scheduled_arrival)) return;
                 const rt = getTrain(fresh.train_number);
                 const v  = getVehicle(fresh.train_number);
                 const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;

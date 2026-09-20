@@ -32,6 +32,7 @@ const stationDisplay = require('../gtfs/stationDisplay');
 const logic        = require('./armedLogic');
 const metrics      = require('./metrics');
 const pushBody     = require('./pushBody');
+const realtimeGate = require('./realtimeGate');
 
 // Reserved TEST-prefixed numbers resolve from testFeed (see its header for why
 // that lives outside services/realtime/cache.js); every real number falls
@@ -602,7 +603,7 @@ async function tick(now = new Date()) {
     if (!rows.length) return { checked: 0 };
 
     const nowSec = Math.floor(now.getTime() / 1000);
-    let started = 0, alerted = 0, stopped = 0;
+    let started = 0, alerted = 0, stopped = 0, held = 0;
 
     // Group the live legs by journey. listActive() returns only legs still in
     // play, so the lowest leg_index within a group IS the leg being travelled —
@@ -616,13 +617,25 @@ async function tick(now = new Date()) {
 
     for (const row of rows) {
         try {
+            // Straight after a restart the realtime cache is empty, so skip the
+            // row until the first fresh feed lands (see realtimeGate.js). Per
+            // row, not per tick, so a TEST- leg is unaffected and sibling legs
+            // still group correctly. No scheduled arrival is passed on purpose:
+            // a stale feed later on must not stop cards STARTING or alerts going
+            // out — only the auto-stop below is held for that.
+            if (realtimeGate.holds(row.train_number, now.getTime())) { held++; continue; }
+
             const siblings = byJourney.get(`${row.install_id}|${row.journey_id}`) || [row];
             const legCtx = logic.legRole(row, siblings, now);
 
             const rt = getTrain(row.train_number);
             const feed = readFeed(row, rt, nowSec);
 
-            if (maybeStop(row, feed, now)) { stopped++; continue; }
+            // With a stale feed maybeStop() would judge a late journey by its
+            // scheduled times and stop it while it is still under way. Leave it
+            // running until its scheduled arrival + the gate's bound.
+            const stopHeld = realtimeGate.holds(row.train_number, now.getTime(), row.scheduled_arrival);
+            if (!stopHeld && maybeStop(row, feed, now)) { stopped++; continue; }
 
             const before = row.state;
             await maybeStart(row, feed, now, legCtx);
@@ -635,8 +648,9 @@ async function tick(now = new Date()) {
         }
     }
 
-    console.log(`[armed] tick: ${rows.length} active, ${started} started, ${alerted} alerted, ${stopped} stopped`);
-    return { checked: rows.length, started, alerted, stopped };
+    console.log(`[armed] tick: ${rows.length} active, ${started} started, ${alerted} alerted, ${stopped} stopped` +
+                (held ? `, ${held} held (realtime cache warming up)` : ''));
+    return { checked: rows.length, started, alerted, stopped, held };
 }
 
 module.exports = { tick, readFeed, asTokenRow, buildStartBody };
