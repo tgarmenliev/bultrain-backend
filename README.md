@@ -156,6 +156,44 @@ it (`distanceSource:"computed"` — the feed has no `shape_dist_traveled` on
 stop_times). `404` means no shape for that train/date (also for a replacement-bus
 leg): the client draws straight lines. `ETag` + `Cache-Control: private, max-age=3600`.
 
+### Public network snapshot (website)
+
+**`GET /api/network`** and **`GET /api/network/radar`** are the data behind the
+website's "living network". They are **public** (no API key — a key in a web page
+is not a secret), read-only, rate-limited per IP, and answer CORS only for the
+website (`https://bultrain.eu`, `https://www.bultrain.eu`, anything in
+`SITE_ORIGINS`) and localhost dev ports. Mounted before the global CORS in
+`server.js` because that one rejects unknown origins with an error.
+
+Visitors never trigger work. `services/network/snapshot.js` rebuilds both files
+**once a minute** from the in-memory realtime cache (a few ms; the feeds tick every
+30–60 s, so building more often would only restate the same data), serialises and
+gzips them once, and every request is a buffer write. The only outbound cost is
+the Sofia/Plovdiv departure boards, scraped from БДЖ **every 5 minutes** by
+`services/network/boards.js` (`NETWORK_BOARDS=off` disables it). Starts with
+`REALTIME=on`; `503 + Retry-After` until the first build.
+
+`Cache-Control: public, max-age=N` where N is the seconds until the next build
+(5–60), so a cache never holds a copy past the point a newer one exists; plus
+`ETag`/`304`, `Vary: Origin, Accept-Encoding`, gzip.
+
+`/api/network` → `{generatedAt, realtime:{available, feedUpdatedAt, positionsUpdatedAt},
+summary:{running, withRealtime, onTimePercent, avgDelayMin, maxDelay}, boards:{sofia,plovdiv:{name,
+trains,fetchedAt}}}`. `/api/network/radar` → `{generatedAt, realtime, count, trains:[{type, trainNum,
+from, to, fromId, toId, delayMin, progress, lat, lon}]}`.
+
+Honesty rules (pinned by `test/network.test.js`): `realtime.available` is false when
+the trip feed is stale, and then `onTimePercent`, `avgDelayMin`, `maxDelay` are `null`
+(`withRealtime` 0) — never estimated; the figures count only trains that have a
+TripUpdate delay; "on time" = under 5 min late; early arrivals count as 0 in the
+average; `maxDelay` is `null` when nobody is late; `running` is the saved schedule's
+answer (first departure → last arrival, overnight runs included, replacement buses
+excluded) plus trains the realtime feeds themselves put on the road; `lat`/`lon` are
+measured fixes (`null` without one), `progress` is the measured position along the
+route (`null` if it cannot be placed, never schedule-projected), `delayMin` is `null`
+when unknown. A board whose scrape has been failing for over 15 minutes is
+`trains: null`, not stale departures.
+
 A quiet `RT_HISTORY=on` job accumulates observed delays for future statistics.
 
 ---

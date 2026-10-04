@@ -94,6 +94,9 @@ function getEverythingPastLoadingStation(station) {
     return result;
 }
 
+// A stalled БДЖ site must fail the request, not hold a socket open for ever.
+const FETCH_TIMEOUT_MS = 20000;
+
 // --- Същинският контролер с новия Bypass метод ---
 
 const getLiveBoard = async (req, res) => {
@@ -123,7 +126,7 @@ const getLiveBoard = async (req, res) => {
         };
 
         // 2. СТЪПКА 1 (Handshake): Взимаме бисквитката от главната страница
-        const initialResponse = await axios.get('https://live.bdz.bg/', { headers: fakeHeaders });
+        const initialResponse = await axios.get('https://live.bdz.bg/', { headers: fakeHeaders, timeout: FETCH_TIMEOUT_MS });
         const cookies = initialResponse.headers['set-cookie'];
 
         if (cookies) {
@@ -131,7 +134,7 @@ const getLiveBoard = async (req, res) => {
         }
 
         // 3. СТЪПКА 2 (Fetch): Теглим същинските данни с вече "валидната" сесия
-        const response = await axios.get(url, { headers: fakeHeaders });
+        const response = await axios.get(url, { headers: fakeHeaders, timeout: FETCH_TIMEOUT_MS });
 
 
 

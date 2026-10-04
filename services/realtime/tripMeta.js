@@ -139,4 +139,4 @@ function deriveServiceDate(meta, atMs) {
 /** Tests only. */
 function _reset() { cache.clear(); }
 
-module.exports = { get, deriveServiceDate, crossesMidnight, _reset };
+module.exports = { get, deriveServiceDate, crossesMidnight, sofiaYmd, sofiaMinuteOfDay, prevDay, _reset };

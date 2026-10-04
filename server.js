@@ -51,12 +51,19 @@ const stats = require('./routes/stats');
 const stationsRoutes = require('./routes/stations');
 const realtimeRoutes = require('./routes/realtime');
 const routeShapeRoutes = require('./routes/routeShape');
+const networkRoutes = require('./routes/network');
 const liveActivityRoutes = require('./routes/liveActivity');
 const articlesAppRoutes = require('./routes/articles');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// ── Public network snapshot (for the website) ───────────────────────────────
+// Mounted BEFORE the global CORS below: that one rejects any origin it does not
+// know with an error, while this endpoint answers the website's origin itself.
+// Key-less by design; served from memory (see services/network/snapshot.js).
+app.use('/api/network', networkRoutes);
 
 // ── CORS configuration ────────────────────────────────────────────────────
 const allowedOrigins = [
@@ -165,6 +172,9 @@ app.listen(port, () => {
 // poller starts fetching. Isolated: if it fails, the rest of the API is fine.
 if (process.env.REALTIME === 'on') {
   require('./services/realtime/poller').start();
+  // The public network snapshot reads the poller's cache; isolated like the rest.
+  try { require('./services/network/snapshot').start(); }
+  catch (err) { console.error('[network] snapshot failed to start:', err.message); }
   // Quiet delay-history accumulation (independent flag).
   if (process.env.RT_HISTORY === 'on') {
     require('./services/realtime/history').start();

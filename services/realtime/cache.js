@@ -70,6 +70,12 @@ function getTripFor(num, tripId) {
 }
 function getTrips(num)   { return fresh(state.tripFeedTs)    ? (state.trips.get(num) || [])   : []; }
 function getVehicle(num) { return fresh(state.vehicleFeedTs) ? (state.vehicles.get(num) || null) : null; }
+// Every number the TripUpdates feed lists, each with its in-progress run — for
+// anything that must enumerate trains rather than look one up by number.
+function getAllTrains() {
+    if (!fresh(state.tripFeedTs)) return [];
+    return [...state.trips.keys()].map(num => [num, pickActive(state.trips.get(num))]).filter(([, t]) => t);
+}
 function getAllVehicles(){ return fresh(state.vehicleFeedTs) ? [...state.vehicles.entries()] : []; }
 
 function status() {
@@ -83,4 +89,4 @@ function status() {
     };
 }
 
-module.exports = { setTrips, setVehicles, getTrain, getTripFor, getTrips, getVehicle, getAllVehicles, status, MAX_AGE_MS };
+module.exports = { setTrips, setVehicles, getTrain, getTripFor, getTrips, getVehicle, getAllVehicles, getAllTrains, status, MAX_AGE_MS };
