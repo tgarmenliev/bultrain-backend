@@ -19,11 +19,13 @@ const B        = require('gtfs-realtime-bindings');
 const cfg     = require('../gtfs/config');
 const cache   = require('./cache');
 const history = require('./history');
+const { fromEntity } = require('./vehicleFields');
 
 const HISTORY_ON = process.env.RT_HISTORY === 'on';
 
 const DB_PATH     = path.join(__dirname, '..', '..', 'bultrain.sqlite');
 const FeedMessage = B.transit_realtime.FeedMessage;
+const SKIPPED     = B.transit_realtime.TripUpdate.StopTimeUpdate.ScheduleRelationship.SKIPPED;
 
 // Both feeds are published on a strict 30-second grid (measured: header
 // timestamps land on :26/:56, three consecutive deltas of exactly 30s). Polling
@@ -113,6 +115,8 @@ async function pollTripUpdates() {
                     arrivalTime:    su.arrival   && su.arrival.time   ? Number(su.arrival.time)   : null,
                     departureDelay,
                     departureTime:  su.departure && su.departure.time ? Number(su.departure.time) : null,
+                    // The feed marks a stop the train will NOT call at SKIPPED.
+                    skipped:        su.scheduleRelationship === SKIPPED,
                 };
             });
             // Append, don't overwrite: two trips can share a train number at
@@ -145,6 +149,7 @@ async function pollVehicles() {
                 lat:     v.position.latitude,
                 lon:     v.position.longitude,
                 bearing: v.position.bearing ?? null,
+                ...fromEntity(v),     // positionTimestamp, stopStatus — as published, or null
             });
         }
         cache.setVehicles(map, feedTs);

@@ -13,7 +13,7 @@ const MAX_AGE_MS = 3 * 60 * 1000; // older than this ⇒ treated as no live data
 
 const state = {
     trips:    new Map(),  // trainNumber -> [{ tripId, stops: [...] }, ...]
-    vehicles: new Map(),  // trainNumber -> { tripId, lat, lon, bearing }
+    vehicles: new Map(),  // trainNumber -> { tripId, lat, lon, bearing, positionTimestamp, stopStatus }
     tripFeedTs:    0,     // ms epoch from the TripUpdates feed header
     vehicleFeedTs: 0,     // ms epoch from the VehiclePositions feed header
 };
@@ -57,6 +57,17 @@ function pickActive(trips) {
 }
 
 function getTrain(num)   { return fresh(state.tripFeedTs)    ? pickActive(state.trips.get(num)) : null; }
+// The TripUpdate of the EXACT run a vehicle belongs to. When the vehicle's own
+// trip is not in the feed we return null rather than another run of the same
+// number: attaching tomorrow's (or yesterday's) delay to this dot would be a
+// confident claim about the wrong train. Without a trip id, fall back to the
+// by-number pick.
+function getTripFor(num, tripId) {
+    if (!fresh(state.tripFeedTs)) return null;
+    const list = state.trips.get(num);
+    if (!tripId) return pickActive(list);
+    return (Array.isArray(list) ? list : []).find(t => t.tripId === tripId) || null;
+}
 function getTrips(num)   { return fresh(state.tripFeedTs)    ? (state.trips.get(num) || [])   : []; }
 function getVehicle(num) { return fresh(state.vehicleFeedTs) ? (state.vehicles.get(num) || null) : null; }
 function getAllVehicles(){ return fresh(state.vehicleFeedTs) ? [...state.vehicles.entries()] : []; }
@@ -72,4 +83,4 @@ function status() {
     };
 }
 
-module.exports = { setTrips, setVehicles, getTrain, getTrips, getVehicle, getAllVehicles, status, MAX_AGE_MS };
+module.exports = { setTrips, setVehicles, getTrain, getTripFor, getTrips, getVehicle, getAllVehicles, status, MAX_AGE_MS };

@@ -50,6 +50,7 @@ const translator = require('./routes/translator');
 const stats = require('./routes/stats');
 const stationsRoutes = require('./routes/stations');
 const realtimeRoutes = require('./routes/realtime');
+const routeShapeRoutes = require('./routes/routeShape');
 const liveActivityRoutes = require('./routes/liveActivity');
 const articlesAppRoutes = require('./routes/articles');
 const adminRoutes = require('./routes/admin');
@@ -121,6 +122,7 @@ app.use('/api/translator', verifyMobileClient, translator);
 app.use('/api/stats', verifyMobileClient, stats);
 app.use('/api/stations', verifyMobileClient, stationsRoutes);
 app.use('/api/realtime', verifyMobileClient, realtimeRoutes);
+app.use('/api/route-shape', verifyMobileClient, routeShapeRoutes);
 app.use('/api/live-activity', verifyMobileClient, liveActivityRoutes);
 app.use('/api/articles', verifyMobileClient, articlesAppRoutes);
 

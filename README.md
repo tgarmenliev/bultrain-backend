@@ -117,6 +117,45 @@ scheduled times are shown, labelled as such.
 Other endpoints (same auth): `/api/realtime/vehicle/:trainNo`,
 `/api/realtime/vehicles` (all positions), `/api/realtime/status` (poller health).
 
+### Live map
+
+**`GET /api/realtime/vehicles`** is self-sufficient for drawing and colouring the
+map, so a refresh needs one request, not one per train. Every entry is a
+*measured* VehiclePositions fix — nothing is interpolated or projected from
+TripUpdates — and the response is
+`{count, feedTimestamp, vehicles:[{trainNumber, lat, lon, bearing, positionTimestamp,
+stopStatus, delayMinutes, hasLiveDelay, progressSource, trainType, originStationId,
+destinationStationId, nextStationId, serviceDate}]}`. All new fields are additive and
+nullable.
+
+- `positionTimestamp` / `stopStatus` are the feed's own `VehiclePosition.timestamp`
+  and `current_status`, or `null` when the entity has none — never the poll time
+  or the feed header time. **Caveat:** NAP stamps every entity with the feed's
+  generation time, so the per-vehicle timestamp equals the feed time and does not
+  by itself prove a fix is fresh; a stationary train is told apart by
+  `stopStatus: "STOPPED_AT"`.
+- `delayMinutes` / `hasLiveDelay` / `progressSource` come from the same
+  `summarize()` as `/train/:no`, for the vehicle's *own* run (a TripUpdate of
+  another run of the same number is never borrowed). No TripUpdate ⇒ `null`/`false`.
+- `trainType` is a language-independent code (`PASSENGER`, `SUBURBAN`, `FAST`,
+  `EXPRESS`, `INTERNATIONAL`, `BUS`); origin/destination/next are station **ids**.
+  `nextStationId` is the next stop the train *calls at* (timing points and
+  `SKIPPED` stops excluded); the older `nextStation` string is unchanged.
+- `serviceDate` is derived from the saved schedule (the feed publishes no
+  `start_date`), `null` when it cannot be told.
+- `ETag` + `Cache-Control: private, max-age=5`; `If-None-Match` → `304` while
+  neither feed has ticked.
+- In `/train/:no`, `position` gains the same two fields and each feed stop gains
+  `callingPoint` (`true`/`false`, `null` if the trip is unknown).
+
+**`GET /api/route-shape/:trainNo?date=YYYY-MM-DD`** returns the track geometry
+from the GTFS `shapes.txt`: `{trainNumber, serviceDate, encoding:"polyline6", shape,
+totalMeters, stops:[{stationId, distanceMeters}], distanceSource}`. The shape is
+simplified (Douglas–Peucker, 10 m); stop distances are projected monotonically onto
+it (`distanceSource:"computed"` — the feed has no `shape_dist_traveled` on
+stop_times). `404` means no shape for that train/date (also for a replacement-bus
+leg): the client draws straight lines. `ETag` + `Cache-Control: private, max-age=3600`.
+
 A quiet `RT_HISTORY=on` job accumulates observed delays for future statistics.
 
 ---

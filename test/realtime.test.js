@@ -70,7 +70,11 @@ test('a train with only a position (no TripUpdate) is 200, running, delay unknow
     assert.strictEqual(res.body.hasLiveDelay, false, 'no TripUpdate ⇒ no live delay');
     assert.strictEqual(res.body.delayMinutes, null, 'delay is unknown, reported as null');
     assert.deepStrictEqual(res.body.stops, [], 'no stops without a TripUpdate');
-    assert.deepStrictEqual(res.body.position, { lat: 42.5, lon: 25.6, bearing: 90 });
+    // Additive: the old three fields are untouched, the new ones are null (the
+    // feed said nothing) — never a made-up time or status.
+    assert.deepStrictEqual(res.body.position, {
+        lat: 42.5, lon: 25.6, bearing: 90, positionTimestamp: null, stopStatus: null,
+    });
 });
 
 test('a train absent from BOTH feeds still 404s', () => {
