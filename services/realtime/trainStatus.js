@@ -67,11 +67,18 @@ function fromFeed(rt, nowSec, calling = null) {
     // nextStation is unchanged (it may name a timing point); nextStationId is
     // the next stop the train really CALLS at.
     const nextCalling = upcoming.find(s => callingPointOf(s, calling) !== false);
+    // The last stop the train has already passed AND calls at: the same `passed`
+    // and callingPoint as in `stops`, so the stop list, the dot and this cannot disagree.
+    let previousStationId = null;
+    named.forEach((s, i) => {
+        if (stops[i].passed === true && stops[i].callingPoint !== false) previousStationId = s.stationId;
+    });
     return {
         stops,
         delayMinutes:  ref ? toMin(ref.arrivalDelay ?? ref.departureDelay) : null,
         nextStation:   upcoming[0] ? upcoming[0].station : null,
         nextStationId: nextCalling ? nextCalling.stationId : null,
+        previousStationId,
     };
 }
 
@@ -117,6 +124,7 @@ function fromPosition(v, geo) {
         progressPercentage: Number(loc.progress.toFixed(4)),
         nextStation: loc.nextIndex != null ? geo.stops[loc.nextIndex].name : null,
         nextStationId: loc.nextIndex != null ? geo.stops[loc.nextIndex].stationId : null,
+        previousStationId: loc.lastPassedIndex >= 0 ? geo.stops[loc.lastPassedIndex].stationId : null,
     };
 }
 
@@ -132,7 +140,8 @@ function summarize({ rt, v, geo, nowSec, calling = null }) {
         const f = fromFeed(rt, nowSec, calling);
         return {
             stops: f.stops, delayMinutes: f.delayMinutes, nextStation: f.nextStation,
-            nextStationId: f.nextStationId, progressSource: 'feed', progressPercentage: null,
+            nextStationId: f.nextStationId, previousStationId: f.previousStationId,
+            progressSource: 'feed', progressPercentage: null,
         };
     }
     if (v && geo) {
@@ -140,14 +149,15 @@ function summarize({ rt, v, geo, nowSec, calling = null }) {
         if (p) {
             return {
                 stops: p.stops, delayMinutes: null, nextStation: p.nextStation,
-                nextStationId: p.nextStationId, progressSource: 'position',
+                nextStationId: p.nextStationId, previousStationId: p.previousStationId,
+                progressSource: 'position',
                 progressPercentage: p.progressPercentage,
             };
         }
     }
     return {
         stops: [], delayMinutes: null, nextStation: null, nextStationId: null,
-        progressSource: null, progressPercentage: null,
+        previousStationId: null, progressSource: null, progressPercentage: null,
     };
 }
 
@@ -158,6 +168,9 @@ const positionOf = (v) => ({
     lat: v.lat, lon: v.lon, bearing: v.bearing,
     positionTimestamp: v.positionTimestamp ?? null,
     stopStatus: v.stopStatus ?? null,
+    // Which station a STOPPED_AT train stands at; null in transit or when the feed's
+    // stop is not one of ours.
+    stoppedAtStationId: v.stopStatus === 'STOPPED_AT' ? (v.stopStationId ?? null) : null,
 });
 
 module.exports = { hhmm, toMin, summarize, fromFeed, fromPosition, progressOf, positionOf, callingPointOf, MAX_OFFSET_M };

@@ -164,6 +164,7 @@ test('the dot and the screen it opens agree on delay, source and next stop', () 
         assert.strictEqual(dot.hasLiveDelay,   screen.hasLiveDelay,   `${dot.trainNumber} hasLiveDelay`);
         assert.strictEqual(dot.progressSource, screen.progressSource, `${dot.trainNumber} progressSource`);
         assert.strictEqual(dot.nextStationId,  screen.nextStationId,  `${dot.trainNumber} nextStationId`);
+        assert.strictEqual(dot.previousStationId, screen.previousStationId, `${dot.trainNumber} previousStationId`);
     }
 });
 
@@ -203,6 +204,7 @@ test('/train/:no: position carries the new fields; old ones keep their types', (
     const b = call(controller.getTrain, { params: { trainNo: '8613' } }).body;
     assert.deepStrictEqual(b.position, {
         lat: 42.0, lon: 25.10, bearing: 90, positionTimestamp: FEED_TS, stopStatus: 'IN_TRANSIT_TO',
+        stoppedAtStationId: null,
     });
     assert.strictEqual(typeof b.trainNumber, 'string');
     assert.strictEqual(typeof b.delayMinutes, 'number');
@@ -238,6 +240,58 @@ test('stale vehicles are kept; a wholly stale feed is empty, as before', () => {
 
     cache.setVehicles(new Map([['8613', { tripId: 'x', lat: 1, lon: 1, bearing: 0 }]]), Date.now() - 10 * 60 * 1000);
     assert.strictEqual(call(controller.getVehicles).body.count, 0);
+});
+
+// ── Where the train is between stops ─────────────────────────────────────────
+
+test('previousStationId: the last CALLING stop already passed (a timing point does not count)', () => {
+    seedFeeds();
+    // А was left 10 min ago; Т (timing point, 2 min ahead) and Б are still to come.
+    const dot = call(controller.getVehicles).body.vehicles.find(x => x.trainNumber === '8613');
+    assert.strictEqual(dot.previousStationId, 1);
+    assert.strictEqual(dot.nextStationId, 2);
+
+    // once the timing point is behind it, it must not become "previous"
+    const rt = cache.getTrain('8613');
+    rt.stops[1].arrivalTime = NOW_SEC - 60;      // Т passed a minute ago
+    rt.stops[1].departureTime = NOW_SEC - 30;
+    const after = call(controller.getVehicles).body.vehicles.find(x => x.trainNumber === '8613');
+    assert.strictEqual(after.previousStationId, 1, 'Т is only passed, not called at');
+});
+
+test('previousStationId: null before the train has left its origin', () => {
+    const rt = { tripId: '8613-BV-20261004', stops: [
+        { stationId: 1, station: 'А', arrivalDelay: null, arrivalTime: null, departureDelay: 300, departureTime: NOW_SEC + 300, skipped: false },
+        { stationId: 2, station: 'Б', arrivalDelay: 300, arrivalTime: NOW_SEC + 1800, departureDelay: 300, departureTime: NOW_SEC + 1860, skipped: false },
+    ] };
+    cache.setTrips(new Map([['8613', [rt]]]), FEED_TS);
+    cache.setVehicles(new Map([['8613', { tripId: '8613-BV-20261004', lat: 42, lon: 25, bearing: 0,
+        positionTimestamp: FEED_TS, stopStatus: 'STOPPED_AT', stopStationId: 1 }]]), FEED_TS);
+    const dot = call(controller.getVehicles).body.vehicles[0];
+    assert.strictEqual(dot.previousStationId, null);
+    assert.strictEqual(dot.stoppedAtStationId, 1, 'it stands at its origin');
+});
+
+test('previousStationId: a position-only train gets it from the same geometry as nextStationId', () => {
+    seedFeeds();    // 5614 is at 25.30, between Б (25.20) and В (25.40)
+    const dot = call(controller.getVehicles).body.vehicles.find(x => x.trainNumber === '5614');
+    assert.strictEqual(dot.previousStationId, 2);
+    assert.strictEqual(dot.nextStationId, 3);
+});
+
+test('stoppedAtStationId: only for a STOPPED_AT train, null in transit', () => {
+    seedFeeds();
+    cache.setVehicles(new Map([
+        ['8613', { tripId: '8613-BV-20261004', lat: 42, lon: 25.2, bearing: 0, positionTimestamp: FEED_TS,
+                   stopStatus: 'STOPPED_AT', stopStationId: 2 }],
+        ['5614', { tripId: '5614-PV-20261004', lat: 42, lon: 25.3, bearing: 0, positionTimestamp: FEED_TS,
+                   stopStatus: 'IN_TRANSIT_TO', stopStationId: 3 }],     // heading to В: not "stopped at"
+    ]), FEED_TS);
+    const by = Object.fromEntries(call(controller.getVehicles).body.vehicles.map(v => [v.trainNumber, v]));
+    assert.strictEqual(by['8613'].stoppedAtStationId, 2);
+    assert.strictEqual(by['5614'].stoppedAtStationId, null);
+    const screen = call(controller.getTrain, { params: { trainNo: '8613' } }).body;
+    assert.strictEqual(screen.position.stoppedAtStationId, 2);
 });
 
 // ── Polling cost ─────────────────────────────────────────────────────────────

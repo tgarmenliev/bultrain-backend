@@ -147,6 +147,12 @@ nullable.
   neither feed has ticked.
 - In `/train/:no`, `position` gains the same two fields and each feed stop gains
   `callingPoint` (`true`/`false`, `null` if the trip is unknown).
+- `previousStationId` is the last stop the train has already passed *and calls at*
+  (`null` before it has left its origin) — the same `passed`/`callingPoint` that drive
+  `stops` and `nextStationId`, in both `/vehicles` and `/train/:no`.
+- `stoppedAtStationId` is the station of the feed's `stop_id`, only while
+  `stopStatus` is `STOPPED_AT` (the fix measured a median 13 m from it); `null` in
+  transit. (With IN_TRANSIT_TO the feed's stop is where it is heading, not exposed.)
 
 **`GET /api/route-shape/:trainNo?date=YYYY-MM-DD`** returns the track geometry
 from the GTFS `shapes.txt`: `{trainNumber, serviceDate, encoding:"polyline6", shape,
@@ -155,6 +161,20 @@ simplified (Douglas–Peucker, 10 m); stop distances are projected monotonically
 it (`distanceSource:"computed"` — the feed has no `shape_dist_traveled` on
 stop_times). `404` means no shape for that train/date (also for a replacement-bus
 leg): the client draws straight lines. `ETag` + `Cache-Control: private, max-age=3600`.
+
+**`GET /api/route-shapes?date=YYYY-MM-DD`** is the same data for a whole service day
+in one download, so a tap on the map is local (date defaults to today in Sofia;
+yesterday is valid for overnight trains): `{version, serviceDate, shapes:{<shapeId>:
+{encoding:"polyline6", shape, totalMeters}}, trains:{<trainNo>:{shapeId,
+stops:[{stationId, distanceMeters}]}}}`. Trains on one route share one shape. It is
+built by the same `prepareShape()` / `placeOn()` as the per-train endpoint, for the
+same trip choice, so for any train the two agree exactly (`test/route-shape-bundle.test.js`
+compares every train). Trains without a shape, and bus legs, are absent — treat that
+like the per-train 404. `ETag` = `version` (a hash of the content, so it only moves when
+the content does) → `304`; gzip; `Cache-Control: private, max-age=3600`.
+`GET /api/route-shapes/version?date=` returns `{version, serviceDate}` without the
+download. A day is built once per GTFS import (and at most hourly), in slices that hand
+the event loop back — never per request. 404 when no train has a shape that day.
 
 ### Public network snapshot (website)
 

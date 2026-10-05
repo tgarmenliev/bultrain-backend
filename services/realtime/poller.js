@@ -150,6 +150,10 @@ async function pollVehicles() {
                 lon:     v.position.longitude,
                 bearing: v.position.bearing ?? null,
                 ...fromEntity(v),     // positionTimestamp, stopStatus — as published, or null
+                // The feed's stop_id as one of our stations. With STOPPED_AT it is the
+                // station the train stands at (measured 13 m median from the fix); with
+                // IN_TRANSIT_TO it is the stop it is heading to, which we do not expose.
+                stopStationId: (stopToStation.get(v.stopId) || {}).station_id ?? null,
             });
         }
         cache.setVehicles(map, feedTs);

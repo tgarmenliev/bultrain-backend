@@ -73,7 +73,7 @@ test('a train with only a position (no TripUpdate) is 200, running, delay unknow
     // Additive: the old three fields are untouched, the new ones are null (the
     // feed said nothing) — never a made-up time or status.
     assert.deepStrictEqual(res.body.position, {
-        lat: 42.5, lon: 25.6, bearing: 90, positionTimestamp: null, stopStatus: null,
+        lat: 42.5, lon: 25.6, bearing: 90, positionTimestamp: null, stopStatus: null, stoppedAtStationId: null,
     });
 });
 

@@ -4,6 +4,7 @@ const cache      = require('../services/realtime/cache');
 const geometryOf = require('../services/gtfs/tripGeometry');
 const tripMeta   = require('../services/realtime/tripMeta');
 const { summarize, positionOf } = require('../services/realtime/trainStatus');
+const { etagMatches } = require('../services/httpCache');
 
 /**
  * Pure builder for GET /api/realtime/train/:no — no req/res, so it's unit
@@ -25,6 +26,7 @@ function buildTrainStatus({ num, rt, v, geo, calling = null, now = new Date() })
             progressPercentage: r.progressPercentage, // set only when derived from position
             nextStation:  r.nextStation,
             nextStationId: r.nextStationId,
+            previousStationId: r.previousStationId,
             stops:        r.stops,
             position:     v ? positionOf(v) : null,
         },
@@ -84,14 +86,6 @@ function vehiclesEtag(st) {
     return `"v${st.vehicleFeedTs || 0}-t${st.tripFeedTs || 0}-${st.vehicleFresh ? 1 : 0}${st.tripFresh ? 1 : 0}"`;
 }
 
-const etagMatches = (header, etag) => {
-    if (!header) return false;
-    return header.split(',').some(t => {
-        const v = t.trim();
-        return v === '*' || v.replace(/^W\//, '') === etag;
-    });
-};
-
 /**
  * One map dot: the position as published, plus what the dot needs to be coloured
  * and labelled without a request per train. Delay fields come from the same
@@ -115,6 +109,7 @@ function buildVehicleEntry(num, v, nowMs) {
         originStationId: meta ? meta.originStationId : null,
         destinationStationId: meta ? meta.destinationStationId : null,
         nextStationId: r.nextStationId,
+        previousStationId: r.previousStationId,
         serviceDate: meta ? tripMeta.deriveServiceDate(meta, v.positionTimestamp ?? nowMs) : null,
     };
 }

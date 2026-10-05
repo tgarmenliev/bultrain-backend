@@ -143,19 +143,28 @@ function placeStops(line, stops) {
 }
 
 /**
+ * The part that depends on the shape alone: simplify it, encode it, measure it.
+ * Many trains share one shape, so this is done once per shape (the bundle and the
+ * per-train endpoint both reuse it) and the result is read-only.
  * @param {{lat:number,lon:number}[]} shapePts  full-resolution shape, in order
- * @param {{stationId:number,lat:number,lon:number}[]} stops  calling stops, in order
- * @returns {{shape:string, totalMeters:number, stops:{stationId:number,distanceMeters:number}[],
- *            droppedStops:number}|null} null when the shape is unusable
+ * @returns {{shape:string, totalMeters:number, line:object}|null} null when unusable
  */
-function build(shapePts, stops) {
+function prepareShape(shapePts) {
     if (!Array.isArray(shapePts) || shapePts.length < 2) return null;
 
     const full = progress.prepareLine(shapePts);
     const kept = simplifyIndices(full.xy, SIMPLIFY_TOL_M).map(i => shapePts[i]);
     const line = progress.prepareLine(kept);
+    return { shape: polyline.encode(kept, 6), totalMeters: Math.round(line.total), line };
+}
 
-    const placed = placeStops(line, stops);
+/**
+ * The part that depends on the train: where its calling stops sit along a prepared shape.
+ * @param {{stationId:number,lat:number,lon:number}[]} stops  calling stops, in order
+ * @returns {{stops:{stationId:number,distanceMeters:number}[], droppedStops:number}}
+ */
+function placeOn(prepared, stops) {
+    const placed = placeStops(prepared.line, stops);
     const out = [];
     let last = 0;
     stops.forEach((s, i) => {
@@ -163,16 +172,30 @@ function build(shapePts, stops) {
         last = Math.max(last, Math.round(placed[i].along));   // never backwards after rounding
         out.push({ stationId: s.stationId, distanceMeters: last });
     });
+    return { stops: out, droppedStops: stops.length - out.length };
+}
 
-    return {
-        shape: polyline.encode(kept, 6),
-        totalMeters: Math.round(line.total),
-        stops: out,
-        droppedStops: stops.length - out.length,
-    };
+/**
+ * @returns {{shape:string, totalMeters:number, stops:{stationId:number,distanceMeters:number}[],
+ *            droppedStops:number}|null} null when the shape is unusable
+ */
+function build(shapePts, stops) {
+    const prepared = prepareShape(shapePts);
+    if (!prepared) return null;
+    const placed = placeOn(prepared, stops);
+    return { shape: prepared.shape, totalMeters: prepared.totalMeters, ...placed };
 }
 
 // ── Lookup ───────────────────────────────────────────────────────────────────
+
+const PICK_SQL = `
+    SELECT t.trip_id AS tripId, t.train_number AS num, g.shape_id AS shapeId,
+           (SELECT COUNT(*) FROM trip_stop s WHERE s.trip_id = t.trip_id) AS n
+      FROM trip t
+      JOIN trip_date td ON td.trip_id = t.trip_id
+      JOIN gtfs_trips g ON g.trip_id = t.trip_id
+     WHERE td.date = ?
+       AND t.category <> 'АВТ' AND g.shape_id IS NOT NULL AND g.shape_id <> ''`;
 
 /**
  * The rail leg of `trainNo` on `date` that has a shape. A number can be several
@@ -181,33 +204,62 @@ function build(shapePts, stops) {
  * @returns {{tripId:string, shapeId:string}|null}
  */
 function pickTrip(trainNo, date) {
-    const rows = conn().prepare(`
-        SELECT t.trip_id AS tripId, g.shape_id AS shapeId,
-               (SELECT COUNT(*) FROM trip_stop s WHERE s.trip_id = t.trip_id) AS n
-          FROM trip t
-          JOIN trip_date td ON td.trip_id = t.trip_id
-          JOIN gtfs_trips g ON g.trip_id = t.trip_id
-         WHERE t.train_number = ? AND td.date = ?
-           AND t.category <> 'АВТ' AND g.shape_id IS NOT NULL AND g.shape_id <> ''
-         ORDER BY n DESC, t.trip_id
-    `).all(String(trainNo), date);
+    const rows = conn().prepare(`${PICK_SQL} AND t.train_number = ? ORDER BY n DESC, t.trip_id`)
+        .all(date, String(trainNo));
     return rows[0] || null;
 }
 
-function loadFor(tripId, shapeId) {
-    const c = conn();
-    const shapePts = c.prepare(
+/**
+ * Every train that has a shape on `date`, with the SAME trip chosen as pickTrip
+ * would choose for it (most stops, then trip_id).
+ * @returns {Map<string, {tripId:string, shapeId:string}>} train number → trip
+ */
+function pickTripsFor(date) {
+    const best = new Map();
+    for (const r of conn().prepare(PICK_SQL).all(date)) {
+        const cur = best.get(r.num);
+        if (!cur || r.n > cur.n || (r.n === cur.n && r.tripId < cur.tripId)) best.set(r.num, r);
+    }
+    return new Map([...best].map(([num, r]) => [num, { tripId: r.tripId, shapeId: r.shapeId }]));
+}
+
+/** A shape prepared once and kept: it only changes with the daily GTFS refresh. */
+const shapeCache = new Map();   // shape_id -> { at, value }
+function preparedShape(shapeId) {
+    const hit = shapeCache.get(shapeId);
+    if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value;
+    const pts = conn().prepare(
         'SELECT shape_pt_lat AS lat, shape_pt_lon AS lon FROM gtfs_shapes WHERE shape_id = ? ORDER BY shape_pt_sequence'
     ).all(shapeId);
+    const value = prepareShape(pts);
+    if (shapeCache.size >= MAX_ENTRIES) shapeCache.clear();
+    shapeCache.set(shapeId, { at: Date.now(), value });
+    return value;
+}
 
-    const raw = c.prepare(`
+/** The calling stops of a trip with coordinates, consecutive duplicates collapsed. */
+function stopsOfTrip(tripId) {
+    const raw = conn().prepare(`
         SELECT ts.station_id AS stationId, s.lat, s.lon
           FROM trip_stop ts LEFT JOIN stations s ON s.id = ts.station_id
          WHERE ts.trip_id = ? ORDER BY ts.seq
     `).all(tripId).filter(r => r.stationId != null && r.lat != null && r.lon != null);
+    return raw.filter((r, i) => i === 0 || r.stationId !== raw[i - 1].stationId);
+}
 
-    const stops = raw.filter((r, i) => i === 0 || r.stationId !== raw[i - 1].stationId);
-    return build(shapePts, stops);
+/** Changes whenever a new GTFS feed is imported; keys the cached bundles. */
+function dataVersion() {
+    try {
+        const r = conn().prepare('SELECT MAX(id) AS id FROM gtfs_import').get();
+        return r && r.id != null ? r.id : 0;
+    } catch { return 0; }
+}
+
+function loadFor(tripId, shapeId) {
+    const prepared = preparedShape(shapeId);
+    if (!prepared) return null;
+    const placed = placeOn(prepared, stopsOfTrip(tripId));
+    return { shape: prepared.shape, totalMeters: prepared.totalMeters, ...placed };
 }
 
 /**
@@ -250,6 +302,9 @@ function forTrain(trainNo, date) {
     };
 }
 
-function _reset() { cache.clear(); }
+function _reset() { cache.clear(); shapeCache.clear(); }
 
-module.exports = { build, forTrain, simplifyIndices, _reset, SIMPLIFY_TOL_M, STOP_MAX_OFFSET_M };
+module.exports = {
+    build, prepareShape, placeOn, forTrain, pickTripsFor, preparedShape, stopsOfTrip, dataVersion,
+    simplifyIndices, _reset, SIMPLIFY_TOL_M, STOP_MAX_OFFSET_M,
+};

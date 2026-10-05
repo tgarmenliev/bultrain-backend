@@ -51,6 +51,7 @@ const stats = require('./routes/stats');
 const stationsRoutes = require('./routes/stations');
 const realtimeRoutes = require('./routes/realtime');
 const routeShapeRoutes = require('./routes/routeShape');
+const routeShapesRoutes = require('./routes/routeShapes');
 const networkRoutes = require('./routes/network');
 const liveActivityRoutes = require('./routes/liveActivity');
 const articlesAppRoutes = require('./routes/articles');
@@ -130,6 +131,7 @@ app.use('/api/stats', verifyMobileClient, stats);
 app.use('/api/stations', verifyMobileClient, stationsRoutes);
 app.use('/api/realtime', verifyMobileClient, realtimeRoutes);
 app.use('/api/route-shape', verifyMobileClient, routeShapeRoutes);
+app.use('/api/route-shapes', verifyMobileClient, routeShapesRoutes);
 app.use('/api/live-activity', verifyMobileClient, liveActivityRoutes);
 app.use('/api/articles', verifyMobileClient, articlesAppRoutes);
 

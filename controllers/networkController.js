@@ -1,6 +1,7 @@
 'use strict';
 
 const snapshot = require('../services/network/snapshot');
+const { etagMatches, acceptsGzip } = require('../services/httpCache');
 
 /**
  * The public "living network" endpoints for the website. No API key (a key in a
@@ -23,18 +24,6 @@ function cors(req, res) {
     const origin = req.headers.origin;
     if (origin && SITE_ORIGINS.includes(origin)) res.set('Access-Control-Allow-Origin', origin);
 }
-
-const acceptsGzip = (header) => String(header || '').split(',').some(part => {
-    const [coding, ...params] = part.trim().split(';').map(s => s.trim());
-    if (coding !== 'gzip' && coding !== '*') return false;
-    const q = params.find(p => p.startsWith('q='));
-    return !q || Number(q.slice(2)) > 0;
-});
-
-const etagMatches = (header, etag) => !!header && header.split(',').some(t => {
-    const v = t.trim();
-    return v === '*' || v.replace(/^W\//, '') === etag;
-});
 
 const serve = (kind) => (req, res) => {
     cors(req, res);

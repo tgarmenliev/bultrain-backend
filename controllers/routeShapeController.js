@@ -3,13 +3,9 @@
 const crypto     = require('crypto');
 const routeShape = require('../services/gtfs/routeShape');
 const adminView  = require('../services/gtfs/adminView');   // isValidYmd / sofiaToday only
+const { etagMatches } = require('../services/httpCache');
 
 const TRAIN_NO_RE = /^[0-9A-Za-z-]{1,16}$/;
-
-const etagMatches = (header, etag) => !!header && header.split(',').some(t => {
-    const v = t.trim();
-    return v === '*' || v.replace(/^W\//, '') === etag;
-});
 
 /**
  * GET /api/route-shape/:trainNo?date=YYYY-MM-DD
