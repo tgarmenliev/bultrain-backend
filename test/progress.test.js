@@ -66,3 +66,17 @@ test('a point off the line still projects; offset reflects the deviation', () =>
 test('prepareLine rejects a degenerate line', () => {
     assert.throws(() => progress.prepareLine([{ lat: 42, lon: 25 }]));
 });
+
+test('locatePrepared gives exactly what locate gives, for every position on and off the line', () => {
+    const line = progress.prepareLine([
+        { lat: 42.0, lon: 25.0 }, { lat: 42.0, lon: 25.1 }, { lat: 42.05, lon: 25.2 }, { lat: 42.05, lon: 25.4 },
+    ]);
+    const stops = [{ lat: 42.0, lon: 25.0 }, { lat: 42.0, lon: 25.1 }, { lat: 42.05, lon: 25.4 }];
+    const stopAlong = progress.prepareStops(line, stops);
+    for (const pos of [
+        { lat: 42.0, lon: 25.0 }, { lat: 42.0, lon: 25.05 }, { lat: 42.03, lon: 25.15 },
+        { lat: 42.05, lon: 25.3 }, { lat: 42.05, lon: 25.4 }, { lat: 43.0, lon: 25.2 }, { lat: 41.9, lon: 24.9 },
+    ]) {
+        assert.deepStrictEqual(progress.locatePrepared(line, stopAlong, pos), progress.locate(line, stops, pos));
+    }
+});

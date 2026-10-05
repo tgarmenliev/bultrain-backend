@@ -1,5 +1,6 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const ownBoard = require('../services/live/ownBoard');
 const stations = require('../stations.json'); // Увери се, че пътят до файла е правилен!
 
 // --- Твоите помощни функции (остават непроменени, защото са перфектни) ---
@@ -94,10 +95,85 @@ function getEverythingPastLoadingStation(station) {
     return result;
 }
 
-// A stalled БДЖ site must fail the request, not hold a socket open for ever.
-const FETCH_TIMEOUT_MS = 20000;
+// БДЖ's live site became unreachable from the server (connect timeouts for hours), and
+// its delays turned out to come from the same realtime feed we already read (every
+// train БДЖ marked late was one the feed knows). So the board is served from our own
+// data (services/live/ownBoard.js: the schedule plus the realtime delays) and БДЖ is
+// not asked at all — no requests to a site that has blocked the server — unless
+// LIVE_BDZ=on. When on, a БДЖ that fails twice is left alone and probed in the
+// background (rarely: no request waits for it, and no hammering a site that said no).
+const FETCH_TIMEOUT_MS = 8000;
+const BDZ_FAILS_TO_OPEN = 2;
+const BDZ_RETRY_MS = 60 * 60 * 1000;
+const scrapeEnabled = () => process.env.LIVE_BDZ === 'on';
+const bdz = { open: false, failures: 0, retryAt: 0, probing: false };
 
-// --- Същинският контролер с новия Bypass метод ---
+/** The original scrape of БДЖ's board, unchanged in what it returns. Throws on failure. */
+async function scrapeBoard(language, stationName, type) {
+    const url = `https://live.bdz.bg/${language}/${stationName.toLowerCase()}/${type}`;
+
+    // 1. ПОДГОТОВКА: Имитираме браузър
+    const fakeHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+    };
+
+    // 2. СТЪПКА 1 (Handshake): Взимаме бисквитката от главната страница
+    const initialResponse = await axios.get('https://live.bdz.bg/', { headers: fakeHeaders, timeout: FETCH_TIMEOUT_MS });
+    const cookies = initialResponse.headers['set-cookie'];
+
+    if (cookies) {
+        fakeHeaders['Cookie'] = cookies.map(c => c.split(';')[0]).join('; ');
+    }
+
+    // 3. СТЪПКА 2 (Fetch): Теглим същинските данни с вече "валидната" сесия
+    const response = await axios.get(url, { headers: fakeHeaders, timeout: FETCH_TIMEOUT_MS });
+
+    // 4. ПАРСВАНЕ: Твоята логика с Cheerio
+    const content = cheerio.load(response.data);
+    let station = "";
+    content('#content').each((index, element) => {
+        station = content(element).find('.mb-0').text();
+        station = splitWords(station);
+        station = getEverythingPastLoadingStation(station);
+    });
+
+    let trainsInfo = [];
+    content('.timetableItem').each((index, element) => {
+        let timeNames = splitWords(content(element).find('.mb-lg-0').text());
+        let trainNum = splitWords(content(element).find('.text-nowrap').text());
+        let delayInfo = splitWords(content(element).find('.col-lg-3').text());
+
+        if (delayInfo.length !== 0) delayInfo = getDelayInfo(delayInfo);
+
+        let currInfo = makeTrainJson(timeNames, trainNum, delayInfo);
+        trainsInfo.push(currInfo);
+    });
+
+    return { station: station, trains: trainsInfo };
+}
+
+/** After the retry time, check БДЖ in the background; success closes the breaker. */
+function probeInBackground(language, stationName, type) {
+    if (bdz.probing) return;
+    bdz.probing = true;
+    scrapeBoard(language, stationName, type)
+        .then(() => {
+            console.log('[live] БДЖ board is reachable again — using it');
+            bdz.open = false;
+            bdz.failures = 0;
+        })
+        .catch((err) => {
+            bdz.retryAt = Date.now() + BDZ_RETRY_MS;
+            console.error('[live] БДЖ board still unreachable:', err.message);
+        })
+        .finally(() => { bdz.probing = false; });
+}
+
+// --- Същинският контролер ---
 
 const getLiveBoard = async (req, res) => {
     try {
@@ -114,63 +190,40 @@ const getLiveBoard = async (req, res) => {
         const stationName = translateNumberToStation(stationNumber);
         if (!stationName) return res.status(404).json({ error: 'Station does not exist!' });
 
-        const url = `https://live.bdz.bg/${language}/${stationName.toLowerCase()}/${type}`;
-
-        // 1. ПОДГОТОВКА: Имитираме браузър
-        const fakeHeaders = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1'
-        };
-
-        // 2. СТЪПКА 1 (Handshake): Взимаме бисквитката от главната страница
-        const initialResponse = await axios.get('https://live.bdz.bg/', { headers: fakeHeaders, timeout: FETCH_TIMEOUT_MS });
-        const cookies = initialResponse.headers['set-cookie'];
-
-        if (cookies) {
-            fakeHeaders['Cookie'] = cookies.map(c => c.split(';')[0]).join('; ');
+        if (scrapeEnabled() && !bdz.open) {
+            try {
+                const board = await scrapeBoard(language, stationName, type);
+                bdz.failures = 0;
+                return res.json(board);
+            } catch (error) {
+                console.error('Scraping Error:', error.message);
+                if (++bdz.failures >= BDZ_FAILS_TO_OPEN) {
+                    bdz.open = true;
+                    bdz.retryAt = Date.now() + BDZ_RETRY_MS;
+                    console.warn(`[live] БДЖ unreachable ${bdz.failures}x — serving boards from our own data, retrying in background`);
+                }
+            }
+        } else if (scrapeEnabled() && Date.now() >= bdz.retryAt) {
+            probeInBackground(language, stationName, type);
         }
 
-        // 3. СТЪПКА 2 (Fetch): Теглим същинските данни с вече "валидната" сесия
-        const response = await axios.get(url, { headers: fakeHeaders, timeout: FETCH_TIMEOUT_MS });
-
-
-
-        // 4. ПАРСВАНЕ: Твоята логика с Cheerio
-        const content = cheerio.load(response.data);
-        let station = "";
-        content('#content').each((index, element) => {
-            station = content(element).find('.mb-0').text();
-            station = splitWords(station);
-            station = getEverythingPastLoadingStation(station);
-        });
-
-        let trainsInfo = [];
-        content('.timetableItem').each((index, element) => {
-            let timeNames = splitWords(content(element).find('.mb-lg-0').text());
-            let trainNum = splitWords(content(element).find('.text-nowrap').text());
-            let delayInfo = splitWords(content(element).find('.col-lg-3').text());
-
-            if (delayInfo.length !== 0) delayInfo = getDelayInfo(delayInfo);
-
-            let currInfo = makeTrainJson(timeNames, trainNum, delayInfo);
-            trainsInfo.push(currInfo);
-        });
-
-        res.json({
-            station: station,
-            trains: trainsInfo,
-        });
+        // The same board from the schedule + realtime delays.
+        const own = ownBoard.build({ stationId: stationNumber, type, language });
+        if (!own) return res.status(500).json({ error: 'Internal Server Error while fetching live data!' });
+        res.json(own);
 
     } catch (error) {
-        console.error('Scraping Error:', error.message);
+        console.error('Live board error:', error.message);
         res.status(500).json({ error: 'Internal Server Error while fetching live data!' });
     }
 };
 
+/** Tests only. */
+const _resetBreaker = () => { bdz.open = false; bdz.failures = 0; bdz.retryAt = 0; bdz.probing = false; };
+
 module.exports = {
-    getLiveBoard
+    getLiveBoard,
+    _resetBreaker,
+    _bdz: bdz,
 };
 

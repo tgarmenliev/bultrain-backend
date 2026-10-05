@@ -26,6 +26,7 @@ const HISTORY_ON = process.env.RT_HISTORY === 'on';
 const DB_PATH     = path.join(__dirname, '..', '..', 'bultrain.sqlite');
 const FeedMessage = B.transit_realtime.FeedMessage;
 const SKIPPED     = B.transit_realtime.TripUpdate.StopTimeUpdate.ScheduleRelationship.SKIPPED;
+const CANCELED    = B.transit_realtime.TripDescriptor.ScheduleRelationship.CANCELED;
 
 // Both feeds are published on a strict 30-second grid (measured: header
 // timestamps land on :26/:56, three consecutive deltas of exactly 30s). Polling
@@ -123,7 +124,8 @@ async function pollTripUpdates() {
             // once (an overnight run plus the same-numbered daytime one). The
             // cache keeps both; getTrain picks the one in progress.
             const arr = map.get(num) || [];
-            arr.push({ tripId: tu.trip.tripId, stops });
+            // canceled: the feed says the whole trip does not run (GTFS-RT TripDescriptor).
+            arr.push({ tripId: tu.trip.tripId, stops, canceled: tu.trip.scheduleRelationship === CANCELED });
             map.set(num, arr);
         }
         cache.setTrips(map, feedTs);

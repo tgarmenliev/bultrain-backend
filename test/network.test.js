@@ -210,27 +210,15 @@ test('compute: a vehicle’s own run only — and a train only the feeds know is
 
 // ── boards ───────────────────────────────────────────────────────────────────
 
-test('boards: up to 8 trains; a failed refresh keeps the last board only for a while', async () => {
+test('boards: built in-process from our schedule, named, and never a request outside', () => {
     boards._reset();
-    const rows = Array.from({ length: 12 }, (_, i) => ({ trainNum: String(i), direction: 'X', time: '10:00' }));
-    boards._setFetcher(async () => rows);
-    await boards.refresh(NOW);
-    assert.strictEqual(boards.view(NOW).sofia.trains.length, 8);
-    assert.strictEqual(boards.view(NOW).sofia.name, 'София');
-
-    boards._setFetcher(async () => { throw new Error('БДЖ is down'); });
-    await boards.refresh(NOW + 60000);
-    assert.strictEqual(boards.view(NOW + 2 * 60000).sofia.trains.length, 8, 'still recent: kept');
-    assert.strictEqual(boards.view(NOW + boards.KEEP_MS + 1000).sofia.trains, null,
-        'too old to be called current: unavailable, not stale departures');
-    assert.ok(boards.view(NOW + boards.KEEP_MS + 1000).sofia.fetchedAt, 'and it says when it last worked');
-    boards._setFetcher(null);
-    boards._reset();
-});
-
-test('boards: never fetched ⇒ trains null', () => {
-    boards._reset();
-    assert.deepStrictEqual(boards.view(NOW).plovdiv, { name: 'Пловдив', trains: null, fetchedAt: null });
+    const v = boards.view(NOW);
+    assert.deepStrictEqual(Object.keys(v), ['sofia', 'plovdiv']);
+    assert.strictEqual(v.sofia.name, 'София');
+    assert.strictEqual(v.plovdiv.name, 'Пловдив');
+    assert.ok(Array.isArray(v.sofia.trains), 'a board is a list (empty at night), not "unavailable"');
+    assert.ok(v.sofia.trains.length <= boards.MAX_TRAINS);
+    assert.strictEqual(v.sofia.fetchedAt, new Date(NOW).toISOString());
 });
 
 // ── HTTP ─────────────────────────────────────────────────────────────────────

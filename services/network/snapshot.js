@@ -7,8 +7,9 @@
  * Visitors never trigger work. A build takes tens of milliseconds and touches
  * only the in-memory realtime cache plus a per-day schedule window list, so it
  * runs once a MINUTE (the realtime feeds tick every 30–60 s; building more
- * often would only re-describe the same data). The single outbound cost, the
- * departure boards scraped from БДЖ, has its own 5-minute timer (boards.js).
+ * often would only re-describe the same data). Nothing in a build leaves the
+ * process: even the departure boards are built from our own schedule and delays
+ * (boards.js), because БДЖ's live site is unreachable from the server.
  * What a build produces is serialised and gzipped ONCE; every request is a
  * buffer write.
  *
@@ -192,8 +193,7 @@ function start() {
     const first = setTimeout(run, FIRST_BUILD_MS);
     const every = setInterval(run, BUILD_EVERY_MS);
     first.unref(); every.unref();
-    boards.start();
-    console.log('[network] public network snapshot started (rebuilt every 60 s, boards every 5 min)');
+    console.log('[network] public network snapshot started (rebuilt every 60 s)');
 }
 
 /** Tests only. */

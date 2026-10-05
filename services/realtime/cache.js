@@ -16,12 +16,16 @@ const state = {
     vehicles: new Map(),  // trainNumber -> { tripId, lat, lon, bearing, positionTimestamp, stopStatus }
     tripFeedTs:    0,     // ms epoch from the TripUpdates feed header
     vehicleFeedTs: 0,     // ms epoch from the VehiclePositions feed header
+    version: 0,           // bumps whenever either feed's data is replaced
 };
 
 const fresh = (ts) => ts > 0 && (Date.now() - ts) < MAX_AGE_MS;
 
-function setTrips(map, feedTsMs)    { state.trips = map;    state.tripFeedTs = feedTsMs; }
-function setVehicles(map, feedTsMs) { state.vehicles = map; state.vehicleFeedTs = feedTsMs; }
+function setTrips(map, feedTsMs)    { state.trips = map;    state.tripFeedTs = feedTsMs; state.version++; }
+function setVehicles(map, feedTsMs) { state.vehicles = map; state.vehicleFeedTs = feedTsMs; state.version++; }
+
+// Changes exactly when the cached data does — a key for anything derived from it.
+function version() { return state.version; }
 
 // A train number can carry more than one active trip at once — an overnight
 // service where yesterday's run is still on the road while today's is scheduled
@@ -89,4 +93,4 @@ function status() {
     };
 }
 
-module.exports = { setTrips, setVehicles, getTrain, getTripFor, getTrips, getVehicle, getAllVehicles, getAllTrains, status, MAX_AGE_MS };
+module.exports = { setTrips, setVehicles, getTrain, getTripFor, getTrips, getVehicle, getAllVehicles, getAllTrains, status, version, MAX_AGE_MS };

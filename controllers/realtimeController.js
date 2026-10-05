@@ -122,6 +122,9 @@ function buildVehicleEntry(num, v, nowMs) {
  *
  * Polling is cheap: ETag + If-None-Match → 304 while neither feed has ticked.
  */
+const VEHICLES_MEMO_MS = 5000;
+let vehiclesMemo = null;   // { key, at, body }
+
 exports.getVehicles = (req, res) => {
     const st = cache.status();
     const etag = vehiclesEtag(st);
@@ -130,9 +133,16 @@ exports.getVehicles = (req, res) => {
     res.set('Cache-Control', 'private, max-age=5');
     if (etagMatches(req.headers['if-none-match'], etag)) return res.status(304).end();
 
+    // Every client that asks within the same tick wants the same answer: build it
+    // once and hand it out. Keyed on the cache version (changes with the data) and
+    // bounded in time, because next-stop depends on the clock too.
     const nowMs = Date.now();
-    const vehicles = cache.getAllVehicles().map(([num, v]) => buildVehicleEntry(num, v, nowMs));
-    res.json({ count: vehicles.length, feedTimestamp: st.vehicleFeedTs, vehicles });
+    const key = `${etag}|${cache.version()}`;
+    if (!(vehiclesMemo && vehiclesMemo.key === key && nowMs - vehiclesMemo.at < VEHICLES_MEMO_MS)) {
+        const vehicles = cache.getAllVehicles().map(([num, v]) => buildVehicleEntry(num, v, nowMs));
+        vehiclesMemo = { key, at: nowMs, body: { count: vehicles.length, feedTimestamp: st.vehicleFeedTs, vehicles } };
+    }
+    res.json(vehiclesMemo.body);
 };
 
 /**

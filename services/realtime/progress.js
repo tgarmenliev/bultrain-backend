@@ -73,11 +73,21 @@ function project(line, pt) {
 }
 
 /**
- * Where the train is against its stops.
+ * Distance-along of each stop on a prepared line. This depends only on the route,
+ * not on the train's position, so callers that locate many positions on one route
+ * compute it once and reuse it with locatePrepared().
+ */
+function prepareStops(line, stops) {
+    return stops.map((s) => project(line, s).along);
+}
+
+/**
+ * Where the train is against its stops, given the stops' distances already
+ * computed by prepareStops(): one projection of the position, nothing else.
  *
- * @param {object} line      from prepareLine (shape or stop-to-stop)
- * @param {{lat,lon}[]} stops ordered stop coordinates
- * @param {{lat,lon}} pos     live vehicle position
+ * @param {object} line         from prepareLine (shape or stop-to-stop)
+ * @param {number[]} stopAlong  from prepareStops(line, stops)
+ * @param {{lat,lon}} pos       live vehicle position
  * @returns {{
  *   progress:number,          // 0..1 along the whole route
  *   lastPassedIndex:number,   // -1 before the first stop
@@ -85,9 +95,7 @@ function project(line, pt) {
  *   offsetMeters:number       // how far the position sat off the line
  * }}
  */
-function locate(line, stops, pos) {
-    // Distance-along for each stop (projected once onto the same line).
-    const stopAlong = stops.map((s) => project(line, s).along);
+function locatePrepared(line, stopAlong, pos) {
     const here = project(line, pos);
 
     let lastPassedIndex = -1;
@@ -95,10 +103,18 @@ function locate(line, stops, pos) {
         if (stopAlong[i] <= here.along + 1) lastPassedIndex = i; // +1m tolerance at a stop
         else break;
     }
-    const nextIndex = lastPassedIndex + 1 < stops.length ? lastPassedIndex + 1 : null;
+    const nextIndex = lastPassedIndex + 1 < stopAlong.length ? lastPassedIndex + 1 : null;
 
     const progress = line.total > 0 ? Math.max(0, Math.min(1, here.along / line.total)) : 0;
     return { progress, lastPassedIndex, nextIndex, offsetMeters: here.offset };
 }
 
-module.exports = { prepareLine, project, locate, _toXY: toXY };
+/**
+ * Where the train is against its stops (one-shot form of prepareStops + locatePrepared).
+ * @param {{lat,lon}[]} stops ordered stop coordinates
+ */
+function locate(line, stops, pos) {
+    return locatePrepared(line, prepareStops(line, stops), pos);
+}
+
+module.exports = { prepareLine, project, prepareStops, locatePrepared, locate, _toXY: toXY };

@@ -188,10 +188,11 @@ website (`https://bultrain.eu`, `https://www.bultrain.eu`, anything in
 Visitors never trigger work. `services/network/snapshot.js` rebuilds both files
 **once a minute** from the in-memory realtime cache (a few ms; the feeds tick every
 30–60 s, so building more often would only restate the same data), serialises and
-gzips them once, and every request is a buffer write. The only outbound cost is
-the Sofia/Plovdiv departure boards, scraped from БДЖ **every 5 minutes** by
-`services/network/boards.js` (`NETWORK_BOARDS=off` disables it). Starts with
-`REALTIME=on`; `503 + Retry-After` until the first build.
+gzips them once, and every request is a buffer write. Nothing in a build leaves the
+process: the Sofia/Plovdiv departure boards are built from our own schedule and
+realtime delays (`services/live/ownBoard.js`), because БДЖ's live site (live.bdz.bg)
+is unreachable from the server. Starts with `REALTIME=on`; `503 + Retry-After`
+until the first build.
 
 `Cache-Control: public, max-age=N` where N is the seconds until the next build
 (5–60), so a cache never holds a copy past the point a newer one exists; plus
@@ -211,8 +212,25 @@ answer (first departure → last arrival, overnight runs included, replacement b
 excluded) plus trains the realtime feeds themselves put on the road; `lat`/`lon` are
 measured fixes (`null` without one), `progress` is the measured position along the
 route (`null` if it cannot be placed, never schedule-projected), `delayMin` is `null`
-when unknown. A board whose scrape has been failing for over 15 minutes is
-`trains: null`, not stale departures.
+when unknown. Each board train has `hasLiveDelay` — true only when the realtime feed
+has a delay for it at that station; otherwise the time is the schedule's and nothing
+is claimed about punctuality. A row the feed says is cancelled (trip CANCELED, or every
+stop SKIPPED) or not stopping here (this stop SKIPPED) carries `status: "cancelled"` /
+`"not_stopping"`; a train merely absent from the feed is never taken as cancelled. The
+E-ink shape has no place for that, so it simply omits those trains. `boards.*.trains` is
+`null` only if the board could not be built.
+
+**`GET /api/live/:language/:station/:type`** (the E-ink screen) is served from
+`services/live/ownBoard.js`: the saved schedule plus the realtime delays, in the same JSON
+shape as БДЖ's board (ordered by scheduled time, a window of ~6 hours, a late train shows
+its expected time with `delayedTime` the scheduled one, an early train keeps its scheduled
+time — as БДЖ's page does). БДЖ is **not asked** by default: its live site stopped
+answering from the server, and measured on 130 board rows every train БДЖ marked late was
+one the realtime feed already knows, so the delays are the same. A train the feed has no
+delay for is listed at its scheduled time, unmarked — on БДЖ's page too. What this board
+lacks is БДЖ's free-text notices. `LIVE_BDZ=on` makes it scrape БДЖ first again; after two
+failures it leaves БДЖ alone and probes once an hour in the background (no request ever
+waits for БДЖ).
 
 A quiet `RT_HISTORY=on` job accumulates observed delays for future statistics.
 

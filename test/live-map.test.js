@@ -318,6 +318,22 @@ test('/vehicles: ETag + If-None-Match → 304 within the same tick, 200 after it
     assert.notStrictEqual(next.headers.ETag, etag);
 });
 
+// ── Not recomputed for every client ──────────────────────────────────────────
+
+test('/vehicles: clients in the same tick share one computation; new data is never served stale', () => {
+    seedFeeds();
+    const a = call(controller.getVehicles).body;
+    const b = call(controller.getVehicles).body;
+    assert.strictEqual(a, b, 'the same built answer, not a recomputation');
+
+    // the feeds are replaced (same header time, different content) → a fresh answer at once
+    cache.setVehicles(new Map([['8613', { tripId: '8613-BV-20261004', lat: 42, lon: 25.15, bearing: 0,
+        positionTimestamp: FEED_TS, stopStatus: 'IN_TRANSIT_TO' }]]), FEED_TS);
+    const c = call(controller.getVehicles).body;
+    assert.notStrictEqual(c, a);
+    assert.strictEqual(c.count, 1);
+});
+
 // ── Service date ─────────────────────────────────────────────────────────────
 
 test('serviceDate comes from the saved schedule, and an overnight run is still yesterday’s after midnight', () => {

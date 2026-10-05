@@ -82,16 +82,32 @@ function fromFeed(rt, nowSec, calling = null) {
     };
 }
 
+// A trip's route, prepared once: the planar line and where each stop sits on it.
+// Neither depends on the train, and `geo` is the object tripGeometry caches for an
+// hour, so keying on it means a route is prepared once per trip, not once per
+// vehicle per request (which cost ~20 ms per /vehicles call on a developer laptop
+// and over 250 ms per map refresh on the server).
+const routeIndex = new WeakMap();   // geo -> { line, stopAlong } | null
+function indexOf(geo) {
+    let idx = routeIndex.get(geo);
+    if (idx === undefined) {
+        const stopPts = geo.stops.map(s => ({ lat: s.lat, lon: s.lon }));
+        const linePts = (geo.shape && geo.shape.length >= 2) ? geo.shape : stopPts;
+        try {
+            const line = progress.prepareLine(linePts);
+            idx = { line, stopAlong: progress.prepareStops(line, stopPts) };
+        } catch { idx = null; }
+        routeIndex.set(geo, idx);
+    }
+    return idx;
+}
+
 // Where a measured position sits on the trip's own route, or null when the
 // geometry is unusable or the position doesn't match the route.
 function locateOnRoute(v, geo) {
-    const stopPts = geo.stops.map(s => ({ lat: s.lat, lon: s.lon }));
-    const linePts = (geo.shape && geo.shape.length >= 2) ? geo.shape : stopPts;
-
-    let line;
-    try { line = progress.prepareLine(linePts); } catch { return null; }
-
-    const loc = progress.locate(line, stopPts, { lat: v.lat, lon: v.lon });
+    const idx = indexOf(geo);
+    if (!idx) return null;
+    const loc = progress.locatePrepared(idx.line, idx.stopAlong, { lat: v.lat, lon: v.lon });
     if (loc.offsetMeters > MAX_OFFSET_M) return null; // position off this route
     return loc;
 }
