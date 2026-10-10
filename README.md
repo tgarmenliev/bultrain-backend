@@ -236,6 +236,26 @@ A quiet `RT_HISTORY=on` job accumulates observed delays for future statistics.
 
 ---
 
+## Data retention (what is kept about a device, and for how long)
+
+Read from the code; the privacy policy should match this table. The hourly cleanup lives
+in the Live Activity worker, so **it only runs with `LIVE_ACTIVITY=on`**.
+
+| Data | Table | Deleted when |
+|---|---|---|
+| Install id + push token (iOS/Android) | `device_tokens` | (1) at once when Apple/Google say the app is gone (APNs 410 / FCM UNREGISTERED — not on BadDeviceToken, which can be our own mistake); (2) after **180 days with no call from the app** (`DEVICE_TOKEN_TTL_DAYS`, 0 = off), measured by the last register-device / arm / disarm / leg-arrived, and never while the install has a journey in play; (3) replaced when the same install registers a new token of the same kind; (4) on request via `POST /api/live-activity/forget`. A returning user simply registers again. |
+| Armed legs (train, stations, scheduled times, install id) | `armed_journeys` | 7 days after the leg ended (`arrived` or `stopped`), hourly cleanup. A leg ends on disarm, on arrival, or automatically at predicted arrival + 20 min / scheduled arrival + 45 min (hard cap 12 h after start). `arm` accepts any future date, so a leg armed far ahead is kept until its trip is over. |
+| Push-start budget log (install id, journey id) | `push_start_log` | 48 hours. |
+| Live Activity token + journey (no install id) | `live_activity_tokens` | 2 h after the scheduled arrival (hourly cleanup, so up to ~3 h); earlier on unregister, disarm, auto-stop or a dead token. |
+| Database backups (contain all of the above) | `/root/backups`, Backblaze B2 | 30 copies locally (daily, ~30 days); 180 days off-box. |
+| Install id in server logs | pm2 logs | Only the first 8 characters (`install=abcd1234…`); kept as long as the pm2 logs are (no rotation configured in the repo). |
+
+`POST /api/live-activity/forget {installId}` deletes the install's tokens, armed legs, push-start
+log and the Live Activity tokens of those journeys, in one transaction, and logs only counts. It
+does not touch backups, which age out as above.
+
+---
+
 ## Live Activity push updates
 
 The iOS app shows a Live Activity for the journey in progress. While the app is

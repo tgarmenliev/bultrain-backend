@@ -34,6 +34,21 @@ function conn() {
 }
 
 const nowIso = () => new Date().toISOString();
+
+// An install id is a stable identifier of a device: logs carry only its first characters,
+// enough to tell installs apart while debugging and not enough to be one.
+const idTag = (id) => `${String(id).slice(0, 8)}…`;
+
+// A device that has not been heard from for this long is dropped (its token is almost
+// certainly dead or dormant, and we should not keep an identifier for ever). Any call from
+// the app — register-device, arm, disarm, leg-arrived — counts as being heard from, and the
+// app registers again whenever it needs us, so a returning user loses nothing.
+// DEVICE_TOKEN_TTL_DAYS=0 turns the expiry off.
+const deviceTtlDays = () => {
+    const raw = process.env.DEVICE_TOKEN_TTL_DAYS;
+    const n = raw === undefined || raw === '' ? 180 : Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+};
 const isoAgo = (ms) => new Date(Date.now() - ms).toISOString();
 
 /** Normalise any parseable date to ISO-8601 UTC, or null. */
@@ -258,7 +273,28 @@ function logStart(installId, journeyId, outcome) {
     ).run(installId, nowIso(), journeyId ?? null, outcome);
 }
 
-/** Hourly cleanup: budget log older than 48h, and long-finished journeys. */
+/** The install was heard from just now: keeps its tokens from expiring for inactivity. */
+function touchInstall(installId) {
+    return conn().prepare('UPDATE device_tokens SET updated_at = ? WHERE install_id = ?')
+        .run(nowIso(), installId).changes;
+}
+
+/**
+ * Apple and Google tell us when an app has been deleted from a device: the next push to its
+ * token comes back "no longer active" (APNs 410 Unregistered, FCM UNREGISTERED). That is the
+ * only real signal there is, so act on it at once. Deliberately NOT on APNs 400 BadDeviceToken
+ * or FCM INVALID_ARGUMENT: those also come from a wrong environment or a malformed request,
+ * and deleting a good token because of our own mistake would silently end someone's alerts.
+ * @returns {boolean} true when the token was removed
+ */
+function forgetTokenIfGone(device, res) {
+    if (!device || !res) return false;
+    const gone = res.status === 410 || res.reason === 'Unregistered' || res.reason === 'UNREGISTERED';
+    if (!gone) return false;
+    return conn().prepare('DELETE FROM device_tokens WHERE token = ?').run(device.token).changes > 0;
+}
+
+/** Hourly cleanup: budget log older than 48h, long-finished journeys, long-idle devices. */
 function prune() {
     const c = conn();
     const logs = c.prepare('DELETE FROM push_start_log WHERE sent_at < ?')
@@ -266,7 +302,51 @@ function prune() {
     const rows = c.prepare(
         "DELETE FROM armed_journeys WHERE state IN ('arrived','stopped') AND updated_at < ?"
     ).run(isoAgo(7 * 24 * 60 * 60 * 1000)).changes;
-    return { logs, rows };
+
+    // Idle devices — but never one with a journey still in play.
+    let devices = 0;
+    const ttl = deviceTtlDays();
+    if (ttl > 0) {
+        devices = c.prepare(`
+            DELETE FROM device_tokens
+             WHERE COALESCE(updated_at, created_at, '1970-01-01T00:00:00.000Z') < ?
+               AND install_id NOT IN (SELECT install_id FROM armed_journeys WHERE state IN ('armed','started'))
+        `).run(isoAgo(ttl * 24 * 60 * 60 * 1000)).changes;
+    }
+    return { logs, rows, devices };
+}
+
+/**
+ * Erase everything held for one installation: its push tokens, its armed journeys
+ * and the push-start log, plus the Live Activity tokens of those journeys (they
+ * carry no install id of their own — they are tied to it only through journey_id,
+ * and expire within hours anyway). One transaction, idempotent: forgetting an
+ * install that is already gone changes nothing and is not an error.
+ *
+ * Does NOT reach into backups; those age out on their own (30 days locally, 180
+ * off-box) and are not restored into the live database.
+ *
+ * @returns {{devices:number, armedJourneys:number, startLog:number, liveActivityTokens:number}}
+ */
+function forgetInstall(installId) {
+    const c = conn();
+    return c.transaction(() => {
+        const journeyIds = new Set([
+            ...c.prepare('SELECT DISTINCT journey_id FROM armed_journeys WHERE install_id = ?').all(installId),
+            ...c.prepare('SELECT DISTINCT journey_id FROM push_start_log WHERE install_id = ? AND journey_id IS NOT NULL').all(installId),
+        ].map(r => r.journey_id));
+
+        const delToken = c.prepare('DELETE FROM live_activity_tokens WHERE journey_id = ?');
+        let liveActivityTokens = 0;
+        for (const id of journeyIds) liveActivityTokens += delToken.run(id).changes;
+
+        return {
+            devices: c.prepare('DELETE FROM device_tokens WHERE install_id = ?').run(installId).changes,
+            armedJourneys: c.prepare('DELETE FROM armed_journeys WHERE install_id = ?').run(installId).changes,
+            startLog: c.prepare('DELETE FROM push_start_log WHERE install_id = ?').run(installId).changes,
+            liveActivityTokens,
+        };
+    })();
 }
 
 function counts() {
@@ -283,6 +363,6 @@ function counts() {
 module.exports = {
     registerDevice, getToken, arm, disarm, markArrived, listActive, getById,
     markStarted, markStartedByJourney, markStopped, recordAlert, recordDelaySeen,
-    checkStartBudget, logStart, prune, counts, toUtcIso, nowIso,
+    checkStartBudget, logStart, prune, forgetInstall, touchInstall, forgetTokenIfGone, idTag, deviceTtlDays, counts, toUtcIso, nowIso,
     KINDS, PLATFORMS, MAX_STARTS_PER_HOUR, MAX_STARTS_PER_DAY,
 };

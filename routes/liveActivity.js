@@ -26,6 +26,7 @@ router.get('/metrics', controller.getMetrics);
 router.post('/register-device', registerLimit, armed.registerDevice);
 router.post('/arm', registerLimit, armed.arm);
 router.post('/disarm', armed.disarm);
+router.post('/forget', registerLimit, armed.forget);   // "delete my data" for one installation
 router.post('/leg-arrived', armed.legArrived);
 
 // ── Journey simulation (only when ENABLE_JOURNEY_SIM=on) ────────────────────

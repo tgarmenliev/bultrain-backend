@@ -232,7 +232,7 @@ async function maybeStart(row, feed, now, legCtx) {
 
     const device = store.getToken(row.install_id, 'push_to_start');
     if (!device) {
-        console.warn(`[armed] no push-to-start token for install=${row.install_id} — cannot start j=${row.journey_id}`);
+        console.warn(`[armed] no push-to-start token for install=${store.idTag(row.install_id)} — cannot start j=${row.journey_id}`);
         store.markStopped(row.id, 'no-start-token');
         return;
     }
@@ -241,7 +241,7 @@ async function maybeStart(row, feed, now, legCtx) {
     // here costs one card; blowing Apple's costs every card for up to 24 hours.
     const budget = store.checkStartBudget(row.install_id);
     if (!budget.allowed) {
-        console.warn(`[armed] push-to-start REFUSED by our guard install=${row.install_id} ` +
+        console.warn(`[armed] push-to-start REFUSED by our guard install=${store.idTag(row.install_id)} ` +
                      `(${budget.reason}; 1h=${budget.lastHour} 24h=${budget.lastDay}) j=${row.journey_id}`);
         store.logStart(row.install_id, row.journey_id, 'refused-budget');
         store.markStopped(row.id, 'budget-refused');
@@ -314,6 +314,9 @@ async function maybeStart(row, feed, now, legCtx) {
     const res = await dispatch();
 
     store.logStart(row.install_id, row.journey_id, res.outcome);
+    if (store.forgetTokenIfGone(device, res)) {
+        console.log(`[armed] push-to-start token is gone (app deleted?) — removed, install=${store.idTag(row.install_id)}`);
+    }
     console.log(`[armed] push-to-start SENT j=${row.journey_id} train=${row.train_number} ` +
                 `platform=${device.platform} -> ${res.outcome} status=${res.status} reason=${res.reason || '—'} ` +
                 `(budget 1h=${budget.lastHour + (res.outcome === 'ok' ? 1 : 0)}/${store.MAX_STARTS_PER_HOUR})`);
@@ -495,7 +498,7 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
 
     const device = store.getToken(row.install_id, 'alert');
     if (!device) {
-        console.warn(`[armed] no alert token for install=${row.install_id} — skipping delay alert j=${row.journey_id}`);
+        console.warn(`[armed] no alert token for install=${store.idTag(row.install_id)} — skipping delay alert j=${row.journey_id}`);
         return;
     }
 
@@ -570,11 +573,15 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
                 `delay=${feed.delayMin}m was=${row.last_delay_min ?? '—'} (${d.reason}) ` +
                 `connectionBand=${band ?? '—'} interruption=${interruptionLevel} -> ${res.outcome}`);
 
+    if (store.forgetTokenIfGone(device, res)) {
+        console.log(`[armed] alert token is gone (app deleted?) — removed, install=${store.idTag(row.install_id)}`);
+    }
+
     if (res.outcome === 'ok') {
         store.recordAlert(row.id, feed.delayMin);
         metrics.inc('delay_alerts_sent');
     } else if (res.outcome === 'invalid-token') {
-        console.warn(`[armed] alert token dead for install=${row.install_id}`);
+        console.warn(`[armed] alert token dead for install=${store.idTag(row.install_id)}`);
     }
 }
 

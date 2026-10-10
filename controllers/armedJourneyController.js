@@ -81,7 +81,7 @@ exports.registerDevice = (req, res) => {
                 platform: 'android',
             });
 
-            console.log(`[armed] device registered install=${b.installId} platform=android kind=fcm token=${maskToken(b.token)}`);
+            console.log(`[armed] device registered install=${store.idTag(b.installId)} platform=android kind=fcm token=${maskToken(b.token)}`);
             return res.json({ ok: true, platform: 'android', kind: 'fcm', token: maskToken(b.token) });
         }
 
@@ -104,7 +104,7 @@ exports.registerDevice = (req, res) => {
             platform: 'ios',
         });
 
-        console.log(`[armed] device registered install=${b.installId} platform=ios kind=${b.kind} token=${maskToken(b.token)}`);
+        console.log(`[armed] device registered install=${store.idTag(b.installId)} platform=ios kind=${b.kind} token=${maskToken(b.token)}`);
         res.json({ ok: true, platform: 'ios', kind: b.kind, token: maskToken(b.token) });
     } catch (err) {
         console.error('[armed] register-device failed:', err.message);
@@ -189,6 +189,7 @@ exports.arm = (req, res) => {
             now: store.nowIso(),
         });
 
+        store.touchInstall(String(b.installId));
         console.log(`[armed] armed journey=${b.journeyId} leg=${legIndex} train=${trainNumber} ` +
                     `dep=${departure.toISOString()} startToken=${startToken ? 'yes' : 'MISSING'}`);
 
@@ -205,6 +206,30 @@ exports.arm = (req, res) => {
 };
 
 /**
+ * POST /api/live-activity/forget   { installId }
+ * "Delete my data": erases everything held for this installation (push tokens,
+ * armed journeys, the push-start log, and the Live Activity tokens of those
+ * journeys). Idempotent. The install id is the device's own random identifier, the
+ * same proof of ownership that /disarm accepts. The id is deliberately NOT written
+ * to the log here — only counts.
+ */
+exports.forget = (req, res) => {
+    try {
+        const b = req.body || {};
+        if (!b.installId || !INSTALL_RE.test(String(b.installId))) {
+            return bad(res, 'installId must be 8–128 chars of [A-Za-z0-9._:-].');
+        }
+        const deleted = store.forgetInstall(String(b.installId));
+        console.log(`[armed] forget: devices=${deleted.devices} journeys=${deleted.armedJourneys} ` +
+                    `startLog=${deleted.startLog} laTokens=${deleted.liveActivityTokens}`);
+        res.json({ ok: true, deleted });
+    } catch (err) {
+        console.error('[armed] forget failed:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+/**
  * POST /api/live-activity/disarm
  * Idempotent: the app may call it twice, or for a leg we already stopped.
  */
@@ -214,6 +239,7 @@ exports.disarm = (req, res) => {
         if (!b.installId || !b.journeyId) return bad(res, 'installId and journeyId are required.');
         const legIndex = Number.isInteger(b.legIndex) ? b.legIndex : null;
         const stopped = store.disarm(String(b.installId), String(b.journeyId), legIndex);
+        store.touchInstall(String(b.installId));
 
         // Whole-journey disarm (no specific leg) also means "stop tracking this
         // Activity" — without this, its live_activity_tokens row sat there
@@ -244,6 +270,7 @@ exports.legArrived = (req, res) => {
         if (!b.installId || !b.journeyId) return bad(res, 'installId and journeyId are required.');
         const legIndex = Number.isInteger(b.legIndex) ? b.legIndex : 0;
         const changed = store.markArrived(String(b.installId), String(b.journeyId), legIndex);
+        store.touchInstall(String(b.installId));
         console.log(`[armed] leg-arrived journey=${b.journeyId} leg=${legIndex} matched=${changed}`);
         res.json({ ok: true, matched: changed });
     } catch (err) {

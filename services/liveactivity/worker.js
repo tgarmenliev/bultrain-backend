@@ -346,8 +346,10 @@ function runCleanup() {
         console.error('[la] cleanup failed:', err.message);
     }
     try {
-        const { logs, rows } = armedStore.prune();
-        if (logs || rows) console.log(`[armed] cleanup: pruned ${rows} finished journey(s), ${logs} budget log row(s)`);
+        const { logs, rows, devices } = armedStore.prune();
+        if (logs || rows || devices) {
+            console.log(`[armed] cleanup: pruned ${rows} finished journey(s), ${logs} budget log row(s), ${devices} idle device(s)`);
+        }
     } catch (err) {
         console.error('[armed] cleanup failed:', err.message);
     }
