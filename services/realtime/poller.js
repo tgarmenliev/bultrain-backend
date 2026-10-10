@@ -20,10 +20,11 @@ const cfg     = require('../gtfs/config');
 const cache   = require('./cache');
 const history = require('./history');
 const { fromEntity } = require('./vehicleFields');
+const schedule = require('../network/schedule');
 
 const HISTORY_ON = process.env.RT_HISTORY === 'on';
 
-const DB_PATH     = path.join(__dirname, '..', '..', 'bultrain.sqlite');
+const DB_PATH     = process.env.BULTRAIN_DB || path.join(__dirname, '..', '..', 'bultrain.sqlite');
 const FeedMessage = B.transit_realtime.FeedMessage;
 const SKIPPED     = B.transit_realtime.TripUpdate.StopTimeUpdate.ScheduleRelationship.SKIPPED;
 const CANCELED    = B.transit_realtime.TripDescriptor.ScheduleRelationship.CANCELED;
@@ -79,6 +80,66 @@ function serviceDate(tripId) {
     return /^\d{8}$/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : null;
 }
 
+/**
+ * The time the FEED says it was made, in ms; 0 when it does not say.
+ *
+ * Freshness is judged by this, so it must never be replaced by "now": a frozen
+ * file served with no header time would then read as fresh for ever. With no
+ * header time, the newest entity time is used; with none at all the feed is
+ * treated as having no usable time, i.e. stale.
+ */
+function feedTimestampMs(feed) {
+    const header = Number(feed.header && feed.header.timestamp) * 1000;
+    if (header > 0) return header;
+    let latest = 0;
+    for (const e of feed.entity || []) {
+        const t = Number((e.vehicle || e.tripUpdate || {}).timestamp) * 1000;
+        if (t > latest) latest = t;
+    }
+    return latest;
+}
+
+// A source that is down fails every 30 s; one line per failure would bury the log.
+// Log the first failure and the return, and a reminder every 10 minutes between.
+const REMIND_MS = 10 * 60 * 1000;
+const logState = { trips: { failing: false, at: 0 }, vehicles: { failing: false, at: 0 } };
+function pollFailed(kind, label, message) {
+    cache.pollFailed(kind, message);
+    const s = logState[kind];
+    if (!s.failing || Date.now() - s.at > REMIND_MS) {
+        console.error(`[rt] ${label} poll failed: ${message}` + (s.failing ? ' (still failing)' : ''));
+        s.at = Date.now();
+    }
+    s.failing = true;
+}
+function pollOk(kind, label) {
+    cache.pollOk(kind);
+    if (logState[kind].failing) console.log(`[rt] ${label} feed is back`);
+    logState[kind].failing = false;
+}
+
+// An EMPTY answer is believable at night and not in the day. Two checks, either of which
+// makes us keep what we have (it goes stale on its own clock) instead of replacing it with
+// a fresh-looking nothing:
+//   - the feed held dozens of trains a moment ago and now says "none": that is the source
+//     breaking, not the railway emptying in seconds
+//   - the saved schedule says plenty of trains are on the road right now
+const SUDDEN_EMPTY_MIN = 10;
+const SCHEDULED_BUSY_MIN = 15;
+function suspiciousEmpty(newSize, kind) {
+    if (newSize !== 0) return null;
+    const st = cache.status();
+    if (st[kind === 'trips' ? 'tripFresh' : 'vehicleFresh'] && st[kind] >= SUDDEN_EMPTY_MIN) {
+        return 'feed came back empty while it was full a moment ago';
+    }
+    let scheduled = 0;
+    try { scheduled = schedule.runningAt(Date.now()).size; } catch { /* no schedule: nothing to compare with */ }
+    if (scheduled >= SCHEDULED_BUSY_MIN) {
+        return `feed is empty while the schedule has ${scheduled} trains on the road`;
+    }
+    return null;
+}
+
 async function fetchFeed(url) {
     const res = await axios.get(url, { responseType: 'arraybuffer', timeout: HTTP_TIMEOUT_MS });
     return FeedMessage.decode(Buffer.from(res.data));
@@ -88,7 +149,7 @@ async function pollTripUpdates() {
     try {
         ensureLookups();
         const feed = await fetchFeed(cfg.RT.tripUpdates);
-        const feedTs = (Number(feed.header.timestamp) * 1000) || Date.now();
+        const feedTs = feedTimestampMs(feed);
 
         const map = new Map();
         for (const e of feed.entity) {
@@ -128,9 +189,12 @@ async function pollTripUpdates() {
             arr.push({ tripId: tu.trip.tripId, stops, canceled: tu.trip.scheduleRelationship === CANCELED });
             map.set(num, arr);
         }
+        const emptyTrips = suspiciousEmpty(map.size, 'trips');
+        if (emptyTrips) throw new Error(emptyTrips);
         cache.setTrips(map, feedTs);
+        pollOk('trips', 'tripUpdates');
     } catch (err) {
-        console.error('[rt] tripUpdates poll failed:', err.message);
+        pollFailed('trips', 'tripUpdates', err.message);
     }
 }
 
@@ -138,7 +202,7 @@ async function pollVehicles() {
     try {
         ensureLookups();
         const feed = await fetchFeed(cfg.RT.vehiclePositions);
-        const feedTs = (Number(feed.header.timestamp) * 1000) || Date.now();
+        const feedTs = feedTimestampMs(feed);
 
         const map = new Map();
         for (const e of feed.entity) {
@@ -158,9 +222,12 @@ async function pollVehicles() {
                 stopStationId: (stopToStation.get(v.stopId) || {}).station_id ?? null,
             });
         }
+        const emptyVehicles = suspiciousEmpty(map.size, 'vehicles');
+        if (emptyVehicles) throw new Error(emptyVehicles);
         cache.setVehicles(map, feedTs);
+        pollOk('vehicles', 'vehiclePositions');
     } catch (err) {
-        console.error('[rt] vehiclePositions poll failed:', err.message);
+        pollFailed('vehicles', 'vehiclePositions', err.message);
     }
 }
 
@@ -175,4 +242,4 @@ function start() {
     console.log('[rt] realtime poller started');
 }
 
-module.exports = { start, pollTripUpdates, pollVehicles };
+module.exports = { start, pollTripUpdates, pollVehicles, feedTimestampMs };

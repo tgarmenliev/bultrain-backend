@@ -6,6 +6,10 @@ const tripMeta   = require('../services/realtime/tripMeta');
 const { summarize, positionOf } = require('../services/realtime/trainStatus');
 const { etagMatches } = require('../services/httpCache');
 
+// A 404 can mean "this train has no live data" or "the source is down". The apps need
+// to tell them apart to say the honest thing, so a 404 says whether BOTH feeds are fresh.
+const bothFeedsFresh = () => { const st = cache.status(); return st.tripFresh && st.vehicleFresh; };
+
 /**
  * Pure builder for GET /api/realtime/train/:no — no req/res, so it's unit
  * testable with synthetic inputs. Merges the two realtime feeds and, for a
@@ -62,6 +66,7 @@ exports.getTrain = (req, res) => {
     const meta = rt ? tripMeta.get(rt.tripId) : null;
 
     const { status, body } = buildTrainStatus({ num, rt, v, geo, calling: meta ? meta.callingStationIds : null });
+    if (status === 404) body.realtimeAvailable = bothFeedsFresh();
     res.status(status).json(body);
 };
 
@@ -75,7 +80,7 @@ exports._buildVehicleEntry = buildVehicleEntry;
 exports.getVehicle = (req, res) => {
     const num = req.params.trainNo;
     const v = cache.getVehicle(num);
-    if (!v) return res.status(404).json({ error: 'No live position for this train.' });
+    if (!v) return res.status(404).json({ error: 'No live position for this train.', realtimeAvailable: bothFeedsFresh() });
     res.json({ trainNumber: num, ...positionOf(v) });
 };
 
@@ -140,7 +145,12 @@ exports.getVehicles = (req, res) => {
     const key = `${etag}|${cache.version()}`;
     if (!(vehiclesMemo && vehiclesMemo.key === key && nowMs - vehiclesMemo.at < VEHICLES_MEMO_MS)) {
         const vehicles = cache.getAllVehicles().map(([num, v]) => buildVehicleEntry(num, v, nowMs));
-        vehiclesMemo = { key, at: nowMs, body: { count: vehicles.length, feedTimestamp: st.vehicleFeedTs, vehicles } };
+        vehiclesMemo = { key, at: nowMs, body: {
+            count: vehicles.length, feedTimestamp: st.vehicleFeedTs,
+            // Why there may be no dots / no delays: the source, not the railway.
+            feedFresh: st.vehicleFresh, delaysFresh: st.tripFresh,
+            vehicles,
+        } };
     }
     res.json(vehiclesMemo.body);
 };
