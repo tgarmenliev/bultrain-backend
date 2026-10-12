@@ -117,7 +117,10 @@ const apiLimiter = createRateLimit({
   max: 120,
   message: 'Too many requests. Slow down.',
 });
-app.use('/api', apiLimiter);
+// The live map polls /api/realtime/vehicles every few seconds while it is open, and mobile
+// carriers put many phones behind one public IP — so that one cheap, in-memory route has its
+// own, higher ceiling (routes/realtime.js) and does not eat into this shared one.
+app.use('/api', (req, res, next) => (req.path === '/realtime/vehicles' ? next() : apiLimiter(req, res, next)));
 
 // ── Public API routes (protected by mobile client verification) ────────────
 app.use('/api/live', verifyMobileClient, liveRoutes);

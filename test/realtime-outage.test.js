@@ -452,3 +452,56 @@ test('recovery: when the source returns, every output is live again with no manu
     assert.strictEqual(o.gate, false);
     assert.strictEqual(o.status.polls.vehicles.failures, 0);
 });
+
+// ── how often the poller asks ────────────────────────────────────────────────
+
+test('polling rhythm: positions every 10 s while the source keeps publishing, slower when it does not', () => {
+    const { nextDelayMs } = poller;
+    assert.strictEqual(nextDelayMs('vehicles', 10000, 'new'), 10000, 'something new: keep the pace');
+    // nothing new: ease off, x1.5, up to 30 s
+    assert.strictEqual(nextDelayMs('vehicles', 10000, 'same'), 15000);
+    assert.strictEqual(nextDelayMs('vehicles', 15000, 'same'), 22500);
+    assert.strictEqual(nextDelayMs('vehicles', 22500, 'same'), 30000);
+    assert.strictEqual(nextDelayMs('vehicles', 30000, 'same'), 30000, 'never slower than 30 s');
+    assert.strictEqual(nextDelayMs('vehicles', 30000, 'new'), 10000, 'and back at once when it publishes again');
+});
+
+test('polling rhythm: delays are asked for every 30 s, however it goes', () => {
+    for (const outcome of ['new', 'same']) assert.strictEqual(poller.nextDelayMs('trips', 30000, outcome), 30000);
+});
+
+test('polling rhythm: a failing source is asked less and less often, up to 2 minutes, then normally again', () => {
+    const { nextDelayMs } = poller;
+    let wait = 10000;
+    const seen = [];
+    for (let i = 0; i < 6; i++) { wait = nextDelayMs('vehicles', wait, 'failed'); seen.push(wait); }
+    assert.deepStrictEqual(seen, [20000, 40000, 80000, 120000, 120000, 120000]);
+
+    let trips = 30000;
+    trips = nextDelayMs('trips', trips, 'failed');
+    assert.strictEqual(trips, 60000);
+    assert.strictEqual(nextDelayMs('trips', 120000, 'failed'), 120000);
+
+    assert.strictEqual(nextDelayMs('vehicles', 120000, 'new'), 10000, 'the first good answer restores the pace');
+    assert.strictEqual(nextDelayMs('trips', 120000, 'new'), 30000);
+});
+
+test('polling rhythm: the poller applies it — what it just found decides the wait, and /status shows it', async () => {
+    resetCache();
+    healthy();
+    await poller.pollVehicles();
+    assert.strictEqual(poller._sched.vehicles.delayMs, 10000, 'new publication');
+
+    await poller.pollVehicles();                                    // same header time again
+    assert.strictEqual(poller._sched.vehicles.delayMs, 15000, 'nothing new: wait longer');
+    assert.strictEqual(cache.status().polls.vehicles.everyMs, 15000, 'visible to the operator');
+
+    down('vehicles');
+    await poller.pollVehicles();
+    assert.strictEqual(poller._sched.vehicles.delayMs, 30000, 'a failure doubles it');
+
+    healthy();
+    source.vehicles = async () => vehicleFeed(nowSec() + 5);       // a newer publication
+    await poller.pollVehicles();
+    assert.strictEqual(poller._sched.vehicles.delayMs, 10000, 'and a new publication brings it back');
+});

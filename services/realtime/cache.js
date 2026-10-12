@@ -24,10 +24,12 @@ const fresh = (ts) => ts > 0 && (Date.now() - ts) < MAX_AGE_MS;
 // How the polls themselves are doing — separate from how fresh the DATA is, so an
 // operator can tell "БДЖ publishes nothing" from "we cannot reach the source".
 const polls = {
-    trips:    { lastOkAt: 0, failures: 0, lastError: null },
-    vehicles: { lastOkAt: 0, failures: 0, lastError: null },
+    trips:    { lastOkAt: 0, failures: 0, lastError: null, everyMs: null },
+    vehicles: { lastOkAt: 0, failures: 0, lastError: null, everyMs: null },
 };
 function pollOk(kind)           { Object.assign(polls[kind], { lastOkAt: Date.now(), failures: 0, lastError: null }); }
+// How often the poller is asking right now (it adapts), for the operator.
+function setPollDelay(kind, ms) { polls[kind].everyMs = Math.round(ms); }
 function pollFailed(kind, msg)  { polls[kind].failures += 1; polls[kind].lastError = String(msg).slice(0, 200); }
 
 function setTrips(map, feedTsMs)    { state.trips = map;    state.tripFeedTs = feedTsMs; state.version++; }
@@ -106,4 +108,4 @@ function status() {
     };
 }
 
-module.exports = { setTrips, setVehicles, getTrain, getTripFor, getTrips, getVehicle, getAllVehicles, getAllTrains, status, version, pollOk, pollFailed, MAX_AGE_MS };
+module.exports = { setTrips, setVehicles, getTrain, getTripFor, getTrips, getVehicle, getAllVehicles, getAllTrains, status, version, pollOk, pollFailed, setPollDelay, MAX_AGE_MS };

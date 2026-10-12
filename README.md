@@ -95,8 +95,14 @@ is additive.
 NAP publishes **two separate** GTFS-Realtime feeds with different coverage:
 **TripUpdates** (delays + per-stop times, ~40 trains) and **VehiclePositions**
 (GPS, ~60 trains). A single poller (`services/realtime/poller.js`, behind
-`REALTIME=on`) fetches both every 30s / 15s and keeps an in-memory cache — it
-never writes to SQLite.
+`REALTIME=on`) keeps an in-memory cache — it never writes to SQLite. It **adapts to the
+source's rhythm** (measured 2026-10-12: positions are published every 5 s — a week earlier
+every 30–60 s — delays every 30 s): positions are asked every 10 s (`RT_VEHICLE_MIN_MS`),
+easing off to 30 s if a poll finds nothing new; delays every 30 s; a failing feed backs off
+(x2, up to 2 min). The cache holds position data a mean ~8 s old (max ~15 s). `/status`
+shows what the poller is doing (`polls.*.everyMs`, `lastOkAt`, `failures`, `lastError`).
+`/api/realtime/vehicles` has its own rate limit (300/min per IP+key, not the shared 120):
+the map refreshes it every ~15 s and carriers put many phones behind one IP.
 
 **`GET /api/realtime/train/:trainNo`** (no language segment) merges the two
 feeds. It returns `progressSource` to say what kind of data you got:

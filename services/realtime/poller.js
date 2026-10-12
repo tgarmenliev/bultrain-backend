@@ -29,14 +29,45 @@ const FeedMessage = B.transit_realtime.FeedMessage;
 const SKIPPED     = B.transit_realtime.TripUpdate.StopTimeUpdate.ScheduleRelationship.SKIPPED;
 const CANCELED    = B.transit_realtime.TripDescriptor.ScheduleRelationship.CANCELED;
 
-// Both feeds are published on a strict 30-second grid (measured: header
-// timestamps land on :26/:56, three consecutive deltas of exactly 30s). Polling
-// faster than the source republishes fetches the same bytes twice — the vehicle
-// feed used to run at 15s, which was 2,880 wasted requests and ~12 MB a day.
+// How often to ask. The source's own rhythm is not fixed — measured 2026-10-12: the position
+// feed publishes every 5 s (it was 30–60 s a week before), the delay feed every 30 s — so the
+// poller adapts instead of trusting a number:
+//   - positions: ask every VEHICLE_MIN_MS (10 s: the freshest we need, and 17k requests a
+//     day would be 2x that for no visible gain); when a poll finds nothing new, wait longer
+//     (x1.5, up to 30 s) so a slower source is not asked for the same bytes again and again;
+//     the next new publication brings it back to 10 s
+//   - delays: every 30 s (the source publishes every 30 s; asking faster fetches 50 KB twice)
+//   - a poll that FAILS backs off (x2, up to 2 min): a struggling government server is not
+//     helped by being asked every 10 s, and our own log is not helped either
+// +-10% jitter keeps us from beating against the source's own tick.
 const TRIP_INTERVAL_MS    = 30000;
-const VEHICLE_INTERVAL_MS = 30000;
+const VEHICLE_MIN_MS      = Number(process.env.RT_VEHICLE_MIN_MS) || 10000;
+const VEHICLE_MAX_MS      = 30000;
+const BACKOFF_MAX_MS      = 120000;
+const JITTER              = 0.1;
 const LOOKUP_REFRESH_MS   = 60 * 60 * 1000; // reload DB lookups hourly (after daily GTFS refresh)
 const HTTP_TIMEOUT_MS     = 20000;
+
+/**
+ * The wait before the next poll of a feed.
+ * @param {'trips'|'vehicles'} kind
+ * @param {number} prevMs   the wait that was in force
+ * @param {'new'|'same'|'failed'} outcome  what the poll found
+ */
+function nextDelayMs(kind, prevMs, outcome) {
+    if (kind === 'trips') {
+        return outcome === 'failed' ? Math.min(Math.max(prevMs, TRIP_INTERVAL_MS) * 2, BACKOFF_MAX_MS) : TRIP_INTERVAL_MS;
+    }
+    if (outcome === 'failed') return Math.min(Math.max(prevMs, VEHICLE_MIN_MS) * 2, BACKOFF_MAX_MS);
+    if (outcome === 'same') return Math.min(Math.max(prevMs, VEHICLE_MIN_MS) * 1.5, VEHICLE_MAX_MS);
+    return VEHICLE_MIN_MS;
+}
+
+const sched = { trips: { delayMs: TRIP_INTERVAL_MS }, vehicles: { delayMs: VEHICLE_MIN_MS } };
+function schedule_(kind, outcome) {
+    sched[kind].delayMs = nextDelayMs(kind, sched[kind].delayMs, outcome);
+    cache.setPollDelay(kind, sched[kind].delayMs);
+}
 
 let started = false;
 let db = null;
@@ -191,10 +222,13 @@ async function pollTripUpdates() {
         }
         const emptyTrips = suspiciousEmpty(map.size, 'trips');
         if (emptyTrips) throw new Error(emptyTrips);
+        const sameTrips = feedTs === cache.status().tripFeedTs;
         cache.setTrips(map, feedTs);
         pollOk('trips', 'tripUpdates');
+        schedule_('trips', sameTrips ? 'same' : 'new');
     } catch (err) {
         pollFailed('trips', 'tripUpdates', err.message);
+        schedule_('trips', 'failed');
     }
 }
 
@@ -224,22 +258,34 @@ async function pollVehicles() {
         }
         const emptyVehicles = suspiciousEmpty(map.size, 'vehicles');
         if (emptyVehicles) throw new Error(emptyVehicles);
+        const sameVehicles = feedTs === cache.status().vehicleFeedTs;
         cache.setVehicles(map, feedTs);
         pollOk('vehicles', 'vehiclePositions');
+        schedule_('vehicles', sameVehicles ? 'same' : 'new');
     } catch (err) {
         pollFailed('vehicles', 'vehiclePositions', err.message);
+        schedule_('vehicles', 'failed');
     }
+}
+
+// One chained timer per feed (not setInterval): the wait is decided by what the last poll found.
+function loop(kind, poll) {
+    const run = async () => {
+        try { await poll(); } finally {
+            const wait = sched[kind].delayMs * (1 + (Math.random() * 2 - 1) * JITTER);
+            setTimeout(run, wait);
+        }
+    };
+    return run();
 }
 
 function start() {
     if (started) return;
     started = true;
     refreshLookups();
-    pollTripUpdates();
-    pollVehicles();
-    setInterval(pollTripUpdates, TRIP_INTERVAL_MS);
-    setInterval(pollVehicles,    VEHICLE_INTERVAL_MS);
-    console.log('[rt] realtime poller started');
+    loop('trips', pollTripUpdates);
+    loop('vehicles', pollVehicles);
+    console.log(`[rt] realtime poller started (positions every ${VEHICLE_MIN_MS / 1000} s or slower if the source is, delays every ${TRIP_INTERVAL_MS / 1000} s)`);
 }
 
-module.exports = { start, pollTripUpdates, pollVehicles, feedTimestampMs };
+module.exports = { start, pollTripUpdates, pollVehicles, feedTimestampMs, nextDelayMs, _sched: sched };
