@@ -191,7 +191,7 @@ exports.arm = (req, res) => {
 
         store.touchInstall(String(b.installId));
         console.log(`[armed] armed journey=${b.journeyId} leg=${legIndex} train=${trainNumber} ` +
-                    `dep=${departure.toISOString()} startToken=${startToken ? 'yes' : 'MISSING'}`);
+                    `dep=${departure.toISOString()} startToken=${startToken ? 'yes' : 'MISSING'} lang=${appLanguage ?? 'none'}`);
 
         res.json({
             ok: true,

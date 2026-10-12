@@ -26,7 +26,11 @@ const APP_LANGUAGES = new Set(['bg', 'en']);
  * Shared with armedJourneyController.js, same reasoning as isValidToken.
  */
 function parseAppLanguage(value) {
-    return APP_LANGUAGES.has(value) ? value : null;
+    if (typeof value !== 'string') return null;
+    // 'bg' and 'en' exactly, but also a locale tag as Android hands it out ("en-US", "en_GB",
+    // "EN"): the language part decides. Anything else is still null → Bulgarian, as before.
+    const lang = value.trim().toLowerCase().split(/[-_]/)[0];
+    return APP_LANGUAGES.has(lang) ? lang : null;
 }
 
 // ActivityKit push tokens are NOT the 32-byte (64-hex) device tokens used for
