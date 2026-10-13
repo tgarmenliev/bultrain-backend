@@ -60,7 +60,9 @@ test('dates use the Swift reference epoch (2001-01-01), as numbers', async (t) =
 
 // ── 2. Change detection, including the threshold in both directions ──────────
 
-const pushed = (over) => makeRow({ last_pushed_at: '2026-07-23T13:00:00.000Z', ...over });
+// "just pushed": a minute ago, well inside the 10-minute heartbeat — these tests are about what
+// CHANGED, not about the passage of time (see the heartbeat tests below).
+const pushed = (over) => makeRow({ last_pushed_at: new Date(Date.now() - 60 * 1000).toISOString(), ...over });
 const meta = (over) => ({ delayMinutes: 0, nextStop: 'Пловдив', phase: 'inTransit', ...over });
 
 test('change detection governs push volume', async (t) => {

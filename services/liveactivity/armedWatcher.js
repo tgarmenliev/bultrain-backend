@@ -101,9 +101,9 @@ function asTokenRow(row) {
  * predicted departure from ITS boarding station, predicted arrival at ITS
  * destination, and the delay to report. All null when there is no coverage.
  */
-function readFeed(row, rt, nowSec) {
+function readFeed(row, rt, nowSec, vehicle = null) {
     if (!rt || !Array.isArray(rt.stops)) {
-        return { predictedDepUnix: null, predictedArrUnix: null, delayMin: null };
+        return { predictedDepUnix: null, predictedArrUnix: null, delayMin: null, departed: null };
     }
     const stops = rt.stops.filter(s => s.station);
     const bIdx = contentState.findStopIndex(stops, row.boarding_station);
@@ -114,15 +114,17 @@ function readFeed(row, rt, nowSec) {
     const predictedArrUnix = dIdx >= 0
         ? (stops[dIdx].arrivalTime ?? stops[dIdx].departureTime ?? null) : null;
 
-    // The delay that matters to this passenger: at the boarding station while
-    // still waiting, otherwise the next stop ahead. Shared with
-    // contentState.build() (see its currentDelay() doc) — they used to
-    // compute this independently and could disagree with each other.
-    const { delaySec } = contentState.currentDelay(stops, bIdx, nowSec);
+    // The delay that matters to this passenger: the boarding stop's DEPARTURE until the train
+    // has left it, otherwise the next stop ahead. Shared with contentState.build() (see its
+    // currentDelay() and hasDeparted() docs) — they used to compute this independently and
+    // could disagree with each other.
+    const schedDepSec = Math.floor(new Date(row.scheduled_departure).getTime() / 1000);
+    const departed = contentState.hasDeparted(stops, bIdx, { nowSec, schedDepSec, vehicle, rt });
+    const { delaySec } = contentState.currentDelay(stops, bIdx, nowSec, departed);
     const delayMin = (delaySec == null || Math.abs(delaySec) > 20 * 3600)
         ? null : Math.round(delaySec / 60);
 
-    return { predictedDepUnix, predictedArrUnix, delayMin };
+    return { predictedDepUnix, predictedArrUnix, delayMin, departed };
 }
 
 // ── 1. Push-to-start ─────────────────────────────────────────────────────────
@@ -426,7 +428,7 @@ function connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec) {
     if (ctx.role === 'connection') {
         activeRow = siblings.find(s => s.leg_index === legCtx.activeIndex);
         if (!activeRow) return { band: null, hasTransfer: true }; // shouldn't happen; err on the safe side
-        activeFeed = readFeed(activeRow, getTrain(activeRow.train_number), nowSec);
+        activeFeed = readFeed(activeRow, getTrain(activeRow.train_number), nowSec, getVehicle(activeRow.train_number));
         nextRow = row;
         nextFeed = feed;
     } else if (ctx.phase === 'inTransit') {
@@ -434,7 +436,7 @@ function connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec) {
         if (!nextRow) return { band: null, hasTransfer: false }; // last leg — nothing downstream
         activeRow = row;
         activeFeed = feed;
-        nextFeed = readFeed(nextRow, getTrain(nextRow.train_number), nowSec);
+        nextFeed = readFeed(nextRow, getTrain(nextRow.train_number), nowSec, getVehicle(nextRow.train_number));
     } else {
         return { band: null, hasTransfer: false }; // not consulted for this case anyway
     }
@@ -447,7 +449,7 @@ function connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec) {
 }
 
 async function maybeAlert(row, feed, now, legCtx, siblings) {
-    const phase = logic.legPhase(row, feed.predictedDepUnix, now);
+    const phase = logic.legPhase(row, feed.predictedDepUnix, now, feed.departed);
     // row.destination_station is always Bulgarian (see stationDisplay.js) —
     // translated here so alertText() (kept DB-free by design) never has to.
     const destinationDisplay = stationDisplay.displayStationName(row.destination_station, row.app_language);
@@ -636,7 +638,8 @@ async function tick(now = new Date()) {
             const legCtx = logic.legRole(row, siblings, now);
 
             const rt = getTrain(row.train_number);
-            const feed = readFeed(row, rt, nowSec);
+            const v  = getVehicle(row.train_number);
+            const feed = readFeed(row, rt, nowSec, v);
 
             // With a stale feed maybeStop() would judge a late journey by its
             // scheduled times and stop it while it is still under way. Leave it

@@ -45,12 +45,12 @@ function callingPointOf(s, calling) {
 function fromFeed(rt, nowSec, calling = null) {
     const named = rt.stops.filter(s => s.stationId != null);
     const stops = named.map(s => {
-        // A trip's ORIGIN has no arrival at all — only departure. Without this
-        // fallback, predictedArrival/passed were both null there forever, even
-        // once the train had clearly left: the one stop where a delay matters
-        // most (waiting at the boarding platform) was the one stop the response
-        // could never actually confirm.
-        const refTime = s.arrivalTime ?? s.departureTime;
+        // A stop is PASSED once the train has LEFT it: its departure, else its arrival. A train
+        // that has pulled in and is standing there (a long dwell: 11 minutes in Sofia) has not
+        // passed the stop, and a passenger waiting to board on that platform must not be told it
+        // has. A trip's ORIGIN has no arrival at all, only a departure, and a terminus only an
+        // arrival — each uses what it has, so neither is ever stuck "not passed".
+        const refTime = s.departureTime ?? s.arrivalTime;
         return {
             station:            s.station,
             stationId:          s.stationId,

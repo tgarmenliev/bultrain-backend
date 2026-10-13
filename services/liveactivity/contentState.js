@@ -71,17 +71,58 @@ function findStopIndex(stops, stationName, getName = (s) => s.station) {
 }
 
 /**
+ * Has the train LEFT the passenger's boarding stop? The one question both the card's phase
+ * and its delay hang on, answered once.
+ *
+ * The train's own position decides when it has one: the vehicle feed says which stop it is
+ * standing at or heading to, and a stop AFTER the boarding stop means it has gone; the
+ * boarding stop itself (standing there, or still approaching it) or any stop before it means
+ * it has not. A late train sitting on the platform is therefore "not yet" even when its
+ * predicted departure has passed, and an early one that has gone is "gone" before its
+ * predicted time.
+ *
+ * Without a trustworthy position the feed's predicted departure decides (arrival, then the
+ * schedule, when the feed has no departure). Never the schedule while the feed has a better
+ * answer: a train running 20 minutes late is not "under way" at its scheduled minute.
+ *
+ * A position is trusted only if it belongs to the SAME run as the TripUpdate (an overnight
+ * run of the same number may still be on the road) and names a stop we can place in the trip.
+ *
+ * @param {Array|null} stops  feed stops (already name-filtered)
+ * @param {number} bIdx       index of the boarding station in `stops`, or -1
+ * @param {object} o
+ * @param {number} o.nowSec
+ * @param {number} o.schedDepSec   the registered scheduled departure (last resort)
+ * @param {object|null} [o.vehicle]  cache vehicle: { stopStationId, tripId, ... }
+ * @param {object|null} [o.rt]       the TripUpdate the stops came from (for the run's trip id)
+ * @returns {boolean}
+ */
+function hasDeparted(stops, bIdx, { nowSec, schedDepSec, vehicle = null, rt = null }) {
+    if (stops && bIdx >= 0 && vehicle && vehicle.stopStationId != null) {
+        const sameRun = !vehicle.tripId || !rt || !rt.tripId || vehicle.tripId === rt.tripId;
+        if (sameRun) {
+            const at = stops.findIndex(s => s.stationId === vehicle.stopStationId);
+            if (at >= 0) return at > bIdx;
+        }
+    }
+    const predicted = (stops && bIdx >= 0) ? (stops[bIdx].departureTime ?? stops[bIdx].arrivalTime ?? null) : null;
+    return nowSec >= (predicted ?? schedDepSec);
+}
+
+/**
  * The delay relevant to a specific passenger right now, in seconds — not
  * "wherever the train happens to be next", which can be an earlier stop it
  * hasn't reached yet, before boarding_station, showing a smaller delay than
  * what the feed already predicts by the time it actually gets there.
  *
- * Before boarding (the boarding stop is still ahead): the boarding station's
- * OWN delay — this is what decides when to actually leave for the station,
- * and must agree with the predicted departure time shown on the same card.
- * Once aboard (boarding stop already behind): the delay at whichever stop is
- * coming up next for the train, which from here on IS the passenger's own
- * next stop too.
+ * Until the train has LEFT the boarding stop (see hasDeparted): the boarding stop's
+ * DEPARTURE delay — what decides when to actually leave for the station, and must agree
+ * with the predicted departure shown on the same card. That includes the whole time the
+ * train stands at the platform: a train arriving +5 that makes it up in a long dwell and
+ * leaves on time is "on time" to the person waiting for it, and a train leaving +20 is
+ * +20 however much the later stops have caught up.
+ * Once it has left: the delay at whichever stop is coming up next for the train, which
+ * from here on IS the passenger's own next stop too.
  *
  * Single source of truth for both the Live Activity card (contentState.build)
  * and the armed-journey pipeline's own trigger/alert timing
@@ -91,12 +132,15 @@ function findStopIndex(stops, stationName, getName = (s) => s.station) {
  * @param {Array|null} stops  feed stops (already name-filtered), or null/empty
  * @param {number} bIdx       index of the boarding station in `stops`, or -1
  * @param {number} nowSec
+ * @param {boolean} [departed] hasDeparted(); when omitted it is decided by the predicted
+ *                            departure time alone (older callers)
  * @returns {{delaySec: number|null, refStation: string|null}}
  */
-function currentDelay(stops, bIdx, nowSec) {
+function currentDelay(stops, bIdx, nowSec, departed) {
     if (!stops || !stops.length) return { delaySec: null, refStation: null };
 
-    if (bIdx >= 0 && (stops[bIdx].arrivalTime ?? 0) >= nowSec) {
+    const left = departed ?? (bIdx >= 0 && nowSec >= (stops[bIdx].departureTime ?? stops[bIdx].arrivalTime ?? Infinity));
+    if (bIdx >= 0 && !left) {
         const s = stops[bIdx];
         return { delaySec: s.departureDelay ?? s.arrivalDelay ?? null, refStation: s.station };
     }
@@ -193,11 +237,18 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
     // reading the train's very next stop overall, upstream of boarding_station,
     // while the times were correctly reading boarding_station/destination_station
     // themselves. See currentDelay()'s own doc for the exact rule.
-    const { delaySec, refStation } = currentDelay(stops, bIdx, nowSec);
+    //
+    // And it is read at the right moment: until the train has actually LEFT the boarding
+    // stop it is that stop's departure that matters (see hasDeparted / currentDelay).
+    const departed = hasDeparted(stops, bIdx, { nowSec, schedDepSec, vehicle, rt });
+    const { delaySec, refStation } = currentDelay(stops, bIdx, nowSec, departed);
     const delayMinutes = toMin(delaySec);
     const nextStop = refStation;
 
-    const phase = nowSec < schedDepSec ? 'preDeparture' : 'inTransit';
+    // The card flips to "under way" when the train has left THIS passenger's stop — by its
+    // position, else by the predicted departure — not at the scheduled minute: a late train
+    // is still on the platform then.
+    const phase = departed ? 'inTransit' : 'preDeparture';
 
     // GPS-tracked = we have a live position but no TripUpdate (the same case
     // /api/realtime/train reports as progressSource:'position'). The card then
@@ -290,11 +341,12 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
             isGPSTracked,
             // Unix seconds; the worker uses it to decide when to end the activity.
             predictedArrivalUnix: predictedArrivalUnix ?? schedArrSec,
+            predictedDepartureUnix,
         },
     };
 }
 
 module.exports = {
-    build, toSwiftDate, fromSwiftDate, normalizeStation, findStopIndex, currentDelay,
+    build, toSwiftDate, fromSwiftDate, normalizeStation, findStopIndex, currentDelay, hasDeparted,
     computeProgress, geometrySegmentProgress, SWIFT_EPOCH_OFFSET, DELAY_THRESHOLD_MIN,
 };

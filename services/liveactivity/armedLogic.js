@@ -105,8 +105,15 @@ function mayStartLeg(row, liveLegs, now = new Date()) {
     return legRole(row, liveLegs, now).role === 'active';
 }
 
-/** Before departure or already rolling — decides both wording and threshold. */
-function legPhase(row, predictedDepUnix, now = new Date()) {
+/**
+ * Before departure or already rolling — decides both wording and threshold.
+ *
+ * `departed` is contentState.hasDeparted() (the train's position, else its predicted
+ * departure): when the caller has it, it decides. Otherwise the predicted departure, else
+ * the schedule — as before.
+ */
+function legPhase(row, predictedDepUnix, now = new Date(), departed = null) {
+    if (typeof departed === 'boolean') return departed ? 'inTransit' : 'preDeparture';
     const dep = predictedDepUnix != null
         ? predictedDepUnix * 1000
         : new Date(row.scheduled_departure).getTime();

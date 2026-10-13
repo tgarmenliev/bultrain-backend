@@ -47,6 +47,10 @@ const CLEANUP_MS               = 60 * 60 * 1000;
 // own segment), and how long a GPS-tracked card may go without any push.
 const PROGRESS_DELTA           = 0.02;
 const GPS_HEARTBEAT_MS         = 5 * 60 * 1000;
+// The card dims itself 15 min after its last update (stale-date) and the app no longer writes
+// it, so an unchanged card is still refreshed this often. Priority 5: Apple documents no
+// update limit for it (see hasChanged).
+const HEARTBEAT_MS             = 10 * 60 * 1000;
 const PER_TOKEN_MIN_INTERVAL_MS = 60 * 1000;   // at most one push per token per minute
 const END_AFTER_ARRIVAL_MS     = 10 * 60 * 1000;
 const LARGE_DELAY_JUMP_MIN     = 5;            // worth spending an urgent push on
@@ -118,6 +122,16 @@ function hasChanged(row, meta) {
         if (since >= GPS_HEARTBEAT_MS) {
             return { changed: true, reason: 'gps-heartbeat', priority: 5 };
         }
+    }
+
+    // Safety net for EVERY card: nothing to say is not the same as nothing to refresh. Before
+    // departure (the card appears 40 min ahead) and through a long dwell the content can stay
+    // identical for far longer than the 15 minutes after which iOS dims a card with no new
+    // update — and the server is now the card's only author. A plain priority-5 push with a
+    // fresh lastUpdated keeps it current; it is not metered like priority 10.
+    const sinceMs = Date.now() - new Date(row.last_pushed_at).getTime();
+    if (sinceMs >= HEARTBEAT_MS) {
+        return { changed: true, reason: 'heartbeat', priority: 5 };
     }
 
     return { changed: false };
@@ -207,7 +221,7 @@ async function tick(now = new Date()) {
                         event: 'end', dismissalUnix: nowSec,
                     });
                 }
-                tasks.push(makeTask(row, ctx.endBody, 10, ctx.meta, { end: true }));
+                tasks.push(makeTask(row, ctx.endBody, 10, ctx.meta, { end: true, reason: 'arrived' }));
                 continue;
             }
 
@@ -228,7 +242,7 @@ async function tick(now = new Date()) {
                 skipped++; metrics.inc('live_activity_pushes_skipped_unchanged'); continue;
             }
 
-            tasks.push(makeTask(row, ctx.body, decision.priority || 5, ctx.meta, { hash: ctx.hash }));
+            tasks.push(makeTask(row, ctx.body, decision.priority || 5, ctx.meta, { hash: ctx.hash, reason: decision.reason }));
         }
     }
 
@@ -237,8 +251,12 @@ async function tick(now = new Date()) {
     return { sent, skipped, queued: tasks.length };
 }
 
+const hhmmUnix = (sec) => (sec == null ? '—' : new Date(sec * 1000).toLocaleTimeString('en-GB', {
+    timeZone: 'Europe/Sofia', hour: '2-digit', minute: '2-digit',
+}));
+
 /** A closure the bounded-concurrency sender can call. */
-function makeTask(row, body, priority, meta, { end = false, hash: contentHash } = {}) {
+function makeTask(row, body, priority, meta, { end = false, hash: contentHash, reason = '?' } = {}) {
     return async () => {
         const res = await apns.send({
             token: row.token, environment: row.environment, body, priority,
@@ -252,6 +270,11 @@ function makeTask(row, body, priority, meta, { end = false, hash: contentHash } 
         }
 
         if (res.outcome === 'ok') {
+            // One line per push that actually went out, so "what did the card get at 08:20?" can be
+            // answered from the log. The token is cut to its last 6 characters.
+            console.log(`[la] push ${end ? 'END' : 'update'} train=${row.train_number} leg=${row.current_leg_index ?? 0} ` +
+                        `token=…${String(row.token).slice(-6)} prio=${priority} reason=${reason} phase=${meta.phase} ` +
+                        `delay=${meta.delayMinutes ?? '—'} dep=${hhmmUnix(meta.predictedDepartureUnix)} arr=${hhmmUnix(meta.predictedArrivalUnix)}`);
             if (end) {
                 store.remove(row.token);
                 metrics.inc('live_activity_ends_sent');
@@ -276,15 +299,30 @@ function makeTask(row, body, priority, meta, { end = false, hash: contentHash } 
 // ── Departure-moment pushes ──────────────────────────────────────────────────
 
 /**
- * The card flips from the pre-departure layout to in-transit at the scheduled
- * departure. Waiting for the next 30s tick would show that up to half a minute
- * late, so tokens departing within this tick get their own timer.
+ * When the card should flip from the pre-departure layout to in-transit: the PREDICTED
+ * departure from the passenger's stop (the feed's own), else the scheduled one. A late
+ * train leaves late, and a timer at the scheduled minute would fire while it is still on
+ * the platform.
+ */
+function departureMomentMs(row) {
+    const rt = getTrain(row.train_number);
+    const stops = rt && Array.isArray(rt.stops) ? rt.stops.filter(s => s.station) : null;
+    const bIdx = stops ? contentState.findStopIndex(stops, row.boarding_station) : -1;
+    const predicted = bIdx >= 0 ? (stops[bIdx].departureTime ?? stops[bIdx].arrivalTime ?? null) : null;
+    return predicted != null ? predicted * 1000 : new Date(row.scheduled_departure).getTime();
+}
+
+/**
+ * Waiting for the next 30s tick would show the flip up to half a minute late, so tokens
+ * departing within this tick get their own timer. The prediction moves, so the timer only
+ * PUSHES if the phase really changed when it fires — if the train is still standing (the
+ * prediction slid, or its position says so) nothing is sent, and the next tick schedules a
+ * fresh timer for the new moment. The flip itself is also caught by the tick, by position.
  */
 function scheduleDepartures(now = new Date()) {
     const rows = store.listActive();
     for (const row of rows) {
-        const depMs = new Date(row.scheduled_departure).getTime();
-        const delta = depMs - now.getTime();
+        const delta = departureMomentMs(row) - now.getTime();
         if (delta <= 0 || delta > TICK_MS) continue;
         if (departureTimers.has(row.token)) continue;
 
@@ -301,10 +339,11 @@ function scheduleDepartures(now = new Date()) {
                 const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
                 const nowSec = Math.floor(Date.now() / 1000);
                 const { state, meta } = contentState.build(withLegDisplay(fresh), rt, new Date(), v, geo);
+                if ((fresh.last_phase || null) === (meta.phase || null)) return;   // still standing: nothing to say
                 const body = buildBody(state, { nowSec, predictedArrivalUnix: meta.predictedArrivalUnix });
                 // Phase change: worth priority 10 and worth bypassing the
                 // per-minute throttle, which exists for feed noise, not this.
-                await makeTask(fresh, body, 10, meta, { hash: hash(body) })();
+                await makeTask(fresh, body, 10, meta, { hash: hash(body), reason: 'phase' })();
             } catch (err) {
                 console.error('[la] departure push failed:', err.message);
             }
@@ -379,6 +418,6 @@ function stop() {
 }
 
 module.exports = {
-    start, stop, tick, runCleanup, hasChanged, buildBody, contextKey,
-    TICK_MS, PER_TOKEN_MIN_INTERVAL_MS, END_AFTER_ARRIVAL_MS, LARGE_DELAY_JUMP_MIN,
+    start, stop, tick, runCleanup, hasChanged, buildBody, contextKey, departureMomentMs,
+    TICK_MS, HEARTBEAT_MS, PER_TOKEN_MIN_INTERVAL_MS, END_AFTER_ARRIVAL_MS, LARGE_DELAY_JUMP_MIN,
 };

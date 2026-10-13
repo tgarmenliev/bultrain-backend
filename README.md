@@ -273,7 +273,30 @@ The worker ticks every 30s, reads the realtime cache the poller already maintain
 would notice changed — phase, next stop, or delay crossing a 2-minute threshold
 in either direction. `apns-priority` is 5 by default; 10 only for phase changes
 and threshold/large-jump delay changes (priority 10 spends the activity's update
-budget faster and Apple throttles it).
+budget faster and Apple throttles it). An unchanged card is still refreshed every
+**10 minutes** at priority 5 (`reason=heartbeat`): iOS dims a card 15 minutes after its
+last update, and the server is the card's only author (the app no longer writes it).
+Every push that goes out is logged with its reason, priority, phase, delay and predicted
+times (`[la] push update train=… reason=… phase=… delay=… dep=… arr=…`).
+
+### What the card says, and when
+
+*Until the train has left the passenger's boarding stop* the card is about the
+**departure**: phase `preDeparture`, `predictedDeparture` and `delayMinutes` are that stop's
+DEPARTURE time and delay — through the whole time the train stands at the platform, not the
+delay of the next stop. *After it has left*: `inTransit`, with the train's current delay (the
+next stop's predicted arrival delay). "Has left" is `contentState.hasDeparted()`: the train's
+**position** decides when it has one (the vehicle feed's stop is after the boarding stop ⇒
+gone; the boarding stop itself or an earlier one ⇒ not yet; a position of another run of the
+same number is ignored), otherwise the **predicted departure** (arrival, then the schedule,
+when the feed has no departure). Never the scheduled minute while the feed knows better: a
+train +20 is not "under way" at its scheduled time. The departure timer follows the
+prediction and pushes only if the phase really changed when it fires. The delay-alert
+pipeline (`armedWatcher.readFeed`) uses the same function, so the card and the
+notifications cannot disagree. The card still **starts** 40 minutes before the *scheduled*
+departure. In `/api/realtime/train/:no` a stop is `passed` once the train has **left** it
+(departure, else arrival), and `previousStationId` follows; `nextStationId`/`nextStation`
+are unchanged (the next stop whose arrival is ahead).
 
 ### Three rules that fail SILENTLY
 
