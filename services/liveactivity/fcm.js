@@ -133,7 +133,7 @@ function errorCodeOf(body) {
 
 // ── Sending ──────────────────────────────────────────────────────────────────
 
-async function postOnce({ token, data, accessTok }) {
+async function postOnce({ token, data, accessTok, ttlSeconds }) {
     const c = config();
     const started = Date.now();
     try {
@@ -147,7 +147,10 @@ async function postOnce({ token, data, accessTok }) {
                     // notification itself), and a notification message would have
                     // the OS draw a bare one instead while the app slept.
                     data,
-                    android: { priority: 'high' },
+                    // A time-critical message is worth nothing late: with a TTL FCM drops it if the
+                    // phone cannot be reached in time, instead of delivering it hours later (the
+                    // default is four weeks).
+                    android: ttlSeconds ? { priority: 'high', ttl: `${Math.round(ttlSeconds)}s` } : { priority: 'high' },
                 },
             },
             {
@@ -173,7 +176,7 @@ async function postOnce({ token, data, accessTok }) {
  *
  * @returns {{ outcome: string, status: number, reason: string|null }}
  */
-async function send({ token, data, noRetry = false }) {
+async function send({ token, data, noRetry = false, ttlSeconds }) {
     const payload = {};
     for (const [k, v] of Object.entries(data || {})) {
         if (v !== undefined && v !== null) payload[k] = String(v);
@@ -189,7 +192,7 @@ async function send({ token, data, noRetry = false }) {
 
     let res;
     try {
-        res = await postOnce({ token, data: payload, accessTok: tok });
+        res = await postOnce({ token, data: payload, accessTok: tok, ttlSeconds });
     } catch (err) {
         metrics.apnsError('fcm-transport');
         return { outcome: 'server', status: 0, reason: err.message };
@@ -213,7 +216,7 @@ async function send({ token, data, noRetry = false }) {
     if (outcome === 'auth') {
         try {
             tok = await accessToken({ force: true });
-            res = await postOnce({ token, data: payload, accessTok: tok });
+            res = await postOnce({ token, data: payload, accessTok: tok, ttlSeconds });
             code = errorCodeOf(res.body);
             outcome = classify(res.status, code);
         } catch (err) {
@@ -227,7 +230,7 @@ async function send({ token, data, noRetry = false }) {
     if (outcome === 'server') {
         await new Promise(r => setTimeout(r, 200 + Math.random() * 300));
         try {
-            res = await postOnce({ token, data: payload, accessTok: tok });
+            res = await postOnce({ token, data: payload, accessTok: tok, ttlSeconds });
             code = errorCodeOf(res.body);
             outcome = classify(res.status, code);
         } catch (err) {

@@ -42,15 +42,39 @@ function callingPointOf(s, calling) {
 
 // Stops + headline delay from a TripUpdate (the feed's own predicted times).
 // `calling` is the Set of station ids the trip calls at, or null when unknown.
-function fromFeed(rt, nowSec, calling = null) {
+// `v` is the train's own vehicle (cache), when it has one.
+function fromFeed(rt, nowSec, calling = null, v = null) {
     const named = rt.stops.filter(s => s.stationId != null);
-    const stops = named.map(s => {
+
+    // Where the train IS, when the vehicle feed says so — the stop it stands at or is heading
+    // to, as an index into this trip — and only for the SAME run (an overnight run of the same
+    // number may still be on the road). The feed's predicted times are often stale; a position
+    // is a measurement, so it outranks them wherever it speaks.
+    let at = -1;
+    if (v && v.stopStationId != null && (!v.tripId || !rt.tripId || v.tripId === rt.tripId)) {
+        at = named.findIndex(s => s.stationId === v.stopStationId);
+    }
+    const standing = at >= 0 && v.stopStatus === 'STOPPED_AT';
+
+    const stops = named.map((s, i) => {
         // A stop is PASSED once the train has LEFT it: its departure, else its arrival. A train
         // that has pulled in and is standing there (a long dwell: 11 minutes in Sofia) has not
         // passed the stop, and a passenger waiting to board on that platform must not be told it
         // has. A trip's ORIGIN has no arrival at all, only a departure, and a terminus only an
         // arrival — each uses what it has, so neither is ever stuck "not passed".
         const refTime = s.departureTime ?? s.arrivalTime;
+        const calls = callingPointOf(s, calling);
+        let passed = refTime ? (refTime < nowSec) : null;
+
+        // With the train's position: the stop it stands at, is heading to, or is yet to reach is
+        // NOT passed however stale the clock is (a late train that is still approaching, or
+        // standing on its platform, after its predicted time); a CALLING stop before it is passed
+        // even if the feed's times still say otherwise. A timing point before it may lie between
+        // the train and its next calling stop, so for those the clock still decides.
+        if (at >= 0) {
+            if (i >= at) passed = false;
+            else if (calls === true) passed = true;
+        }
         return {
             station:            s.station,
             stationId:          s.stationId,
@@ -58,15 +82,21 @@ function fromFeed(rt, nowSec, calling = null) {
             predictedDeparture: hhmm(s.departureTime),
             arrivalDelayMin:    toMin(s.arrivalDelay),
             departureDelayMin:  toMin(s.departureDelay),
-            passed:             refTime ? (refTime < nowSec) : null,
-            callingPoint:       callingPointOf(s, calling),
+            passed,
+            callingPoint:       calls,
         };
     });
     const upcoming = named.filter(s => s.arrivalTime && s.arrivalTime >= nowSec);
     const ref = upcoming[0] || named[named.length - 1];
     // nextStation is unchanged (it may name a timing point); nextStationId is
-    // the next stop the train really CALLS at.
-    const nextCalling = upcoming.find(s => callingPointOf(s, calling) !== false);
+    // the next stop the train really CALLS at: by position when the train has one (the stop it is
+    // heading to; the one after it while it stands at a stop), else by the predicted arrivals.
+    let nextCalling;
+    if (at >= 0) {
+        nextCalling = named.find((s, i) => i >= (standing ? at + 1 : at) && callingPointOf(s, calling) !== false);
+    } else {
+        nextCalling = upcoming.find(s => callingPointOf(s, calling) !== false);
+    }
     // The last stop the train has already passed AND calls at: the same `passed`
     // and callingPoint as in `stops`, so the stop list, the dot and this cannot disagree.
     let previousStationId = null;
@@ -153,7 +183,7 @@ function fromPosition(v, geo) {
  */
 function summarize({ rt, v, geo, nowSec, calling = null }) {
     if (rt) {
-        const f = fromFeed(rt, nowSec, calling);
+        const f = fromFeed(rt, nowSec, calling, v);
         return {
             stops: f.stops, delayMinutes: f.delayMinutes, nextStation: f.nextStation,
             nextStationId: f.nextStationId, previousStationId: f.previousStationId,

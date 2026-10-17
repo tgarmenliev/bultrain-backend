@@ -298,6 +298,30 @@ departure. In `/api/realtime/train/:no` a stop is `passed` once the train has **
 (departure, else arrival), and `previousStationId` follows; `nextStationId`/`nextStation`
 are unchanged (the next stop whose arrival is ahead).
 
+### Android: the two moments pushed from the server
+
+Android holds back an app's exact alarms (Doze, vendor battery managers) and ran them 15–18
+minutes late in the field; FCM high-priority pushes arrive within seconds. So, for **Android
+legs only** (an iPhone has the Live Activity), the watcher sends — each only for a leg that is
+still in play (not disarmed, no arrival reported) and is the one being travelled:
+
+| push | when | data (all strings) |
+|---|---|---|
+| `start_tracking` | departure − 40 min (unchanged), and **again at arrival − 40 min** | `type, journeyId, legIndex, trainNumber`; the approach one also has `reason: approach` |
+| `departure_reminder` | scheduled departure − 30 min, once per leg | `type, journeyId, legIndex, trainNumber, title, body, scheduledDeparture` (ISO UTC), `delayMinutes` (only when the feed reports this departure) |
+
+The approach uses the feed's **predicted** arrival when it has one, is sent again (≥ 5 min apart,
+at most 3 per leg) if that prediction moves by more than 10 minutes, and is skipped for a leg
+shorter than 40 minutes (its departure start already covers it), for a train that has not left,
+and within 15 minutes of a start_tracking. The reminder goes out from departure − 30 min until 5
+minutes before the train really leaves (the feed's predicted departure, else the schedule).
+`title`/`body` follow `appLanguage` (train, direction, scheduled time; the expected time **only**
+when the feed really reports the departure, otherwise "on schedule at HH:MM" — never "on time").
+What was sent is remembered per leg (migration 016) and survives the app's re-arm while the leg's
+times are unchanged. All Android pushes are FCM `priority: high` with a TTL (start 20 min,
+reminder 15, delay alert 30): a message that cannot be delivered in time is dropped, not delivered
+hours late. The watcher ticks every 30 s, so a push leaves 0–30 s after its moment.
+
 ### Three rules that fail SILENTLY
 
 If any is wrong, APNs returns `200`, the device drops the update, and nothing is

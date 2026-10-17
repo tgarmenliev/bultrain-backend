@@ -269,6 +269,7 @@ async function maybeStart(row, feed, now, legCtx) {
                 trainNumber: row.train_number,
             },
             noRetry: true,
+            ttlSeconds: START_TTL_S,
         });
     } else {
         const rt = getTrain(row.train_number);
@@ -538,6 +539,7 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
                 // whenever that's wired up; unused today costs nothing.
                 interruptionLevel,
             },
+            ttlSeconds: ALERT_TTL_S,
         });
     } else {
         const body = JSON.stringify({
@@ -585,6 +587,101 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
     } else if (res.outcome === 'invalid-token') {
         console.warn(`[armed] alert token dead for install=${store.idTag(row.install_id)}`);
     }
+}
+
+// ── 4. Android: the two moments the phone cannot be trusted with ─────────────
+
+// How long FCM may hold each push when the phone cannot be reached (a time-critical message
+// delivered hours late is worse than none).
+const START_TTL_S    = 20 * 60;
+const REMINDER_TTL_S = 15 * 60;
+const ALERT_TTL_S    = 30 * 60;
+
+/**
+ * "Time to set off": departure_reminder, 30 minutes before the SCHEDULED departure, once per
+ * leg. title/body are composed here in the app's language — train, direction, the scheduled
+ * time and, only if the feed really reports this departure, the expected one.
+ */
+async function maybeDepartureReminder(row, feed, now, legCtx, device) {
+    if (legCtx.role !== 'active') return;
+    const d = logic.evaluateDepartureReminder(row, feed, now);
+    if (!d.shouldSend) return;
+
+    const language = row.app_language;
+    const text = logic.departureReminderText(row, feed, trainLabel(row), {
+        language,
+        fromDisplay: stationDisplay.displayStationName(row.boarding_station, language),
+        directionDisplay: stationDisplay.displayStationName(row.direction_station || row.destination_station, language),
+    });
+
+    const res = await fcm.send({
+        token: device.token,
+        data: {
+            type: 'departure_reminder',
+            journeyId: row.journey_id,
+            legIndex: row.leg_index,
+            trainNumber: row.train_number,
+            title: text.title,
+            body: text.body,
+            scheduledDeparture: new Date(row.scheduled_departure).toISOString(),
+            // Only when the feed really reports this departure: no report means no field, never 0.
+            ...(feed.delayMin != null ? { delayMinutes: feed.delayMin } : {}),
+        },
+        ttlSeconds: REMINDER_TTL_S,
+    });
+
+    console.log(`[armed] departure reminder j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
+                `sched=${hhmm(row.scheduled_departure)} delay=${feed.delayMin ?? '—'}m lang=${language ?? 'none'} -> ${res.outcome}`);
+    if (store.forgetTokenIfGone(device, res)) {
+        console.log(`[armed] reminder token is gone (app deleted?) — removed, install=${store.idTag(row.install_id)}`);
+    }
+    if (res.outcome === 'ok') {
+        store.markReminderSent(row.id);
+        metrics.inc('departure_reminders_sent');
+    }
+}
+
+/**
+ * The approach to the arrival stop: start_tracking again at (arrival - 40 min), the arrival
+ * being the feed's prediction when it has one — and again if that prediction moves by more
+ * than 10 minutes. Same message the departure start uses (the app already handles it);
+ * `reason: approach` tells the two apart in a log.
+ */
+async function maybeApproach(row, feed, now, legCtx, device) {
+    if (legCtx.role !== 'active') return;
+    const d = logic.evaluateApproach(row, feed, now);
+    if (!d.shouldSend) return;
+
+    const res = await fcm.send({
+        token: device.token,
+        data: {
+            type: 'start_tracking',
+            journeyId: row.journey_id,
+            legIndex: row.leg_index,
+            trainNumber: row.train_number,
+            reason: 'approach',
+        },
+        noRetry: true,
+        ttlSeconds: START_TTL_S,
+    });
+
+    console.log(`[armed] approach start_tracking j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
+                `arrival=${hhmm(d.arrivalUnix * 1000)} (${d.reason}) sent#${(row.approach_count || 0) + 1} -> ${res.outcome}`);
+    if (store.forgetTokenIfGone(device, res)) {
+        console.log(`[armed] approach token is gone (app deleted?) — removed, install=${store.idTag(row.install_id)}`);
+    }
+    if (res.outcome === 'ok') {
+        store.markApproachSent(row.id, d.arrivalUnix);
+        metrics.inc('approach_pushes_sent');
+    }
+}
+
+/** Both are for Android only: an iPhone has the Live Activity, which the OS keeps current. */
+async function maybeAndroidTimed(row, feed, now, legCtx) {
+    const device = store.getToken(row.install_id, 'push_to_start');
+    if (!device || device.platform !== 'android') return;
+    await maybeDepartureReminder(row, feed, now, legCtx, device);
+    await maybeApproach(row, feed, now, legCtx, device);
 }
 
 // ── 3. Silent auto-stop ──────────────────────────────────────────────────────
@@ -650,6 +747,8 @@ async function tick(now = new Date()) {
             const before = row.state;
             await maybeStart(row, feed, now, legCtx);
             if (before === 'armed' && store.getById(row.id)?.state === 'started') started++;
+
+            await maybeAndroidTimed(store.getById(row.id) || row, feed, now, legCtx);
 
             await maybeAlert(row, feed, now, legCtx, siblings);
             if (store.getById(row.id)?.alerts_sent > row.alerts_sent) alerted++;

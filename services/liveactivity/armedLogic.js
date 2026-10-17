@@ -346,6 +346,134 @@ function alertText(row, delayMin, kind, label, ctx = {}) {
     return c.preDeparture(train, delayMin, word, kind === 'better', to);
 }
 
+
+// ── Android: two moments the phone cannot be trusted with ────────────────────
+//
+// Android holds back an app's exact alarms (Doze, vendor battery managers) and runs them
+// 15-18 minutes late; an FCM high-priority push arrives within seconds. So the two moments
+// that matter most are pushed from here, for ANDROID legs only (an iPhone has the Live
+// Activity, which the OS keeps current on its own):
+//   - departure_reminder: scheduled departure - 30 min — "time to set off"
+//   - start_tracking again at arrival - 40 min — the approach to the stop
+
+const REMINDER_BEFORE_MS     = 30 * 60 * 1000;
+const REMINDER_MIN_LEAD_MS   = 5 * 60 * 1000;   // a "set off" nudge less than this before departure is noise
+const APPROACH_BEFORE_MS     = 40 * 60 * 1000;
+const APPROACH_MOVE_MS       = 10 * 60 * 1000;  // send again if the arrival moved by more than this
+const APPROACH_MIN_GAP_MS    = 5 * 60 * 1000;   // …but never two within this
+const APPROACH_MAX_PER_LEG   = 3;
+const APPROACH_AFTER_START_MS = 15 * 60 * 1000; // a start_tracking this recent already covers it
+
+/**
+ * Should the "time to set off" reminder go out now?
+ *
+ * Once per leg; from (scheduled departure - 30 min) until 5 minutes before the train
+ * actually leaves (the feed's predicted departure when it has one, else the schedule), so a
+ * leg armed late still gets it if there is time to act, and a train that has gone does not.
+ *
+ * @param {object} row   armed_journeys row (reminder_sent_at)
+ * @param {{predictedDepUnix:number|null, departed:boolean|null}} feed  readFeed()
+ */
+function evaluateDepartureReminder(row, feed, now = new Date()) {
+    const nowMs  = now.getTime();
+    const tSched = new Date(row.scheduled_departure).getTime();
+    const tEff   = feed.predictedDepUnix != null ? feed.predictedDepUnix * 1000 : tSched;
+    const tRemindMs = tSched - REMINDER_BEFORE_MS;
+
+    if (row.reminder_sent_at)       return { shouldSend: false, reason: 'already-sent', tRemindMs };
+    if (feed.departed === true)     return { shouldSend: false, reason: 'already-departed', tRemindMs };
+    if (nowMs < tRemindMs)          return { shouldSend: false, reason: 'too-early', tRemindMs };
+    if (nowMs > tEff - REMINDER_MIN_LEAD_MS) return { shouldSend: false, reason: 'too-close-to-departure', tRemindMs };
+    return { shouldSend: true, reason: 'departure-in-30', tRemindMs };
+}
+
+/**
+ * Should another start_tracking go out for the approach to the arrival stop?
+ *
+ * At (arrival - 40 min), the arrival being the feed's prediction when it has one, else the
+ * schedule. Sent again when the arrival then moves by more than 10 minutes (the tracking the
+ * phone started would otherwise be aimed at the wrong time), at most 3 times, never two within
+ * 5 minutes. Not for a leg shorter than the window — its departure start_tracking already
+ * covers the approach — and not for a train that has not left yet.
+ *
+ * @param {object} row   armed_journeys row (approach_sent_at, approach_arrival, approach_count, started_at)
+ * @param {{predictedArrUnix:number|null, predictedDepUnix:number|null, departed:boolean|null}} feed
+ */
+function evaluateApproach(row, feed, now = new Date()) {
+    const nowMs = now.getTime();
+    const tArr  = feed.predictedArrUnix != null ? feed.predictedArrUnix * 1000 : new Date(row.scheduled_arrival).getTime();
+    const tDep  = feed.predictedDepUnix != null ? feed.predictedDepUnix * 1000 : new Date(row.scheduled_departure).getTime();
+    const tApproachMs = tArr - APPROACH_BEFORE_MS;
+    const base = { tApproachMs, arrivalUnix: Math.floor(tArr / 1000) };
+
+    if (nowMs < tApproachMs)        return { ...base, shouldSend: false, reason: 'too-early' };
+    if (nowMs >= tArr)              return { ...base, shouldSend: false, reason: 'arrival-passed' };
+    if (tApproachMs <= tDep)        return { ...base, shouldSend: false, reason: 'leg-shorter-than-window' };
+    if (feed.departed === false)    return { ...base, shouldSend: false, reason: 'not-departed' };
+    if ((row.approach_count || 0) >= APPROACH_MAX_PER_LEG) return { ...base, shouldSend: false, reason: 'cap' };
+
+    if (!row.approach_sent_at) {
+        if (row.started_at && nowMs - new Date(row.started_at).getTime() < APPROACH_AFTER_START_MS) {
+            return { ...base, shouldSend: false, reason: 'just-started' };
+        }
+        return { ...base, shouldSend: true, reason: 'arrival-in-40' };
+    }
+
+    const moved = row.approach_arrival == null
+        || Math.abs(tArr - row.approach_arrival * 1000) > APPROACH_MOVE_MS;
+    if (!moved)                     return { ...base, shouldSend: false, reason: 'unchanged' };
+    if (nowMs - new Date(row.approach_sent_at).getTime() < APPROACH_MIN_GAP_MS) {
+        return { ...base, shouldSend: false, reason: 'rate-limited' };
+    }
+    return { ...base, shouldSend: true, reason: 'arrival-moved' };
+}
+
+const sofiaHm = (ms) => new Date(ms).toLocaleTimeString('en-GB', {
+    timeZone: 'Europe/Sofia', hour: '2-digit', minute: '2-digit',
+});
+
+const REMINDER_COPY = {
+    bg: {
+        title: (train, to) => `${train} към ${to}`,
+        scheduled: (from, hm) => `Тръгва от ${from} по разписание в ${hm}.`,
+        delayed: (from, hm, exp, n, word) => `Тръгва от ${from} по разписание в ${hm}, очаква се в ${exp} (закъснение ${n} ${word}).`,
+        noDelay: (from, hm) => `Тръгва от ${from} в ${hm}, по данни на живо без закъснение.`,
+    },
+    en: {
+        title: (train, to) => `${train} to ${to}`,
+        scheduled: (from, hm) => `Departs ${from} on schedule at ${hm}.`,
+        delayed: (from, hm, exp, n, word) => `Departs ${from} on schedule at ${hm}, expected at ${exp} (${n} ${word} late).`,
+        noDelay: (from, hm) => `Departs ${from} at ${hm}, no delay reported live.`,
+    },
+};
+
+/**
+ * The words of the "time to set off" reminder: train, direction, the scheduled time and — ONLY
+ * when the feed has a real report for this departure — the expected one. With no report it
+ * says "on schedule at HH:MM" and nothing more: not "on time", which would be a claim.
+ *
+ * @param {object} ctx  { language, fromDisplay, directionDisplay }  (names already translated)
+ */
+function departureReminderText(row, feed, label, ctx = {}) {
+    const lang = ctx.language === 'en' ? 'en' : 'bg';
+    const c = REMINDER_COPY[lang];
+    const word = ALERT_COPY[lang].word;
+    const train = label || ALERT_COPY[lang].bareTrain(row.train_number);
+    const hm = sofiaHm(new Date(row.scheduled_departure).getTime());
+    const from = ctx.fromDisplay || row.boarding_station;
+    const to = ctx.directionDisplay || row.direction_station || row.destination_station;
+
+    let body;
+    if (feed.delayMin == null) {
+        body = c.scheduled(from, hm);
+    } else if (feed.delayMin >= 1 && feed.predictedDepUnix != null) {
+        body = c.delayed(from, hm, sofiaHm(feed.predictedDepUnix * 1000), feed.delayMin, word(feed.delayMin));
+    } else {
+        body = c.noDelay(from, hm);
+    }
+    return { title: c.title(train, to), body };
+}
+
 // ── Auto-stop: a journey that was armed but never taken ──────────────────────
 
 const DEADLINE_AFTER_PREDICTED_MS = 20 * 60 * 1000;
@@ -383,6 +511,8 @@ function evaluateDeadline(row, predictedArrivalUnix, now = new Date()) {
 
 module.exports = {
     evaluateTrigger, evaluateDelayAlert, alertText, evaluateDeadline,
+    evaluateDepartureReminder, evaluateApproach, departureReminderText,
+    REMINDER_BEFORE_MS, REMINDER_MIN_LEAD_MS, APPROACH_BEFORE_MS, APPROACH_MOVE_MS, APPROACH_MIN_GAP_MS, APPROACH_MAX_PER_LEG,
     legRole, mayStartLeg, legPhase,
     connectionGapMinutes, transferArrivalUnix, nextDepartureUnix,
     connectionRiskBand, isAlertActionable,

@@ -149,7 +149,9 @@ function arm(row) {
         ON CONFLICT(install_id, journey_id, leg_index) DO UPDATE SET
             train_number             = excluded.train_number,
             train_number_display     = excluded.train_number_display,
-            app_language             = excluded.app_language,
+            -- A re-arm that does not say the language keeps the one we know (it used to reset it to
+            -- "unset", so the same leg's alerts could flip between English and Bulgarian).
+            app_language             = COALESCE(excluded.app_language, armed_journeys.app_language),
             boarding_station         = excluded.boarding_station,
             destination_station      = excluded.destination_station,
             direction_station        = excluded.direction_station,
@@ -159,6 +161,16 @@ function arm(row) {
             next_transport_number    = excluded.next_transport_number,
             next_transport_departure = excluded.next_transport_departure,
             is_next_transport_bus    = excluded.is_next_transport_bus,
+            -- A re-arm (the app does it on every start) must not make us repeat what was already sent
+            -- for THIS leg: keep the bookkeeping while the leg's times are the same, drop it when they changed.
+            reminder_sent_at = CASE WHEN excluded.scheduled_departure = armed_journeys.scheduled_departure
+                                    THEN armed_journeys.reminder_sent_at END,
+            approach_sent_at = CASE WHEN excluded.scheduled_arrival = armed_journeys.scheduled_arrival
+                                    THEN armed_journeys.approach_sent_at END,
+            approach_arrival = CASE WHEN excluded.scheduled_arrival = armed_journeys.scheduled_arrival
+                                    THEN armed_journeys.approach_arrival END,
+            approach_count   = CASE WHEN excluded.scheduled_arrival = armed_journeys.scheduled_arrival
+                                    THEN armed_journeys.approach_count ELSE 0 END,
             state          = 'armed',
             started_at     = NULL,
             arrived_at     = NULL,
@@ -273,6 +285,19 @@ function logStart(installId, journeyId, outcome) {
     ).run(installId, nowIso(), journeyId ?? null, outcome);
 }
 
+/** departure_reminder went out for this leg. */
+function markReminderSent(id) {
+    conn().prepare('UPDATE armed_journeys SET reminder_sent_at = ?, updated_at = ? WHERE id = ?').run(nowIso(), nowIso(), id);
+}
+
+/** An approach start_tracking went out, based on this predicted arrival (unix s). */
+function markApproachSent(id, arrivalUnix) {
+    conn().prepare(`
+        UPDATE armed_journeys SET approach_sent_at = ?, approach_arrival = ?, approach_count = approach_count + 1, updated_at = ?
+        WHERE id = ?
+    `).run(nowIso(), arrivalUnix, nowIso(), id);
+}
+
 /** The install was heard from just now: keeps its tokens from expiring for inactivity. */
 function touchInstall(installId) {
     return conn().prepare('UPDATE device_tokens SET updated_at = ? WHERE install_id = ?')
@@ -362,7 +387,7 @@ function counts() {
 
 module.exports = {
     registerDevice, getToken, arm, disarm, markArrived, listActive, getById,
-    markStarted, markStartedByJourney, markStopped, recordAlert, recordDelaySeen,
+    markStarted, markStartedByJourney, markStopped, recordAlert, markReminderSent, markApproachSent, recordDelaySeen,
     checkStartBudget, logStart, prune, forgetInstall, touchInstall, forgetTokenIfGone, idTag, deviceTtlDays, counts, toUtcIso, nowIso,
     KINDS, PLATFORMS, MAX_STARTS_PER_HOUR, MAX_STARTS_PER_DAY,
 };

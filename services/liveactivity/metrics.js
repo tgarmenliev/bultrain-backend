@@ -21,6 +21,8 @@ const counters = {
     push_to_start_failed: 0,
     push_to_start_refused: 0,
     delay_alerts_sent: 0,
+    departure_reminders_sent: 0,
+    approach_pushes_sent: 0,
     armed_auto_stopped: 0,
     // A later leg retargeting the existing Activity instead of a second
     // push-to-start — kept separate from push_to_start_* so a retarget
