@@ -38,10 +38,15 @@ const apns    = require('../services/liveactivity/apns');
 const controller = require('../controllers/realtimeController');
 
 const MIN = 60 * 1000;
-// БВ 3625: leaves София 16:45 (EEST) = 13:45Z, arrives 90 minutes later
-const DEP = Date.parse('2026-10-17T13:45:00Z');
+// БВ 3625 leaves София 3 hours from NOW (whenever the test runs) and arrives 90 minutes later. The
+// watcher records "started" with the REAL clock while the test drives it with a fake one, so the
+// fake times must sit close to the real ones — a fixed fixture date breaks the 12-hour lifetime cap
+// and the "just started" rule the day the real clock passes it.
+const DEP = Math.floor((Date.now() + 3 * 3600000) / 60000) * 60000;
 const ARR = DEP + 90 * MIN;
 const iso = (ms) => new Date(ms).toISOString();
+const wallHm = (ms) => new Date(ms).toLocaleTimeString('en-GB', { timeZone: 'Europe/Sofia', hour: '2-digit', minute: '2-digit' });
+const D0 = wallHm(DEP), D12 = wallHm(DEP + 12 * 60000), D20 = wallHm(DEP + 20 * 60000);
 const unix = (ms) => ms / 1000;
 const at = (offsetMin) => new Date(DEP + offsetMin * MIN);
 
@@ -140,27 +145,27 @@ test('reminder text: with no report it says "on schedule at HH:MM", never "on ti
     const row = { train_number: '3625', scheduled_departure: iso(DEP), boarding_station: 'София', direction_station: 'Пирдоп' };
     const t = logic.departureReminderText(row, { delayMin: null, predictedDepUnix: null }, 'БВ 3625', {});
     assert.strictEqual(t.title, 'БВ 3625 към Пирдоп');
-    assert.strictEqual(t.body, 'Тръгва от София по разписание в 16:45.');
+    assert.strictEqual(t.body, `Тръгва от София по разписание в ${D0}.`);
     assert.doesNotMatch(t.body, /навреме|без закъснение/);
 });
 
 test('reminder text: a live report gives the expected time; on time says where that comes from', () => {
     const row = { train_number: '3625', scheduled_departure: iso(DEP), boarding_station: 'София', direction_station: 'Пирдоп' };
     const late = logic.departureReminderText(row, { delayMin: 12, predictedDepUnix: unix(DEP + 12 * MIN) }, 'БВ 3625', {});
-    assert.strictEqual(late.body, 'Тръгва от София по разписание в 16:45, очаква се в 16:57 (закъснение 12 минути).');
+    assert.strictEqual(late.body, `Тръгва от София по разписание в ${D0}, очаква се в ${D12} (закъснение 12 минути).`);
     const one = logic.departureReminderText(row, { delayMin: 1, predictedDepUnix: unix(DEP + 1 * MIN) }, 'БВ 3625', {});
     assert.match(one.body, /закъснение 1 минута\)/);
     const ok = logic.departureReminderText(row, { delayMin: 0, predictedDepUnix: unix(DEP) }, 'БВ 3625', {});
-    assert.strictEqual(ok.body, 'Тръгва от София в 16:45, по данни на живо без закъснение.');
+    assert.strictEqual(ok.body, `Тръгва от София в ${D0}, по данни на живо без закъснение.`);
 });
 
 test('reminder text: English, with translated names', () => {
     const row = { train_number: '3625', scheduled_departure: iso(DEP), boarding_station: 'София', direction_station: 'Пирдоп' };
     const ctx = { language: 'en', fromDisplay: 'Sofia', directionDisplay: 'Pirdop' };
     assert.deepStrictEqual(logic.departureReminderText(row, { delayMin: null }, 'FT 3625', ctx),
-        { title: 'FT 3625 to Pirdop', body: 'Departs Sofia on schedule at 16:45.' });
+        { title: 'FT 3625 to Pirdop', body: `Departs Sofia on schedule at ${D0}.` });
     assert.strictEqual(logic.departureReminderText(row, { delayMin: 20, predictedDepUnix: unix(DEP + 20 * MIN) }, 'FT 3625', ctx).body,
-        'Departs Sofia on schedule at 16:45, expected at 17:05 (20 minutes late).');
+        `Departs Sofia on schedule at ${D0}, expected at ${D20} (20 minutes late).`);
 });
 
 // ── the whole path: the watcher, with FCM replaced ───────────────────────────
@@ -191,7 +196,7 @@ test('an Android leg gets the reminder once, the departure start, and the approa
     assert.strictEqual(r.data.scheduledDeparture, iso(DEP));
     assert.strictEqual(r.data.delayMinutes, 0);
     assert.strictEqual(r.data.title, 'БВ 3625 към Пирдоп');
-    assert.strictEqual(r.data.body, 'Тръгва от София в 16:45, по данни на живо без закъснение.');
+    assert.strictEqual(r.data.body, `Тръгва от София в ${D0}, по данни на живо без закъснение.`);
     assert.ok(r.ttlSeconds > 0 && r.ttlSeconds <= 30 * 60, 'a reminder that cannot be delivered soon is dropped, not delivered late');
     assert.ok(rowOf('j-android').reminder_sent_at);
 
@@ -251,7 +256,7 @@ test('a delayed train: the reminder gives the expected time; with no feed it nev
     reset();
     await watcher.tick(at(-29));
     const late = ofType('departure_reminder')[0];
-    assert.strictEqual(late.data.body, 'Тръгва от София по разписание в 16:45, очаква се в 17:05 (закъснение 20 минути).');
+    assert.strictEqual(late.data.body, `Тръгва от София по разписание в ${D0}, очаква се в ${D20} (закъснение 20 минути).`);
     assert.strictEqual(late.data.delayMinutes, 20);
 
     armLeg(IN, 'j-nofeed', { train_number: '3625' });
@@ -260,7 +265,7 @@ test('a delayed train: the reminder gives the expected time; with no feed it nev
     await watcher.tick(at(-29));
     const none = ofType('departure_reminder').find(s => s.data.journeyId === 'j-nofeed');
     assert.ok(none);
-    assert.strictEqual(none.data.body, 'Тръгва от София по разписание в 16:45.');
+    assert.strictEqual(none.data.body, `Тръгва от София по разписание в ${D0}.`);
     assert.ok(!('delayMinutes' in none.data), 'no report, no delayMinutes — not 0');
 });
 
@@ -272,7 +277,7 @@ test('English app: English reminder, translated names', async () => {
     reset();
     await watcher.tick(at(-29));
     const m = ofType('departure_reminder').find(s => s.data.journeyId === 'j-en');
-    assert.deepStrictEqual([m.data.title, m.data.body], ['FT 3625 to Pirdop', 'Departs Sofia on schedule at 16:45.']);
+    assert.deepStrictEqual([m.data.title, m.data.body], ['FT 3625 to Pirdop', `Departs Sofia on schedule at ${D0}.`]);
 });
 
 test('an iPhone gets neither: it has the Live Activity', async () => {

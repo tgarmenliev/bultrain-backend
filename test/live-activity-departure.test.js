@@ -190,11 +190,24 @@ test('legPhase keeps its old answer when it is not told whether the train has le
 // ── the departure timer follows the prediction ───────────────────────────────
 
 test('the “departure” timer is set for the PREDICTED departure, not the scheduled minute', () => {
-    cache.setTrips(new Map([['1611', [rtFromFixture({ 'София': { departureTime: unix('08:42'), departureDelay: 20 * 60 } })]]]), Date.now());
-    assert.strictEqual(worker.departureMomentMs(row()), unix('08:42') * 1000);
+    // The cache keeps a run only while it is live, so the recorded day is moved to today: every time
+    // shifted by the same amount keeps the case exactly as recorded.
+    const shift = Math.floor(Date.now() / 1000) - unix('08:22');
+    const shifted = (patch) => {
+        const rt = rtFromFixture(patch);
+        for (const s of rt.stops) for (const k of ['arrivalTime', 'departureTime']) if (s[k] != null) s[k] += shift;
+        return rt;
+    };
+    const todayRow = row({
+        scheduled_departure: new Date((unix('08:22') + shift) * 1000).toISOString(),
+        scheduled_arrival:   new Date((unix('08:50') + shift) * 1000).toISOString(),
+    });
+
+    cache.setTrips(new Map([['1611', [shifted({ 'София': { departureTime: unix('08:42'), departureDelay: 20 * 60 } })]]]), Date.now());
+    assert.strictEqual(worker.departureMomentMs(todayRow), (unix('08:42') + shift) * 1000);
 
     cache.setTrips(new Map(), Date.now());
-    assert.strictEqual(worker.departureMomentMs(row()), unix('08:22') * 1000, 'no feed: the schedule');
+    assert.strictEqual(worker.departureMomentMs(todayRow), (unix('08:22') + shift) * 1000, 'no feed: the schedule');
 });
 
 // ── a card nobody writes to must not go stale ────────────────────────────────

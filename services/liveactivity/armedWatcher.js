@@ -27,6 +27,7 @@ const store        = require('./armedStore');
 const laStore      = require('./store');
 const apns         = require('./apns');
 const fcm          = require('./fcm');
+const { matchRun } = require('./runMatch');
 const contentState = require('./contentState');
 const stationDisplay = require('../gtfs/stationDisplay');
 const logic        = require('./armedLogic');
@@ -39,6 +40,8 @@ const realtimeGate = require('./realtimeGate');
 // straight through unaffected, since testFeed returns null for anything not
 // in its own reserved namespace.
 const getTrain = (num) => testFeed.getTrain(num) ?? cache.getTrain(num);
+// The TripUpdate that is THIS journey's — not merely the one with the same number (see runMatch.js).
+const getRunFor = (row) => testFeed.getTrain(row.train_number) ?? matchRun(cache.getTrips(row.train_number), row);
 const getVehicle = (num) => testFeed.getVehicle(num) ?? cache.getVehicle(num);
 
 // The Swift ActivityAttributes type name and the static attributes must match
@@ -272,7 +275,7 @@ async function maybeStart(row, feed, now, legCtx) {
             ttlSeconds: START_TTL_S,
         });
     } else {
-        const rt = getTrain(row.train_number);
+        const rt = getRunFor(row);
         const v  = getVehicle(row.train_number);
         const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
         const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
@@ -367,7 +370,7 @@ async function retargetExistingActivity(row, existing, now) {
         is_next_transport_bus: row.is_next_transport_bus,
     });
 
-    const rt = getTrain(row.train_number);
+    const rt = getRunFor(row);
     const v  = getVehicle(row.train_number);
     const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
     const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
@@ -429,7 +432,7 @@ function connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec) {
     if (ctx.role === 'connection') {
         activeRow = siblings.find(s => s.leg_index === legCtx.activeIndex);
         if (!activeRow) return { band: null, hasTransfer: true }; // shouldn't happen; err on the safe side
-        activeFeed = readFeed(activeRow, getTrain(activeRow.train_number), nowSec, getVehicle(activeRow.train_number));
+        activeFeed = readFeed(activeRow, getRunFor(activeRow), nowSec, getVehicle(activeRow.train_number));
         nextRow = row;
         nextFeed = feed;
     } else if (ctx.phase === 'inTransit') {
@@ -437,7 +440,7 @@ function connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec) {
         if (!nextRow) return { band: null, hasTransfer: false }; // last leg — nothing downstream
         activeRow = row;
         activeFeed = feed;
-        nextFeed = readFeed(nextRow, getTrain(nextRow.train_number), nowSec, getVehicle(nextRow.train_number));
+        nextFeed = readFeed(nextRow, getRunFor(nextRow), nowSec, getVehicle(nextRow.train_number));
     } else {
         return { band: null, hasTransfer: false }; // not consulted for this case anyway
     }
@@ -734,7 +737,7 @@ async function tick(now = new Date()) {
             const siblings = byJourney.get(`${row.install_id}|${row.journey_id}`) || [row];
             const legCtx = logic.legRole(row, siblings, now);
 
-            const rt = getTrain(row.train_number);
+            const rt = getRunFor(row);
             const v  = getVehicle(row.train_number);
             const feed = readFeed(row, rt, nowSec, v);
 

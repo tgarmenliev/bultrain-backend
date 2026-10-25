@@ -77,11 +77,17 @@ function markAlreadyPushedWithDelay(token, delayMin) {
     db.close();
 }
 
-/** Two stops, both running `delaySec` late; arrival is `arrInMs` from now. */
-function feedTrip(delaySec, arrInMs) {
+/**
+ * Two stops, both running `delaySec` late; arrival is `arrInMs` from now. The boarding stop is
+ * scheduled when the registered journey is (`depOffsetMs` from now, -3h like register() by
+ * default): a late train is the SAME run, and the feed's scheduled instant (time minus delay) is
+ * the instant the passenger registered — see runMatch.js.
+ */
+function feedTrip(delaySec, arrInMs, depOffsetMs = -3 * 60 * MIN) {
     const nowSec = Math.floor(Date.now() / 1000);
+    const schedDep = nowSec + Math.floor(depOffsetMs / 1000);
     return { tripId: 'trip-warmup', stops: [
-        { station: 'Board', arrivalTime: nowSec - 30 * 60 + delaySec, departureTime: nowSec - 28 * 60 + delaySec,
+        { station: 'Board', arrivalTime: schedDep - 2 * 60 + delaySec, departureTime: schedDep + delaySec,
           arrivalDelay: delaySec, departureDelay: delaySec },
         { station: 'End', arrivalTime: nowSec + Math.floor(arrInMs / 1000), departureTime: null,
           arrivalDelay: delaySec, departureDelay: null },
@@ -285,7 +291,7 @@ test('armedWatcher: empty cache does not auto-stop a journey that is >45 min lat
 
 test('armedWatcher: with feed data the same journey is judged on its predicted arrival', async () => {
     const id = armStarted('j-warmup-armed-2', '9202', { depOffsetMs: -4 * 60 * MIN, arrOffsetMs: -50 * MIN });
-    loadCache('9202', feedTrip(70 * 60, 20 * MIN));   // 70 min late, arriving in 20 min
+    loadCache('9202', feedTrip(70 * 60, 20 * MIN, -4 * 60 * MIN));   // 70 min late, arriving in 20 min (the run scheduled 4 h ago)
 
     const mock = mockApns();
     try { await armedWatcher.tick(); } finally { mock.restore(); }

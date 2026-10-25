@@ -298,6 +298,35 @@ departure. In `/api/realtime/train/:no` a stop is `passed` once the train has **
 (departure, else arrival), and `previousStationId` follows; `nextStationId`/`nextStation`
 are unchanged (the next stop whose arrival is ahead).
 
+### Clock changes (DST) — two rules
+
+Bulgaria moves its clocks the last Sunday of March and October; on those days "midnight + N
+minutes" is an hour off after the change. So **a timetable time is never turned into an instant by
+adding minutes to midnight**: `services/time/sofia.js` (`wallToInstant`) goes through the time-zone
+rules, and `test/dst.test.js` pins it for every minute of the changing days (2026-10-25 is the day
+the boards showed every train an hour early). And the times an app registers
+(`scheduledDeparture` / `scheduledArrival` on `/arm` and `/register`) are checked against the
+timetable (`services/gtfs/timetableCheck.js`): a difference of exactly one hour is a time-zone
+mistake in the app (its card would say the train has already left), so the timetable's instant is
+used; any other difference is left as sent and logged (`[armed] TIME CHECK …`). `/arm` answers with
+`scheduledDeparture`, `scheduledArrival` and `timesAdjusted`.
+
+### Which run of the feed belongs to a journey
+
+The TripUpdates feed can still carry runs of the previous service day (on 2026-10-25 at 11:04 it held
+fifteen from the 24th), and the trip id's date suffix is not the service date. So a train *number*
+is not enough to pick a run:
+
+- `cache.js` treats a run whose last stop is more than 3 h in the past as dead (`isDeadRun`) and
+  never serves it — `/api/realtime/train/:no` answers "no live data" rather than a finished run.
+- The Live Activity and armed-journey pipelines choose the run per journey (`liveactivity/runMatch.js`):
+  the instant the feed implies for the boarding stop (`time − delay`) must be within 30 min of the
+  registered scheduled departure (3 h when the feed carries no delay). A run that is checked and
+  disagrees is never used; the card then shows the timetable ("not yet departed") instead of
+  another day's picture. A run that cannot be checked (stop absent) is used as before.
+
+`test/stale-run.test.js` reproduces the train-30122 incident.
+
 ### Android: the two moments pushed from the server
 
 Android holds back an app's exact alarms (Doze, vendor battery managers) and ran them 15–18

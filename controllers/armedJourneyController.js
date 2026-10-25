@@ -16,6 +16,7 @@ const laStore = require('../services/liveactivity/store');
 const segmentMode = require('../services/gtfs/segmentMode');
 const { abbrevFor } = require('../services/gtfs/categoryDisplay');
 const { isValidToken, parseAppLanguage } = require('./liveActivityController');
+const { reconcileClientTimes } = require('../services/gtfs/timetableCheck');
 
 const ENVIRONMENTS = new Set(['sandbox', 'production']);
 const IOS_KINDS    = new Set(['push_to_start', 'alert']);
@@ -134,11 +135,20 @@ exports.arm = (req, res) => {
         if (!boarding)    return bad(res, 'boardingStation is required.');
         if (!destination) return bad(res, 'destinationStation is required.');
 
-        const departure = parseDate(b.scheduledDeparture);
-        const arrival   = parseDate(b.scheduledArrival);
+        let departure = parseDate(b.scheduledDeparture);
+        let arrival   = parseDate(b.scheduledArrival);
         if (!departure) return bad(res, 'scheduledDeparture must be a valid date.');
         if (!arrival)   return bad(res, 'scheduledArrival must be a valid date.');
         if (arrival <= departure) return bad(res, 'scheduledArrival must be after scheduledDeparture.');
+
+        // The app turns the timetable's wall-clock time into an instant itself; a wrong UTC offset
+        // (the day the clocks change) makes both times exactly an hour off, and the card then says
+        // the train has left. Check them against our timetable (see timetableCheck.js).
+        const checked = reconcileClientTimes({
+            trainNumber, boardingStation: boarding, destinationStation: destination, departure, arrival,
+        });
+        for (const note of checked.notes) console.warn(`[armed] TIME CHECK j=${b.journeyId} train=${trainNumber}: ${note}`);
+        ({ departure, arrival } = checked);
 
         const legIndex = Number.isInteger(b.legIndex) ? b.legIndex : 0;
         if (legIndex < 0) return bad(res, 'legIndex must be zero or greater.');
@@ -198,6 +208,10 @@ exports.arm = (req, res) => {
             journeyId: String(b.journeyId),
             legIndex,
             canAutoStart: !!startToken,
+            // What the server holds, so a client can see for itself whether its times were adjusted.
+            scheduledDeparture: departure.toISOString(),
+            scheduledArrival: arrival.toISOString(),
+            timesAdjusted: checked.corrected,
         });
     } catch (err) {
         console.error('[armed] arm failed:', err.message);

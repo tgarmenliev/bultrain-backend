@@ -71,7 +71,20 @@ function pickActive(trips) {
     return best;
 }
 
-function getTrain(num)   { return fresh(state.tripFeedTs)    ? pickActive(state.trips.get(num)) : null; }
+// The feed does not always drop a finished run in time (on 2026-10-25 it still carried fifteen from
+// the day before at 11:00). A run whose LAST stop time is more than this far in the past is over, and
+// what it says about the train now — "passed", "delay 0" — is the past, not live data.
+const DEAD_AFTER_END_S = 3 * 60 * 60;
+function isDeadRun(run, nowSec = Date.now() / 1000) {
+    let last = null;
+    for (const s of (run && run.stops) || []) {
+        for (const t of [s.arrivalTime, s.departureTime]) if (t != null && (last == null || t > last)) last = t;
+    }
+    return last != null && nowSec - last > DEAD_AFTER_END_S;
+}
+const liveRuns = (list) => (Array.isArray(list) ? list.filter(r => !isDeadRun(r)) : list);
+
+function getTrain(num)   { return fresh(state.tripFeedTs)    ? pickActive(liveRuns(state.trips.get(num))) : null; }
 // The TripUpdate of the EXACT run a vehicle belongs to. When the vehicle's own
 // trip is not in the feed we return null rather than another run of the same
 // number: attaching tomorrow's (or yesterday's) delay to this dot would be a
@@ -81,15 +94,15 @@ function getTripFor(num, tripId) {
     if (!fresh(state.tripFeedTs)) return null;
     const list = state.trips.get(num);
     if (!tripId) return pickActive(list);
-    return (Array.isArray(list) ? list : []).find(t => t.tripId === tripId) || null;
+    return (Array.isArray(list) ? liveRuns(list) : []).find(t => t.tripId === tripId) || null;
 }
-function getTrips(num)   { return fresh(state.tripFeedTs)    ? (state.trips.get(num) || [])   : []; }
+function getTrips(num)   { return fresh(state.tripFeedTs)    ? (liveRuns(state.trips.get(num)) || [])   : []; }
 function getVehicle(num) { return fresh(state.vehicleFeedTs) ? (state.vehicles.get(num) || null) : null; }
 // Every number the TripUpdates feed lists, each with its in-progress run — for
 // anything that must enumerate trains rather than look one up by number.
 function getAllTrains() {
     if (!fresh(state.tripFeedTs)) return [];
-    return [...state.trips.keys()].map(num => [num, pickActive(state.trips.get(num))]).filter(([, t]) => t);
+    return [...state.trips.keys()].map(num => [num, pickActive(liveRuns(state.trips.get(num)))]).filter(([, t]) => t);
 }
 function getAllVehicles(){ return fresh(state.vehicleFeedTs) ? [...state.vehicles.entries()] : []; }
 
@@ -108,4 +121,4 @@ function status() {
     };
 }
 
-module.exports = { setTrips, setVehicles, getTrain, getTripFor, getTrips, getVehicle, getAllVehicles, getAllTrains, status, version, pollOk, pollFailed, setPollDelay, MAX_AGE_MS };
+module.exports = { isDeadRun, setTrips, setVehicles, getTrain, getTripFor, getTrips, getVehicle, getAllVehicles, getAllTrains, status, version, pollOk, pollFailed, setPollDelay, MAX_AGE_MS };

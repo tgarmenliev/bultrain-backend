@@ -11,6 +11,7 @@
 const store   = require('../services/liveactivity/store');
 const apns    = require('../services/liveactivity/apns');
 const metrics = require('../services/liveactivity/metrics');
+const { reconcileClientTimes } = require('../services/gtfs/timetableCheck');
 const segmentMode = require('../services/gtfs/segmentMode');
 const { abbrevFor } = require('../services/gtfs/categoryDisplay');
 
@@ -81,13 +82,21 @@ exports.register = (req, res) => {
         if (!boarding) return bad(res, 'boardingStation is required.');
         if (!destination) return bad(res, 'destinationStation is required.');
 
-        const departure = parseDate(b.scheduledDeparture);
-        const arrival   = parseDate(b.scheduledArrival);
+        let departure = parseDate(b.scheduledDeparture);
+        let arrival   = parseDate(b.scheduledArrival);
         if (!departure) return bad(res, 'scheduledDeparture must be a valid date.');
         if (!arrival)   return bad(res, 'scheduledArrival must be a valid date.');
         if (arrival <= departure) {
             return bad(res, 'scheduledArrival must be after scheduledDeparture.');
         }
+
+        // Same check as /arm (see timetableCheck.js): an exact hour off the timetable is a
+        // time-zone mistake in the app, and the card would say the train has already left.
+        const checked = reconcileClientTimes({
+            trainNumber, boardingStation: boarding, destinationStation: destination, departure, arrival,
+        });
+        for (const note of checked.notes) console.warn(`[la] TIME CHECK journey=${b.journeyId ?? '—'} train=${trainNumber}: ${note}`);
+        ({ departure, arrival } = checked);
 
         const legIndex = Number.isInteger(b.currentLegIndex) ? b.currentLegIndex : 0;
         if (legIndex < 0) return bad(res, 'currentLegIndex must be zero or greater.');

@@ -34,6 +34,7 @@ const tripMeta = require('../realtime/tripMeta');
 const { abbrevFor }          = require('../gtfs/categoryDisplay');
 const { displayStationName } = require('../gtfs/stationDisplay');
 const { nameOf }             = require('../network/schedule');
+const { wallToInstant, midnightOf } = require('../time/sofia');
 
 const DB_PATH      = process.env.BULTRAIN_DB || path.join(__dirname, '..', '..', 'bultrain.sqlite');
 const CACHE_TTL_MS = 60 * 60 * 1000;
@@ -55,13 +56,8 @@ const toMin = (t) => {
 
 const addDays = (ymd, n) => new Date(Date.parse(`${ymd}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 
-/** Epoch ms of 00:00 Sofia time on `ymd`. */
-function sofiaMidnightMs(ymd) {
-    const guess = Date.parse(`${ymd}T00:00:00Z`);
-    const wall = new Date(guess).toLocaleString('sv-SE', { timeZone: 'Europe/Sofia' });   // "2026-10-04 03:00:00"
-    const offset = Date.parse(`${wall.replace(' ', 'T')}Z`) - guess;
-    return guess - offset;
-}
+/** Epoch ms of 00:00 Sofia time on `ymd` (kept for callers; the maths lives in time/sofia.js). */
+const sofiaMidnightMs = midnightOf;
 
 const hhmm = (ms) => new Date(ms).toLocaleTimeString('en-GB', {
     timeZone: 'Europe/Sofia', hour: '2-digit', minute: '2-digit',
@@ -199,13 +195,14 @@ function build({ stationId, type = 'departures', language = 'bg', nowMs = Date.n
     const entries = [];
 
     for (const date of [addDays(today, -1), today, addDays(today, 1)]) {
-        const midnight = sofiaMidnightMs(date);
         for (const c of stationDay(stationId, date)) {
             // departures leave from every call but the last; arrivals come to every call but the first
             if (dep ? c.isLast : c.isFirst) continue;
             const abs = dep ? (c.depAbs ?? c.arrAbs) : (c.arrAbs ?? c.depAbs);
             if (abs == null) continue;
-            const schedMs = midnight + abs * 60000;
+            // The timetable is on the wall clock: through the time-zone rules, NOT midnight + minutes
+            // (on the day the clocks change that is an hour off for every train after the change).
+            const schedMs = wallToInstant(date, abs);
 
             const live = liveCall(getTrips(c.num), c, stationId, dep ? 'dep' : 'arr', schedMs);
             const status = live && live.cancelled ? 'cancelled' : (live && live.notStopping ? 'not_stopping' : null);

@@ -33,12 +33,15 @@ const apns         = require('./apns');
 const contentState = require('./contentState');
 const metrics      = require('./metrics');
 const realtimeGate = require('./realtimeGate');
+const { matchRun } = require('./runMatch');
 const { buildBody, STALE_AFTER_MS } = require('./pushBody');
 
 // See testFeed.js: a reserved TEST-prefixed number resolves synthetic data for
 // end-to-end testing; every real number is untouched, since testFeed returns
 // null for anything outside its own reserved namespace.
 const getTrain = (num) => testFeed.getTrain(num) ?? cache.getTrain(num);
+// The TripUpdate that is THIS journey's — not merely the one with the same number (see runMatch.js).
+const getRunFor = (row) => testFeed.getTrain(row.train_number) ?? matchRun(cache.getTrips(row.train_number), row);
 const getVehicle = (num) => testFeed.getVehicle(num) ?? cache.getVehicle(num);
 
 const TICK_MS                  = 30 * 1000;
@@ -194,17 +197,18 @@ async function tick(now = new Date()) {
     let skipped = 0;
 
     for (const [trainNumber, tokens] of byTrain) {
-        const rt = getTrain(trainNumber);     // in-memory only, no network
         const v  = getVehicle(trainNumber);   // for the GPS-tracked flag + progress
-        // Static geometry for segment progress, by whichever trip_id we have.
-        const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
-        const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
         const built = new Map();                  // contextKey -> { state, meta, body, hash }
 
         for (const row of tokens) {
             const key = contextKey(row);
 
             if (!built.has(key)) {
+                // in-memory only, no network; the run that is this journey's (a number runs every day)
+                const rt = getRunFor(row);
+                // Static geometry for segment progress, by whichever trip_id we have.
+                const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
+                const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
                 const { state, meta } = contentState.build(withLegDisplay(row), rt, now, v, geo);
                 built.set(key, { state, meta, body: null, hash: null, endBody: null });
             }
@@ -305,7 +309,7 @@ function makeTask(row, body, priority, meta, { end = false, hash: contentHash, r
  * the platform.
  */
 function departureMomentMs(row) {
-    const rt = getTrain(row.train_number);
+    const rt = getRunFor(row);
     const stops = rt && Array.isArray(rt.stops) ? rt.stops.filter(s => s.station) : null;
     const bIdx = stops ? contentState.findStopIndex(stops, row.boarding_station) : -1;
     const predicted = bIdx >= 0 ? (stops[bIdx].departureTime ?? stops[bIdx].arrivalTime ?? null) : null;
@@ -333,7 +337,7 @@ function scheduleDepartures(now = new Date()) {
                 if (!fresh) return;
                 // The next tick sees the phase change and pushes it, once the cache has data.
                 if (realtimeGate.holds(fresh.train_number, Date.now(), fresh.scheduled_arrival)) return;
-                const rt = getTrain(fresh.train_number);
+                const rt = getRunFor(fresh);
                 const v  = getVehicle(fresh.train_number);
                 const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
                 const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
