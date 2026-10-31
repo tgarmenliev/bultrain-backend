@@ -22,8 +22,6 @@
 
 const crypto = require('crypto');
 
-const cache        = require('../realtime/cache');
-const testFeed     = require('./testFeed');
 const geometryOf   = require('../gtfs/tripGeometry');
 const trainCategory = require('../gtfs/trainCategory');
 const store        = require('./store');
@@ -33,16 +31,10 @@ const apns         = require('./apns');
 const contentState = require('./contentState');
 const metrics      = require('./metrics');
 const realtimeGate = require('./realtimeGate');
-const { matchRun } = require('./runMatch');
 const { buildBody, STALE_AFTER_MS } = require('./pushBody');
 
-// See testFeed.js: a reserved TEST-prefixed number resolves synthetic data for
-// end-to-end testing; every real number is untouched, since testFeed returns
-// null for anything outside its own reserved namespace.
-const getTrain = (num) => testFeed.getTrain(num) ?? cache.getTrain(num);
-// The TripUpdate that is THIS journey's — not merely the one with the same number (see runMatch.js).
-const getRunFor = (row) => testFeed.getTrain(row.train_number) ?? matchRun(cache.getTrips(row.train_number), row);
-const getVehicle = (num) => testFeed.getVehicle(num) ?? cache.getVehicle(num);
+const { getRunFor, getVehicle } = require('./feedFor');
+const transferOf   = require('./transfer');
 
 const TICK_MS                  = 30 * 1000;
 const CLEANUP_MS               = 60 * 60 * 1000;
@@ -209,7 +201,7 @@ async function tick(now = new Date()) {
                 // Static geometry for segment progress, by whichever trip_id we have.
                 const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
                 const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
-                const { state, meta } = contentState.build(withLegDisplay(row), rt, now, v, geo);
+                const { state, meta } = contentState.build(withLegDisplay(row), rt, now, v, geo, transferOf.forRow(row));
                 built.set(key, { state, meta, body: null, hash: null, endBody: null });
             }
             const ctx = built.get(key);
@@ -217,6 +209,11 @@ async function tick(now = new Date()) {
             // The journey is over: end the activity instead of updating it.
             const arrived = ctx.meta.predictedArrivalUnix != null &&
                 nowSec > ctx.meta.predictedArrivalUnix + END_AFTER_ARRIVAL_MS / 1000;
+
+            // Not while a later leg of the journey is still to come: this one finishing is not the
+            // journey finishing, and the card is about to be (or must stay) the next leg's — the
+            // watcher moves it over once this leg is marked arrived or given up.
+            if (arrived && armedStore.hasLaterLiveLeg(row.journey_id, row.current_leg_index ?? 0)) { skipped++; continue; }
 
             if (arrived) {
                 if (!ctx.endBody) {
@@ -342,7 +339,7 @@ function scheduleDepartures(now = new Date()) {
                 const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
                 const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
                 const nowSec = Math.floor(Date.now() / 1000);
-                const { state, meta } = contentState.build(withLegDisplay(fresh), rt, new Date(), v, geo);
+                const { state, meta } = contentState.build(withLegDisplay(fresh), rt, new Date(), v, geo, transferOf.forRow(fresh));
                 if ((fresh.last_phase || null) === (meta.phase || null)) return;   // still standing: nothing to say
                 const body = buildBody(state, { nowSec, predictedArrivalUnix: meta.predictedArrivalUnix });
                 // Phase change: worth priority 10 and worth bypassing the

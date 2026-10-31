@@ -125,6 +125,29 @@ exports.register = (req, res) => {
             ? `${abbrevFor(resolved.category, appLanguage)} ${trainNumber}`
             : (b.trainNumberDisplay ? String(b.trainNumberDisplay).trim() : null);
 
+        // A journey only ever moves FORWARD through its legs. The card may already have been moved on
+        // to the next leg (the server retargets it the moment the app reports the arrival), and a
+        // registration that still names the earlier leg — a cold start in the middle of a transfer, a
+        // delayed or repeated request, an older app build — would put it back on the train the
+        // passenger has just left; nothing would ever move it on again. Real: 2026-10-30, Септември.
+        const existing = store.getByToken(b.token);
+        if (existing && b.journeyId && existing.journey_id === String(b.journeyId)
+            && legIndex < (existing.current_leg_index ?? 0)) {
+            console.warn(`[la] register IGNORED token=…${String(b.token).slice(-6)} journey=${b.journeyId} ` +
+                         `leg=${legIndex} (card is already on leg ${existing.current_leg_index})`);
+            metrics.inc('la_register_ignored_older_leg');
+            return res.json({
+                ok: true,
+                token: maskToken(b.token),
+                apnsConfigured: apns.isConfigured(),
+                autoStartCancelled: false,
+                ignored: 'older-leg',
+                currentLegIndex: existing.current_leg_index,
+            });
+        }
+        console.log(`[la] register token=…${String(b.token).slice(-6)} journey=${b.journeyId ?? '—'} train=${trainNumber} ` +
+                    `leg=${legIndex} ${existing ? `existing=${existing.current_leg_index ?? 0}` : 'new'}`);
+
         store.upsert({
             token: b.token,
             environment: b.environment,

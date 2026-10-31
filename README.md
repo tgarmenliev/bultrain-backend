@@ -327,6 +327,37 @@ is not enough to pick a run:
 
 `test/stale-run.test.js` reproduces the train-30122 incident.
 
+### The change between two trains (iOS card)
+
+Real journey 2026-10-30, София → Септември → Банско: the app reported the arrival, the server moved
+the card to the second train four seconds later — and the app's cold start in the middle of the
+change then registered the first train again (`/register` is an upsert by token), which put the
+card back; the second leg was already `started`, so nothing moved it on until the train had left.
+
+- **`/register` never goes back.** For the same token and journey a registration naming an earlier
+  leg than the card is on is ignored (`{ ok: true, ignored: 'older-leg', currentLegIndex }`,
+  logged as `[la] register IGNORED …`). Every registration is logged (`[la] register … leg=k existing=m`).
+- **`transferWindow`.** While the row is leg k > 0, the train has not left, and leg k−1 is finished
+  (`arrived`, or stopped as `arrival-not-confirmed`), the content-state is the transfer:
+  `phase: transferWindow`, `transferStation` (the row's boarding station), `nextTransportNumber` /
+  `nextTransportDirection` / `nextTransportDeparture` (the row's own train — not "the one after it"),
+  `nextTransportPredictedDeparture` and `nextTransportDelayMinutes` (the *departure's* delay; absent,
+  never 0, with no reading), `transferArrival` (leg k−1's predicted arrival at the change station,
+  else its timetable), `progressPercentage: 1`, `currentLegIndex: k−1` (the app's convention: the
+  completed leg), `isCurrentTransportBus: false`. `delayMinutes` is left out. It ends by the
+  ordinary departure rule (position, else predicted departure) with `phase: inTransit`.
+  `services/liveactivity/transfer.js`.
+- **Not one callback.** If `/leg-arrived` never comes, a leg that has another leg after it is marked
+  arrived on the feed's word (`[armed] leg-arrived (feed) …`): the train's position past the
+  destination, or standing at it; or, with no usable position, a predicted arrival more than 5 min
+  in the past. A position still short of the destination always wins. The last leg is never ended
+  this way. Giving up on a leg (`arrival-not-confirmed`) no longer deletes the journey's card
+  token while a later leg is live, and the worker does not end a card while a later leg is live.
+- **A finished leg stays finished.** `/arm` of a leg that has `arrived`, with the same departure, is
+  a no-op (the app re-arms on every start); a changed departure starts over as before.
+
+`test/transfer.test.js` reproduces the Септември journey.
+
 ### Android: the two moments pushed from the server
 
 Android holds back an app's exact alarms (Doze, vendor battery managers) and ran them 15–18

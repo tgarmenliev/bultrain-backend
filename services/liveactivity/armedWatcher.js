@@ -18,8 +18,6 @@
  * must be debuggable in minutes.
  */
 
-const cache        = require('../realtime/cache');
-const testFeed     = require('./testFeed');
 const geometryOf   = require('../gtfs/tripGeometry');
 const stationCoords = require('../gtfs/stationCoords');
 const trainCategory = require('../gtfs/trainCategory');
@@ -27,22 +25,14 @@ const store        = require('./armedStore');
 const laStore      = require('./store');
 const apns         = require('./apns');
 const fcm          = require('./fcm');
-const { matchRun } = require('./runMatch');
 const contentState = require('./contentState');
 const stationDisplay = require('../gtfs/stationDisplay');
 const logic        = require('./armedLogic');
 const metrics      = require('./metrics');
 const pushBody     = require('./pushBody');
 const realtimeGate = require('./realtimeGate');
-
-// Reserved TEST-prefixed numbers resolve from testFeed (see its header for why
-// that lives outside services/realtime/cache.js); every real number falls
-// straight through unaffected, since testFeed returns null for anything not
-// in its own reserved namespace.
-const getTrain = (num) => testFeed.getTrain(num) ?? cache.getTrain(num);
-// The TripUpdate that is THIS journey's — not merely the one with the same number (see runMatch.js).
-const getRunFor = (row) => testFeed.getTrain(row.train_number) ?? matchRun(cache.getTrips(row.train_number), row);
-const getVehicle = (num) => testFeed.getVehicle(num) ?? cache.getVehicle(num);
+const { getRunFor, getVehicle } = require('./feedFor');
+const transferOf   = require('./transfer');
 
 // The Swift ActivityAttributes type name and the static attributes must match
 // the app exactly, or the start push is accepted and silently discarded.
@@ -81,6 +71,7 @@ const trainLabel = (row) => row.train_number_display || `Влак ${row.train_nu
 /** Map an armed_journeys row onto the shape contentState.build expects. */
 function asTokenRow(row) {
     return {
+        journey_id: row.journey_id,
         train_number: row.train_number,
         // The card's per-leg field wants the passenger-facing form. Prefer what
         // the client sent, else compose it from the train's GTFS category.
@@ -279,7 +270,7 @@ async function maybeStart(row, feed, now, legCtx) {
         const v  = getVehicle(row.train_number);
         const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
         const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
-        const { state } = contentState.build(asTokenRow(row), rt, now, v, geo);
+        const { state } = contentState.build(asTokenRow(row), rt, now, v, geo, transferOf.forRow(asTokenRow(row)));
         const nowSec = Math.floor(nowMs / 1000);
 
         const body = buildStartBody(row, state, nowSec);
@@ -374,7 +365,7 @@ async function retargetExistingActivity(row, existing, now) {
     const v  = getVehicle(row.train_number);
     const geoTripId = (rt && rt.tripId) || (v && v.tripId) || null;
     const geo = geoTripId ? geometryOf.getByTripId(geoTripId) : null;
-    const { state, meta } = contentState.build(asTokenRow(row), rt, now, v, geo);
+    const { state, meta } = contentState.build(asTokenRow(row), rt, now, v, geo, transferOf.forRow(asTokenRow(row)));
 
     const body = pushBody.buildBody(state, { nowSec, predictedArrivalUnix: meta.predictedArrivalUnix });
 
@@ -695,12 +686,35 @@ function maybeStop(row, feed, now) {
 
     // Silent by requirement: no notification, no end alert — the tracking simply
     // ends. Also drop any Live Activity token for this journey so the worker
-    // stops pushing to a card nobody is travelling with.
-    const removed = laStore.removeByJourney(row.journey_id);
+    // stops pushing to a card nobody is travelling with — unless a LATER leg is still to come:
+    // the token is that leg's card, and the leg being given up here is just the one before it
+    // (the watcher moves the card over on its next pass).
+    const removed = store.hasLaterLiveLeg(row.journey_id, row.leg_index) ? 0 : laStore.removeByJourney(row.journey_id);
     store.markStopped(row.id, d.reason);
     console.log(`[armed] auto-stop j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
                 `reason=${d.reason} deadline=${hhmm(d.deadlineMs)} laTokensRemoved=${removed}`);
     metrics.inc('armed_auto_stopped');
+    return true;
+}
+
+/**
+ * The app tells the server a leg has arrived (/leg-arrived, its arrival geofence). If that never
+ * comes — no network, the app killed — the feed's own word is taken, for a leg with another leg
+ * after it: the next leg then becomes the active one and the card moves over to it. The last leg
+ * is left to the app and the deadline, as before: ending a journey is not worth a guess.
+ *
+ * @returns {boolean} true when the leg was marked arrived
+ */
+function maybeArriveByFeed(row, legCtx, siblings, nowSec) {
+    if (legCtx.role !== 'active') return false;
+    if (!siblings.some(s => s.leg_index > row.leg_index)) return false;
+    if (!transferOf.legArrivedByFeed(row, nowSec)) return false;
+
+    const changed = store.markArrived(row.install_id, row.journey_id, row.leg_index);
+    if (!changed) return false;
+    console.log(`[armed] leg-arrived (feed) j=${row.journey_id} leg=${row.leg_index} train=${row.train_number} ` +
+                `— the app did not say so; the feed has the train at ${row.destination_station}`);
+    metrics.inc('armed_leg_arrived_by_feed');
     return true;
 }
 
@@ -746,6 +760,7 @@ async function tick(now = new Date()) {
             // running until its scheduled arrival + the gate's bound.
             const stopHeld = realtimeGate.holds(row.train_number, now.getTime(), row.scheduled_arrival);
             if (!stopHeld && maybeStop(row, feed, now)) { stopped++; continue; }
+            if (!stopHeld && maybeArriveByFeed(row, legCtx, siblings, nowSec)) continue;
 
             const before = row.state;
             await maybeStart(row, feed, now, legCtx);

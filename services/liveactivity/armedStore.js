@@ -130,6 +130,16 @@ function arm(row) {
         now: nowIso(),
         ...row,
     };
+    // A leg that has ARRIVED stays arrived when the app arms it again with the same departure: the
+    // app re-arms on every start, and a cold start in the middle of a transfer (the leg just
+    // finished) used to bring the finished leg back to life — it became the "active" one again and
+    // the next leg dropped back to waiting. A changed departure is a new trip (a saved journey
+    // travelled again next week) and starts over as before.
+    const before = conn().prepare(
+        'SELECT state, scheduled_departure FROM armed_journeys WHERE install_id = ? AND journey_id = ? AND leg_index = ?'
+    ).get(params.install_id, params.journey_id, params.leg_index);
+    if (before && before.state === 'arrived' && before.scheduled_departure === params.scheduled_departure) return;
+
     conn().prepare(`
         INSERT INTO armed_journeys (
             install_id, journey_id, leg_index, train_number, train_number_display,
@@ -189,6 +199,22 @@ function listActive() {
     return conn().prepare(
         "SELECT * FROM armed_journeys WHERE state IN ('armed','started') ORDER BY train_number"
     ).all();
+}
+
+/** One leg of a journey, whatever its state (the newest row if two installs share a journey id). */
+function getLeg(journeyId, legIndex) {
+    if (!journeyId) return null;
+    return conn().prepare(
+        'SELECT * FROM armed_journeys WHERE journey_id = ? AND leg_index = ? ORDER BY id DESC LIMIT 1'
+    ).get(String(journeyId), legIndex) || null;
+}
+
+/** Is a LATER leg of this journey still in play? Then the journey is not over when this one is. */
+function hasLaterLiveLeg(journeyId, legIndex) {
+    if (!journeyId) return false;
+    return !!conn().prepare(
+        "SELECT 1 FROM armed_journeys WHERE journey_id = ? AND leg_index > ? AND state IN ('armed','started') LIMIT 1"
+    ).get(String(journeyId), legIndex);
 }
 
 function getById(id) {
@@ -386,7 +412,7 @@ function counts() {
 }
 
 module.exports = {
-    registerDevice, getToken, arm, disarm, markArrived, listActive, getById,
+    registerDevice, getToken, arm, disarm, markArrived, listActive, getById, getLeg, hasLaterLiveLeg,
     markStarted, markStartedByJourney, markStopped, recordAlert, markReminderSent, markApproachSent, recordDelaySeen,
     checkStartBudget, logStart, prune, forgetInstall, touchInstall, forgetTokenIfGone, idTag, deviceTtlDays, counts, toUtcIso, nowIso,
     KINDS, PLATFORMS, MAX_STARTS_PER_HOUR, MAX_STARTS_PER_DAY,

@@ -213,10 +213,14 @@ function computeProgress({ stops, bIdx, dIdx, nowSec, schedDepSec, schedArrSec }
  * @param {object|null} rt        cache.getTrain(trainNumber) — raw in-memory
  *                                stops with Unix-second times, or null
  * @param {Date}        now
+ * @param {object|null} vehicle  cache vehicle
+ * @param {object|null} geo      static trip geometry
+ * @param {{arrivalUnix:number}|null} transfer
+ *        transfer.forRow(): the passenger has left the previous leg and waits for this row's train
  * @returns {{ state: object, meta: object }}
  *          `meta` carries the values the worker diffs against the stored ones.
  */
-function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
+function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null, transfer = null) {
     const nowSec = Math.floor(now.getTime() / 1000);
     const schedDepSec = Math.floor(new Date(tokenRow.scheduled_departure).getTime() / 1000);
     const schedArrSec = Math.floor(new Date(tokenRow.scheduled_arrival).getTime() / 1000);
@@ -248,7 +252,11 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
     // The card flips to "under way" when the train has left THIS passenger's stop — by its
     // position, else by the predicted departure — not at the scheduled minute: a late train
     // is still on the platform then.
-    const phase = departed ? 'inTransit' : 'preDeparture';
+    //
+    // And between two legs — the previous one finished, this one not yet gone — it is the transfer.
+    const legIndex = tokenRow.current_leg_index ?? 0;
+    const inTransfer = !!transfer && legIndex > 0 && !departed;
+    const phase = inTransfer ? 'transferWindow' : (departed ? 'inTransit' : 'preDeparture');
 
     // GPS-tracked = we have a live position but no TripUpdate (the same case
     // /api/realtime/train reports as progressSource:'position'). The card then
@@ -262,7 +270,7 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
     // and right for a late train; else the feed's passed-stops fraction; else a
     // clock estimate. The client is expected to render this pushed value rather
     // than recompute, so there is a single source of truth.
-    const progressFraction =
+    const progressFraction = inTransfer ? 1 :
         geometrySegmentProgress({
             geoStops: geo && geo.stops,
             shape: geo && geo.shape,
@@ -279,7 +287,7 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
     // ── Mandatory fields: present on every single push, no exceptions ────────
     const state = {
         progressPercentage:    Number(progressFraction.toFixed(4)),
-        isDelayed:             delayMinutes != null && delayMinutes >= DELAY_THRESHOLD_MIN,
+        isDelayed:             !inTransfer && delayMinutes != null && delayMinutes >= DELAY_THRESHOLD_MIN,
         lastUpdated:           toSwiftDate(nowSec),
         phase,
         // The row stores the Bulgarian name (it has to, to match the feed —
@@ -289,9 +297,12 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
         directionStation: stationDisplay.displayStationName(
             tokenRow.direction_station || tokenRow.destination_station || '', tokenRow.app_language
         ),
-        currentLegIndex:       tokenRow.current_leg_index ?? 0,
-        isNextTransportBus:    !!tokenRow.is_next_transport_bus,
-        isCurrentTransportBus: !!tokenRow.is_current_bus,
+        // In a transfer the app's own convention applies (ContentState.currentLegIndex): the leg just
+        // COMPLETED. The row itself is the leg being waited for.
+        currentLegIndex:       inTransfer ? legIndex - 1 : legIndex,
+        isNextTransportBus:    inTransfer ? !!tokenRow.is_current_bus : !!tokenRow.is_next_transport_bus,
+        // Standing on a platform is not being on the vehicle just left.
+        isCurrentTransportBus: inTransfer ? false : !!tokenRow.is_current_bus,
     };
 
     // ── Per-LEG fields ───────────────────────────────────────────────────────
@@ -320,13 +331,30 @@ function build(tokenRow, rt, now = new Date(), vehicle = null, geo = null) {
     // isGPSTracked is optional on the iOS side, so it is only ever sent as true;
     // omitting it (the feed case) is safe and reads as "not GPS-only".
     if (isGPSTracked) state.isGPSTracked = true;
-    if (delayMinutes != null) state.delayMinutes = delayMinutes;
     if (predictedDepartureUnix != null) state.predictedDeparture = toSwiftDate(predictedDepartureUnix);
     if (predictedArrivalUnix != null) state.predictedArrival = toSwiftDate(predictedArrivalUnix);
-    if (tokenRow.next_transport_number) state.nextTransportNumber = tokenRow.next_transport_number;
-    if (tokenRow.next_transport_departure) {
-        const t = new Date(tokenRow.next_transport_departure).getTime();
-        if (!Number.isNaN(t)) state.nextTransportDeparture = toSwiftDate(Math.floor(t / 1000));
+
+    if (inTransfer) {
+        // The card is about the train being WAITED for: this row's own. Its delay is the delay of
+        // its DEPARTURE from the change station, and — like everywhere — absent, never 0, when the
+        // feed has no reading for it. `delayMinutes` stays out: it would belong to the train just left.
+        state.hasProgressFix = true;
+        if (legLabel) state.nextTransportNumber = legLabel;
+        if (Number.isFinite(schedDepSec)) state.nextTransportDeparture = toSwiftDate(schedDepSec);
+        if (predictedDepartureUnix != null) state.nextTransportPredictedDeparture = toSwiftDate(predictedDepartureUnix);
+        if (delayMinutes != null) state.nextTransportDelayMinutes = delayMinutes;
+        if (tokenRow.boarding_station) {
+            state.transferStation = stationDisplay.displayStationName(tokenRow.boarding_station, tokenRow.app_language);
+        }
+        state.nextTransportDirection = state.directionStation;
+        if (transfer.arrivalUnix != null) state.transferArrival = toSwiftDate(transfer.arrivalUnix);
+    } else {
+        if (delayMinutes != null) state.delayMinutes = delayMinutes;
+        if (tokenRow.next_transport_number) state.nextTransportNumber = tokenRow.next_transport_number;
+        if (tokenRow.next_transport_departure) {
+            const t = new Date(tokenRow.next_transport_departure).getTime();
+            if (!Number.isNaN(t)) state.nextTransportDeparture = toSwiftDate(Math.floor(t / 1000));
+        }
     }
 
     return {

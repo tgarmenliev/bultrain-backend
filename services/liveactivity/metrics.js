@@ -24,6 +24,9 @@ const counters = {
     departure_reminders_sent: 0,
     approach_pushes_sent: 0,
     armed_auto_stopped: 0,
+    armed_leg_arrived_by_feed: 0,
+    la_register_ignored_older_leg: 0,
+    la_transfer_window_pushed: 0,
     // A later leg retargeting the existing Activity instead of a second
     // push-to-start — kept separate from push_to_start_* so a retarget
     // failure doesn't get misread by selfCheck.js as the push-to-start
