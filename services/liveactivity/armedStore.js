@@ -136,9 +136,22 @@ function arm(row) {
     // the next leg dropped back to waiting. A changed departure is a new trip (a saved journey
     // travelled again next week) and starts over as before.
     const before = conn().prepare(
-        'SELECT state, scheduled_departure FROM armed_journeys WHERE install_id = ? AND journey_id = ? AND leg_index = ?'
+        `SELECT state, scheduled_departure, scheduled_arrival, train_number, boarding_station, destination_station
+           FROM armed_journeys WHERE install_id = ? AND journey_id = ? AND leg_index = ?`
     ).get(params.install_id, params.journey_id, params.leg_index);
     if (before && before.state === 'arrived' && before.scheduled_departure === params.scheduled_departure) return;
+
+    // The same goes for a leg whose card has ALREADY been started: re-arming the very same trip
+    // (the app arms every leg when tracking is switched on, and again when it moves to the next
+    // leg) used to put it back to 'armed', and the watcher then started it a second time — a
+    // second card the app had to remove again. A different train, stations or times is a different
+    // trip and starts over; so does a leg that was stopped (disarmed) in between.
+    params.keep = (before && before.state === 'started'
+        && before.scheduled_departure === params.scheduled_departure
+        && before.scheduled_arrival === params.scheduled_arrival
+        && before.train_number === params.train_number
+        && before.boarding_station === params.boarding_station
+        && before.destination_station === params.destination_station) ? 1 : 0;
 
     conn().prepare(`
         INSERT INTO armed_journeys (
@@ -181,14 +194,14 @@ function arm(row) {
                                     THEN armed_journeys.approach_arrival END,
             approach_count   = CASE WHEN excluded.scheduled_arrival = armed_journeys.scheduled_arrival
                                     THEN armed_journeys.approach_count ELSE 0 END,
-            state          = 'armed',
-            started_at     = NULL,
+            state          = CASE WHEN @keep = 1 THEN armed_journeys.state ELSE 'armed' END,
+            started_at     = CASE WHEN @keep = 1 THEN armed_journeys.started_at END,
             arrived_at     = NULL,
             stopped_at     = NULL,
             stopped_reason = NULL,
-            last_delay_min = NULL,
-            last_alert_at  = NULL,
-            alerts_sent    = 0,
+            last_delay_min = CASE WHEN @keep = 1 THEN armed_journeys.last_delay_min END,
+            last_alert_at  = CASE WHEN @keep = 1 THEN armed_journeys.last_alert_at END,
+            alerts_sent    = CASE WHEN @keep = 1 THEN armed_journeys.alerts_sent ELSE 0 END,
             next_action_at = excluded.next_action_at,
             updated_at     = excluded.updated_at
     `).run(params);

@@ -355,6 +355,10 @@ card back; the second leg was already `started`, so nothing moved it on until th
   token while a later leg is live, and the worker does not end a card while a later leg is live.
 - **A finished leg stays finished.** `/arm` of a leg that has `arrived`, with the same departure, is
   a no-op (the app re-arms on every start); a changed departure starts over as before.
+  Re-arming a leg whose card is already `started` with the same train, stations and times keeps it
+  `started` (and its alert bookkeeping) — the app arms every leg when tracking is switched on and
+  again when it moves to the next leg, and the watcher used to start the card a second time. A
+  different trip, or a leg stopped (disarmed) in between, starts over.
 
 `test/transfer.test.js` reproduces the Септември journey.
 

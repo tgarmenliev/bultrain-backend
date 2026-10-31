@@ -295,6 +295,35 @@ test('re-arming a leg that has ARRIVED does not bring it back; a new departure d
     assert.strictEqual(armedStore.getLeg(j.id, 0).state, 'armed', 'the same saved journey travelled next week starts over');
 });
 
+test('re-arming a leg whose card is already started changes nothing, so it is not started twice', async () => {
+    const j = journey();
+    const leg0 = armedStore.getLeg(j.id, 0);                          // journey() marked it started
+    armedStore.markStarted(leg0.id);
+    const db = new Database(TMP);
+    db.prepare('UPDATE armed_journeys SET alerts_sent = 2, last_delay_min = 7 WHERE id = ?').run(leg0.id);
+    db.close();
+    const before = armedStore.getLeg(j.id, 0);
+    const again = (over = {}) => armedStore.arm({
+        install_id: INSTALL, journey_id: j.id, leg_index: 0, train_number: leg0.train_number,
+        train_number_display: leg0.train_number_display, boarding_station: leg0.boarding_station,
+        destination_station: leg0.destination_station, scheduled_departure: leg0.scheduled_departure,
+        scheduled_arrival: leg0.scheduled_arrival, now: armedStore.nowIso(), ...over,
+    });
+    again();
+    const after = armedStore.getLeg(j.id, 0);
+    assert.strictEqual(after.state, 'started');
+    assert.strictEqual(after.started_at, before.started_at);
+    assert.strictEqual(after.alerts_sent, 2, 'what was already alerted is not forgotten');
+    assert.strictEqual(after.last_delay_min, 7);
+
+    again({ train_number: '9999' });
+    assert.strictEqual(armedStore.getLeg(j.id, 0).state, 'armed', 'another train is another trip');
+    armedStore.markStarted(leg0.id);
+    armedStore.disarm(INSTALL, j.id, 0);
+    again({ train_number: '9999' });
+    assert.strictEqual(armedStore.getLeg(j.id, 0).state, 'armed', 'and a leg stopped in between starts over');
+});
+
 // ── 3. not hanging on one callback ───────────────────────────────────────────
 
 test('/leg-arrived never comes: the feed has the first train at Септември — the card moves over anyway', async () => {
