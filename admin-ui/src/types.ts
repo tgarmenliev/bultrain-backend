@@ -70,3 +70,23 @@ export interface GtfsTrainDetail {
   date: string;
   legs: { tripId: string; category: string; stops: GtfsStop[] }[];
 }
+
+/** GET /api/admin/distance/stations */
+export interface DistanceStation {
+  id: number;
+  name: string;
+  englishName: string | null;
+}
+
+/** GET /api/admin/distance?from=&to= — `found: false` = no train calls at both stations. */
+export interface DistanceResult {
+  from: { id: number; name: string };
+  to: { id: number; name: string };
+  airKm: number | null;
+  found: boolean;
+  km?: number;
+  minKm?: number;
+  maxKm?: number;
+  shapes?: number;
+  exampleTrain?: string;
+}

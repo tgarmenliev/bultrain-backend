@@ -8,6 +8,7 @@
  */
 
 const view       = require('../services/gtfs/adminView');
+const distance   = require('../services/gtfs/stationDistance');
 const cache      = require('../services/realtime/cache');
 const armedStore = require('../services/liveactivity/armedStore');
 
@@ -93,6 +94,40 @@ exports.getTrain = (req, res) => {
         res.json(train);
     } catch (err) {
         console.error('[admin] gtfs getTrain failed:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+/**
+ * GET /api/admin/distance/stations
+ * Every station, for the distance calculator's two pickers.
+ */
+exports.distanceStations = (req, res) => {
+    try {
+        res.json({ stations: distance.listStations() });
+    } catch (err) {
+        console.error('[admin] distance stations failed:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+/**
+ * GET /api/admin/distance?from=<stationId>&to=<stationId>
+ * Track distance between two stations (see services/gtfs/stationDistance.js).
+ * Two stations no train links is a normal answer (found:false), not an error.
+ */
+exports.distanceBetween = (req, res) => {
+    try {
+        const id = (v) => (/^\d{1,6}$/.test(String(v ?? '')) ? Number(v) : null);
+        const from = id(req.query.from);
+        const to = id(req.query.to);
+        if (from === null || to === null) return res.status(400).json({ error: 'from and to must be station ids.' });
+
+        const result = distance.between(from, to);
+        if (!result) return res.status(404).json({ error: 'Unknown station.' });
+        res.json(result);
+    } catch (err) {
+        console.error('[admin] distance failed:', err.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 };

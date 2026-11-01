@@ -507,6 +507,13 @@ Roles are enforced by `middleware/verifyRole(...roles)`; `verifyAdmin` is
 sessions keep working. `GET /api/admin/me` reports the caller's role (used by the
 panel to scope its UI without hitting an admin-only endpoint).
 
+**Distances (admin only).** The panel's «Разстояния» section gives the track distance in
+km between two stations. `GET /api/admin/distance?from=<id>&to=<id>` measures it along the
+GTFS shape of a train that calls at both (`services/gtfs/stationDistance.js`, the same
+placement as `/api/route-shape`); several lines linking the pair are reported as a range
+with the median as the headline. No train linking the two (`found:false`) is a normal
+answer, with only the straight-line figure. `GET /api/admin/distance/stations` feeds the pickers.
+
 > **Rotating the mobile API keys:** `IOS_API_KEY` / `ANDROID_API_KEY` accept a
 > comma-separated list, so a new key can run alongside the old one. **Keep the old
 > key until old app versions retire** — dropping it 401s every un-updated install.

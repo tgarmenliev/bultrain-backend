@@ -5,16 +5,17 @@ import TrainSchedules from './components/TrainSchedules';
 import Dashboard from './components/Dashboard';
 import ExceptionsManager from './components/ExceptionsManager';
 import ArticlesManager from './components/ArticlesManager';
+import DistanceCalculator from './components/DistanceCalculator';
 import ThemeToggle from './components/ThemeToggle';
 import PasswordModal from './components/PasswordModal';
 import { FEATURES } from './features';
 import type { Overview } from './types';
 import {
-  LayoutDashboard, TrainFront, BookOpen, Route, CalendarDays, LogOut, KeyRound,
+  LayoutDashboard, TrainFront, BookOpen, Route, CalendarDays, LogOut, KeyRound, Ruler,
   type LucideIcon,
 } from 'lucide-react';
 
-type View = 'dashboard' | 'guide' | 'trains' | 'exceptions' | 'articles';
+type View = 'dashboard' | 'guide' | 'trains' | 'exceptions' | 'articles' | 'distance';
 type Role = 'admin' | 'author';
 
 function App() {
@@ -146,6 +147,7 @@ function App() {
           />
           {isAdmin && navBtn('dashboard', 'Общ изглед', LayoutDashboard)}
           {isAdmin && navBtn('trains', 'Влакове и разписания', TrainFront)}
+          {isAdmin && navBtn('distance', 'Разстояния', Ruler)}
           {isAdmin && navBtn('guide', 'Справочник', BookOpen)}
           {navBtn('articles', 'Идеи за пътуване', Route)}
           {isAdmin && FEATURES.exceptions && navBtn('exceptions', 'Празници / изключения', CalendarDays)}
@@ -190,6 +192,7 @@ function App() {
       <main ref={mainRef} className="w-full flex-1 md:overflow-y-auto">
         <div key={currentView} className="mx-auto max-w-5xl px-5 py-6 md:px-10 md:py-10">
           {isAdmin && currentView === 'dashboard' && <Dashboard overview={overview} />}
+          {isAdmin && currentView === 'distance' && <DistanceCalculator />}
           {isAdmin && currentView === 'guide' && <ArticlesManager category="guide" />}
           {isAdmin && currentView === 'trains' && (FEATURES.legacyTrainEditor ? <TrainManager /> : <TrainSchedules />)}
           {isAdmin && FEATURES.exceptions && currentView === 'exceptions' && <ExceptionsManager />}

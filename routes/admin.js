@@ -88,6 +88,10 @@ router.get('/overview', verifyAdmin, adminGtfsController.overview);
 router.get('/gtfs/trains', verifyAdmin, adminGtfsController.listTrains);
 router.get('/gtfs/trains/:trainNo', verifyAdmin, adminGtfsController.getTrain);
 
+// ── Distance calculator (track distance between two stations) ───────────────
+router.get('/distance/stations', verifyAdmin, adminGtfsController.distanceStations);
+router.get('/distance', verifyAdmin, adminGtfsController.distanceBetween);
+
 router.get('/guide', verifyAdmin, adminController.listTopics);
 router.post('/guide', verifyAdmin, adminController.createTopic);
 router.put('/guide/:id', verifyAdmin, adminController.updateTopic);
