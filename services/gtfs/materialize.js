@@ -5,7 +5,7 @@
  * tables + the station crosswalk.
  *
  * For every GTFS trip:
- *   - category from its route ("A" = replacement bus → АВТ)
+ *   - category from its route (see categoryOf; "A" = replacement bus → АВТ)
  *   - stops from stop_times, stop_id translated to our station_id via
  *     station_map, times to HH:MM, and CONSECUTIVE duplicate station_ids
  *     collapsed (GTFS models some stations as two adjacent points)
@@ -22,8 +22,30 @@ const path     = require('path');
 
 const DEFAULT_DB = path.join(__dirname, '..', '..', 'bultrain.sqlite');
 
-// GTFS route_short_name → our category code.
-const ROUTE_CATEGORY = { PV: 'ПВ', BV: 'БВ', KPV: 'КПВ', MBV: 'МБВ', A: 'АВТ' };
+// GTFS category code → our category code.
+const ROUTE_CATEGORY = { PV: 'ПВ', BV: 'БВ', KPV: 'КПВ', MBV: 'МБВ', EV: 'ЕВ', A: 'АВТ' };
+
+// More trips than this share with a category we could not read and the feed is
+// refused: the previous schedule keeps serving rather than a wrong one replacing it.
+const MAX_UNKNOWN_CATEGORY_SHARE = 0.02;
+
+/**
+ * Our category for a GTFS route, or null when it cannot be told.
+ *
+ * The feed has been published in two shapes:
+ *   - until 2026-11-16: five routes, one per category; route_short_name IS the code ("PV");
+ *   - from 2026-11-17: one route per TRAIN; route_short_name is the train number and the
+ *     code sits in the route_id, "<operator>-<code>_<number>" ("BDZ-PV_30121",
+ *     "IVKONI-KPV_19201").
+ * Taking route_short_name on trust in the second shape stored the train number as the
+ * category (every train showed up as "30121 30121").
+ */
+function categoryOf(route) {
+    const direct = ROUTE_CATEGORY[route.route_short_name];
+    if (direct) return direct;
+    const m = /-([A-Z]+)_[^_]*$/.exec(String(route.route_id || ''));
+    return (m && ROUTE_CATEGORY[m[1]]) || null;
+}
 
 // GTFS HH:MM:SS (may exceed 24) → HH:MM, 24h clock.
 function hm(t) {
@@ -42,7 +64,7 @@ function materialize(dbPath = DEFAULT_DB) {
 
     const catByRoute = new Map(
         db.prepare('SELECT route_id, route_short_name FROM gtfs_routes').all()
-          .map(r => [r.route_id, ROUTE_CATEGORY[r.route_short_name] || r.route_short_name])
+          .map(r => [r.route_id, categoryOf(r)])
     );
     const stationOf = new Map(
         db.prepare('SELECT gtfs_stop_id, station_id FROM station_map').all()
@@ -62,6 +84,8 @@ function materialize(dbPath = DEFAULT_DB) {
     const insStop = db.prepare('INSERT INTO trip_stop (trip_id, seq, station_id, arrive, depart) VALUES (?, ?, ?, ?, ?)');
 
     let nTrips = 0, nStops = 0, nDates = 0, unmapped = 0;
+    const unknownRoutes = new Set();   // route_ids whose category could not be read
+    let nUnknown = 0;
 
     const build = db.transaction(() => {
         db.prepare('DELETE FROM trip_stop').run();
@@ -70,6 +94,7 @@ function materialize(dbPath = DEFAULT_DB) {
 
         for (const t of trips) {
             const category = catByRoute.get(t.route_id) || '??';
+            if (category === '??') { nUnknown++; unknownRoutes.add(t.route_id); }
 
             // Translate + collapse consecutive duplicate stations.
             const raw = stopTimesStmt.all(t.trip_id);
@@ -99,18 +124,37 @@ function materialize(dbPath = DEFAULT_DB) {
 
             for (const d of datesStmt.all(t.service_id)) { insDate.run(t.trip_id, ymd(d.date)); nDates++; }
         }
+
+        // Thrown inside the transaction: it rolls back and the schedule that was serving stays.
+        if (nTrips > 0 && nUnknown / nTrips > MAX_UNKNOWN_CATEGORY_SHARE) {
+            throw new Error(`${nUnknown} of ${nTrips} trips have a route whose category cannot be read ` +
+                `(e.g. ${[...unknownRoutes].slice(0, 3).join(', ')}) — the feed's routes.txt probably changed shape; ` +
+                'the previous schedule is kept');
+        }
     });
 
-    build();
-    db.close();
-    return { nTrips, nStops, nDates, unmapped };
+    try {
+        build();
+    } finally {
+        db.close();
+    }
+    return { nTrips, nStops, nDates, unmapped, nUnknown, unknownRoutes: [...unknownRoutes] };
 }
 
 if (require.main === module) {
     const dbPath = process.argv[2] || DEFAULT_DB;
-    const r = materialize(dbPath);
+    let r;
+    try {
+        r = materialize(dbPath);
+    } catch (err) {
+        console.error(`materialize FAILED: ${err.message}`);
+        process.exit(1);
+    }
     console.log(`materialised: ${r.nTrips} trips, ${r.nStops} stops, ${r.nDates} run-dates` +
         (r.unmapped ? `  (${r.unmapped} stop-times hit an unmapped stop)` : ''));
+    if (r.nUnknown) {
+        console.warn(`WARNING: ${r.nUnknown} trips have an unreadable category (stored as '??'): ${r.unknownRoutes.slice(0, 10).join(', ')}`);
+    }
 }
 
-module.exports = { materialize };
+module.exports = { materialize, categoryOf };

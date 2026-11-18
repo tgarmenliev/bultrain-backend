@@ -71,8 +71,13 @@ refresh (`scripts/gtfs-refresh.sh`) downloads and imports it, then materialises 
 date-based serving model:
 
 - `trip` — a train number resolves to one or more trips on a date, each with its
-  own category (`ПВ/БВ/КПВ/МБВ/АВТ`). A single number can be a train leg **plus a
-  replacement-bus leg** (route "A" = Автобус), presented as one journey.
+  own category (`ПВ/БВ/КПВ/МБВ/ЕВ/АВТ`). A single number can be a train leg **plus a
+  replacement-bus leg** (route "A" = Автобус), presented as one journey. The category
+  is read by `materialize.categoryOf` from the feed's routes: `route_short_name` held
+  the code until 2026-11-16, and from 2026-11-17 (one route per train) the code is in
+  the `route_id` (`BDZ-PV_30121`, `IVKONI-KPV_19201`). A feed whose categories mostly
+  cannot be read is refused — the transaction rolls back and the previous schedule
+  keeps serving; a few unreadable ones are stored as `??` and printed as a warning.
 - `trip_date` — which dates a trip runs (calendar-dates model).
 - `trip_stop` — the ordered stops of a trip, with scheduled times and coordinates.
 - `stations` — our canonical station list; `station_map` maps GTFS stop ids to it.
