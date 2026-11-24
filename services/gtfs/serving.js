@@ -1,5 +1,7 @@
 'use strict';
 
+const { describe: describeOperator } = require('./operatorDisplay');
+
 /**
  * serving.js — read the date-based GTFS tables and produce responses in the
  * EXACT shape the legacy controllers return, so the mobile app sees no change.
@@ -84,7 +86,7 @@ function buildTrainInfo(db, { language, trainNo, dateObj }) {
     if (!anyTrip) return { error: 'Train not found!', status: 404 };
 
     const trips = db.prepare(`
-        SELECT t.trip_id, t.category
+        SELECT t.trip_id, t.category, t.operator
         FROM trip t JOIN trip_date td ON td.trip_id = t.trip_id
         WHERE t.train_number = ? AND td.date = ?
     `).all(trainNo, ymd);
@@ -105,7 +107,7 @@ function buildTrainInfo(db, { language, trainNo, dateObj }) {
     `);
 
     // Build each leg, then order legs by their first departure time.
-    const legs = trips.map(t => ({ category: t.category, stops: stopStmt.all(t.trip_id) }))
+    const legs = trips.map(t => ({ category: t.category, operator: t.operator, stops: stopStmt.all(t.trip_id) }))
         .filter(l => l.stops.length > 0);
     const startMin = s => {
         const t = s.depart || s.arrive; if (!t) return 1e9;
@@ -120,11 +122,16 @@ function buildTrainInfo(db, { language, trainNo, dateObj }) {
     const categoryMap = language === 'bg' ? CATEGORY_BG : CATEGORY_EN;
     const trainType = categoryMap[legs[0].category] || legs[0].category;
 
+    // Who runs it on THIS date (the same number can change hands: 19201 is БДЖ until 12.12, Ивкони after).
+    // A number's legs — a train and its replacement bus — are one operator's; the first leg speaks for it.
+    const operator = describeOperator(legs[0].operator);
+
     return {
         result: {
             trainType,
             trainNumber: trainNo,
             date: formatDate(dateObj, language),
+            ...(operator ? { operator } : {}),
             stations,
         },
     };

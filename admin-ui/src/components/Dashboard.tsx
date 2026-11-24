@@ -208,6 +208,38 @@ export default function Dashboard({ overview }: { overview: Overview | null }) {
                 </section>
             )}
 
+            {o?.operators && o.operators.length > 0 && (
+                <section className="space-y-3">
+                    <h3 className="section-title">Реално време по оператор</h3>
+                    <ul className="card divide-list px-5">
+                        {o.operators.map((op) => {
+                            const share = op.running > 0 ? Math.round((op.withDelay / op.running) * 100) : null;
+                            // Trains on the road and none of them seen by the feeds: the gap is the source's, not ours.
+                            const blind = op.running >= 3 && op.withDelay === 0;
+                            return (
+                                <StatusRow
+                                    key={op.id ?? 'unknown'}
+                                    label={op.name}
+                                    value={op.running === 0
+                                        ? 'Няма влакове на път'
+                                        : `${op.withDelay} от ${plural(op.running, 'влак', 'влака')} със закъснение · ${op.withPosition} с позиция`}
+                                    title="Влакове на път по разписание и колко от тях виждат потоците в реално време"
+                                    badge={
+                                        op.running === 0 ? undefined
+                                        : blind ? { text: 'няма данни от потока', tone: 'danger' }
+                                        : { text: `${share}%`, tone: share! >= 50 ? 'success' : 'warning' }
+                                    }
+                                />
+                            );
+                        })}
+                    </ul>
+                    <p className="hint">
+                        От 13.12.2026 „Ивкони Експрес“ кара част от мрежата. Ако техните влакове са на път, а потокът не ги вижда,
+                        закъснения и известия за тях няма да има — това е от източника, не от нас.
+                    </p>
+                </section>
+            )}
+
             {rows.length > 0 && (
                 <section className="space-y-3">
                     <h3 className="section-title">Състояние на системата</h3>

@@ -74,7 +74,7 @@ function waitMinutes(arriveTime, departTime) {
 // so the planner naturally chains them as a transfer with per-leg category.
 function loadDayDataGtfs(db, targetDate) {
     const rows = db.prepare(`
-        SELECT t.trip_id, t.train_number, t.category,
+        SELECT t.trip_id, t.train_number, t.category, t.operator,
                ts.station_id, ts.arrive, ts.depart, ts.seq
         FROM   trip       t
         JOIN   trip_date  td ON td.trip_id = t.trip_id AND td.date = ?
@@ -85,7 +85,7 @@ function loadDayDataGtfs(db, targetDate) {
     const trainRuns = new Map();
     for (const row of rows) {
         if (!trainRuns.has(row.trip_id)) {
-            trainRuns.set(row.trip_id, { trainNumber: row.train_number, category: row.category, stops: [] });
+            trainRuns.set(row.trip_id, { trainNumber: row.train_number, category: row.category, operator: row.operator, stops: [] });
         }
         trainRuns.get(row.trip_id).stops.push({
             stationId: row.station_id, arrive: row.arrive, depart: row.depart, seq: row.seq,
@@ -292,6 +292,7 @@ function findRoutes(trainRuns, stationDepartures, fromStationId, toStationId, st
                     arriveTime:     alightStop.arrive,
                     trainNumber:    run.trainNumber,
                     category:       run.category,
+                    operator:       run.operator,
                 };
 
                 const newLegs = [...state.legs, leg];

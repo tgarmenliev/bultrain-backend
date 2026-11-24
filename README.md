@@ -82,6 +82,27 @@ date-based serving model:
 - `trip_stop` — the ordered stops of a trip, with scheduled times and coordinates.
 - `stations` — our canonical station list; `station_map` maps GTFS stop ids to it.
 
+**Operators.** From 2026-12-13 a second passenger operator, «Ивкони Експрес», runs part of the network next to БДЖ,
+in the same national dataset (`agency_id` `BDZ` / `IVKONI`; the `route_id` starts with it too). 143 of its 190 train
+numbers are БДЖ's until 12.12 — the number stays, the operator changes on the date — so the operator is a property of
+the **trip** (`trip.operator`, filled by `materialize` from the route's `agency_id`), never of the number. Everywhere a
+train is described it is the same optional object, **absent when the schedule does not say** (never guessed):
+
+```json
+"operator": { "id": "IVKONI", "name": "Ивкони Експрес", "nameEn": "Ivkoni Express" }
+```
+
+| Where | Field |
+|---|---|
+| `GET /api/train-info/:lang/:no/:date` | `operator` (the operator of **that date**) |
+| `GET /api/schedule/:lang/:from/:to/:date` (and `/api/schedule/:lang/:from/:to`, today) | `operator` on **each leg** (`trains[]`) — a journey can change operator between legs |
+| `GET /api/realtime/vehicles` | `operator` per vehicle (`null` when unknown) |
+| `GET /api/realtime/train/:no` | `operator` |
+
+The admin overview has a «Реално време по оператор» block: trains on the road by the saved schedule per operator, and
+how many the live feeds cover. Ивкони has no dataset of its own in NAP, so its trains are expected in the same
+realtime feeds as БДЖ's; if they are on the road and the feeds do not see them, that shows there the first morning.
+
 `stations.json` (repo root) is the **source of truth for coordinates** — the
 refresh re-applies it onto the DB (`reconcile-coords.js`). Station names live in
 both `stations` (DB) and `stations.json`; fix both, and use a migration for the

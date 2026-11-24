@@ -6,6 +6,7 @@
  *
  * For every GTFS trip:
  *   - category from its route (see categoryOf; "A" = replacement bus → АВТ)
+ *   - operator from its route's agency_id (БДЖ, Ивкони Експрес — see operatorDisplay.js)
  *   - stops from stop_times, stop_id translated to our station_id via
  *     station_map, times to HH:MM, and CONSECUTIVE duplicate station_ids
  *     collapsed (GTFS models some stations as two adjacent points)
@@ -62,10 +63,10 @@ function materialize(dbPath = DEFAULT_DB) {
     const db = new Database(dbPath);
     db.pragma('foreign_keys = ON');
 
-    const catByRoute = new Map(
-        db.prepare('SELECT route_id, route_short_name FROM gtfs_routes').all()
-          .map(r => [r.route_id, categoryOf(r)])
-    );
+    const routes = db.prepare('SELECT route_id, route_short_name, agency_id FROM gtfs_routes').all();
+    const catByRoute = new Map(routes.map(r => [r.route_id, categoryOf(r)]));
+    // Who runs it: the feed's agency_id ('BDZ', 'IVKONI'); empty means the feed does not say.
+    const operatorByRoute = new Map(routes.map(r => [r.route_id, (r.agency_id || '').trim() || null]));
     const stationOf = new Map(
         db.prepare('SELECT gtfs_stop_id, station_id FROM station_map').all()
           .map(r => [r.gtfs_stop_id, r.station_id])
@@ -79,7 +80,7 @@ function materialize(dbPath = DEFAULT_DB) {
         'SELECT date FROM gtfs_calendar_dates WHERE service_id = ? AND exception_type = 1'
     );
 
-    const insTrip = db.prepare('INSERT INTO trip (trip_id, train_number, category, service_start, service_end) VALUES (?, ?, ?, ?, ?)');
+    const insTrip = db.prepare('INSERT INTO trip (trip_id, train_number, category, service_start, service_end, operator) VALUES (?, ?, ?, ?, ?, ?)');
     const insDate = db.prepare('INSERT INTO trip_date (trip_id, date) VALUES (?, ?)');
     const insStop = db.prepare('INSERT INTO trip_stop (trip_id, seq, station_id, arrive, depart) VALUES (?, ?, ?, ?, ?)');
 
@@ -117,7 +118,7 @@ function materialize(dbPath = DEFAULT_DB) {
             const start = parts.length >= 2 ? ymd(parts[parts.length - 2]) : null;
             const end   = parts.length >= 1 ? ymd(parts[parts.length - 1]) : null;
 
-            insTrip.run(t.trip_id, t.trip_short_name, category, start, end);
+            insTrip.run(t.trip_id, t.trip_short_name, category, start, end, operatorByRoute.get(t.route_id) ?? null);
             nTrips++;
 
             stops.forEach((s, i) => { insStop.run(t.trip_id, i + 1, s.station_id, s.arrive, s.depart); nStops++; });

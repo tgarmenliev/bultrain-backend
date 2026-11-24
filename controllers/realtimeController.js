@@ -66,6 +66,7 @@ exports.getTrain = (req, res) => {
     const meta = rt ? tripMeta.get(rt.tripId) : null;
 
     const { status, body } = buildTrainStatus({ num, rt, v, geo, calling: meta ? meta.callingStationIds : null });
+    if (status === 200 && meta && meta.operator) body.operator = meta.operator;
     if (status === 404) body.realtimeAvailable = bothFeedsFresh();
     res.status(status).json(body);
 };
@@ -111,6 +112,8 @@ function buildVehicleEntry(num, v, nowMs) {
         hasLiveDelay: !!rt,
         progressSource: r.progressSource,
         trainType: meta ? meta.trainType : null,
+        // Who runs it ({id,name,nameEn}); null when the saved schedule does not say.
+        operator: meta ? meta.operator : null,
         originStationId: meta ? meta.originStationId : null,
         destinationStationId: meta ? meta.destinationStationId : null,
         nextStationId: r.nextStationId,

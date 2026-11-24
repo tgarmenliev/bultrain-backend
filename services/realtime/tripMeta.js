@@ -15,6 +15,7 @@
 const path     = require('path');
 const Database = require('better-sqlite3');
 const { typeCodeFor } = require('../gtfs/categoryDisplay');
+const { describe: describeOperator } = require('../gtfs/operatorDisplay');
 
 const DB_PATH      = process.env.BULTRAIN_DB || path.join(__dirname, '..', '..', 'bultrain.sqlite');
 const TTL_MS       = 60 * 60 * 1000;
@@ -51,7 +52,7 @@ function crossesMidnight(stops) {
 
 function load(tripId) {
     const c = conn();
-    const trip = c.prepare('SELECT category FROM trip WHERE trip_id = ?').get(tripId);
+    const trip = c.prepare('SELECT category, operator FROM trip WHERE trip_id = ?').get(tripId);
     if (!trip) return null;
 
     const stops = c.prepare(
@@ -64,6 +65,7 @@ function load(tripId) {
     return {
         category: trip.category,
         trainType: typeCodeFor(trip.category),
+        operator: describeOperator(trip.operator),   // null when the saved schedule does not say
         // Strictly the first/last stop of THIS trip: if that stop is not mapped to
         // a station we say null, we do not quietly promote the next one.
         originStationId:      first && first.station_id != null ? first.station_id : null,

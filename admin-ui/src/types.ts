@@ -25,6 +25,15 @@ export interface Overview {
     tripFeedTs: number | null;
     vehicleFeedTs: number | null;
   } | null;
+  /** Trains on the road now, per operator, and how many of them the live feeds cover. */
+  operators: {
+    id: string | null;
+    name: string;
+    nameEn: string;
+    running: number;
+    withDelay: number;
+    withPosition: number;
+  }[] | null;
   tracking: {
     armed: number;
     started: number;

@@ -24,6 +24,7 @@ const USE_GTFS = process.env.SCHEDULE_SOURCE === 'gtfs';
 
 // ── Category abbreviation maps ────────────────────────────────────────────────
 const { CATEGORY_EN } = require('../services/gtfs/categoryDisplay');
+const { describe: describeOperator } = require('../services/gtfs/operatorDisplay');
 
 // ── Day-of-week column mapping (JS getDay 0=Sun…6=Sat) ───────────────────────
 const DAY_COLUMN = [
@@ -283,6 +284,7 @@ function buildOptions(paths, dateStr, language) {
             const departDayOffset = Math.floor(absDepart / 1440);
             const arriveDayOffset = Math.floor(absArrive / 1440);
 
+            const operator = describeOperator(leg.operator);
             trainObjs.push({
                 from:          getStationName(leg.fromStationId, language),
                 to:            getStationName(leg.toStationId,   language),
@@ -292,6 +294,8 @@ function buildOptions(paths, dateStr, language) {
                 arriveDate:    addDaysToDateString(dateStr, arriveDayOffset),
                 trainType:     cat,
                 trainNumber:   leg.trainNumber,
+                // Who runs this leg; absent when the schedule does not say (older data), never guessed.
+                ...(operator ? { operator } : {}),
                 duration:      calcAbsoluteDuration(absDepart, absArrive),
                 timeToWaitNext: isLast ? 0 : '__PENDING__',
                 _absDepart:    absDepart,

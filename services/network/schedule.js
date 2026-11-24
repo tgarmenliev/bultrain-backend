@@ -56,7 +56,7 @@ function nameOf(stationId) {
  */
 function loadDay(date) {
     const rows = conn().prepare(`
-        SELECT t.trip_id AS tripId, t.train_number AS num, t.category, ts.station_id AS stationId,
+        SELECT t.trip_id AS tripId, t.train_number AS num, t.category, t.operator, ts.station_id AS stationId,
                ts.arrive, ts.depart
           FROM trip_date td
           JOIN trip t       ON t.trip_id = td.trip_id
@@ -74,7 +74,7 @@ function loadDay(date) {
     for (const r of rows) {
         if (!cur || cur.tripId !== r.tripId) {
             // origin = the leg's first stop, strictly: an unmapped one stays null
-            cur = { tripId: r.tripId, num: r.num, category: r.category, start: null, end: null,
+            cur = { tripId: r.tripId, num: r.num, category: r.category, operator: r.operator, start: null, end: null,
                     fromId: r.stationId, toId: null };
             legs.set(r.tripId, cur);
             day = 0;
@@ -96,14 +96,14 @@ function loadDay(date) {
     for (const l of legs.values()) {
         if (l.start == null || l.end == null) continue;
         let j = byNum.get(l.num);
-        if (!j) { j = { category: l.category, first: l, last: l, legs: [] }; byNum.set(l.num, j); }
+        if (!j) { j = { category: l.category, operator: l.operator, first: l, last: l, legs: [] }; byNum.set(l.num, j); }
         j.legs.push({ start: l.start, end: l.end });
         if (l.start < j.first.start) { j.first = l; j.category = l.category; }
         if (l.end > j.last.end) j.last = l;
     }
     const out = new Map();
     for (const [num, j] of byNum) {
-        out.set(num, { category: j.category, fromId: j.first.fromId, toId: j.last.toId, legs: j.legs });
+        out.set(num, { category: j.category, operator: j.operator, fromId: j.first.fromId, toId: j.last.toId, legs: j.legs });
     }
     return out;
 }
@@ -126,7 +126,7 @@ function day(date) {
 
 /**
  * Trains running at `nowMs` according to the saved schedule.
- * @returns {Map<string, {category:string, fromId:number|null, toId:number|null}>}
+ * @returns {Map<string, {category:string, operator:string|null, fromId:number|null, toId:number|null}>}
  */
 function runningAt(nowMs) {
     const today = tripMeta.sofiaYmd(nowMs);
@@ -137,7 +137,7 @@ function runningAt(nowMs) {
         for (const [num, j] of day(date)) {
             if (out.has(num)) continue;
             if (j.legs.some(l => l.start <= minute && minute <= l.end)) {
-                out.set(num, { category: j.category, fromId: j.fromId, toId: j.toId });
+                out.set(num, { category: j.category, operator: j.operator, fromId: j.fromId, toId: j.toId });
             }
         }
     };

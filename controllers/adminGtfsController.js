@@ -12,6 +12,7 @@ const distance   = require('../services/gtfs/stationDistance');
 const cache      = require('../services/realtime/cache');
 const armedStore = require('../services/liveactivity/armedStore');
 const metrics    = require('../services/liveactivity/metrics');
+const operatorCoverage = require('../services/realtime/operatorCoverage');
 
 const BAD_DATE = 'date must be a real calendar date in YYYY-MM-DD format.';
 
@@ -62,7 +63,15 @@ exports.overview = (req, res) => {
             console.warn('[admin] overview: tracking counters unavailable:', err.message);
         }
 
-        res.json({ ...base, realtime, tracking });
+        // Per operator: trains on the road now, and how many of them the live feeds cover.
+        let operators = null;
+        try {
+            operators = operatorCoverage.snapshot();
+        } catch (err) {
+            console.warn('[admin] overview: operator coverage unavailable:', err.message);
+        }
+
+        res.json({ ...base, realtime, tracking, operators });
     } catch (err) {
         console.error('[admin] overview failed:', err.message);
         res.status(500).json({ error: 'Internal server error' });
