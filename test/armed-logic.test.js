@@ -92,15 +92,35 @@ test('a delay appearing above the bar alerts; below it stays quiet', () => {
 });
 
 test('only a material change re-alerts', () => {
-    const told = row({ last_delay_min: 10, last_alert_at: iso(Date.now() - 30 * MIN) });
+    const told = row({ last_delay_min: 10, alerts_sent: 1, last_alert_at: iso(Date.now() - 30 * MIN) });
     assert.strictEqual(logic.evaluateDelayAlert(told, 12).shouldAlert, false, '2 min more is noise');
     assert.strictEqual(logic.evaluateDelayAlert(told, 20).shouldAlert, true, '10 min more matters');
     assert.strictEqual(logic.evaluateDelayAlert(told, 20).kind, 'worse');
     assert.strictEqual(logic.evaluateDelayAlert(told, 4).kind, 'recovered', 'made the time up');
 });
 
+// Real: alerts that "sometimes come and sometimes don't". A reading below the bar used to be stored as the
+// baseline, so the next alert needed the delay to grow 5 minutes PAST it: first reading 2 → silent at 6,
+// first reading 4 → silent until 9. Only what the passenger was TOLD is a baseline.
+test('a delay above the bar alerts however small the first reading was', () => {
+    for (const first of [0, 1, 2, 3, 4]) {
+        const seen = row({ last_delay_min: first, alerts_sent: 0 });   // what an older version stored while "seeing"
+        const r = logic.evaluateDelayAlert(seen, 5);
+        assert.strictEqual(r.shouldAlert, true, `first reading ${first}, now 5`);
+        assert.strictEqual(r.kind, 'appeared');
+    }
+    assert.strictEqual(logic.evaluateDelayAlert(row({ last_delay_min: 2 }), 6).shouldAlert, true, '2 then 6');
+    assert.strictEqual(logic.evaluateDelayAlert(row({ last_delay_min: 4 }), 4).shouldAlert, false, 'still below the bar');
+});
+
+test('after an alert, the baseline is what was told', () => {
+    const told = row({ last_delay_min: 6, alerts_sent: 1, last_alert_at: iso(Date.now() - 30 * MIN) });
+    assert.strictEqual(logic.evaluateDelayAlert(told, 9).shouldAlert, false, '+3 is noise');
+    assert.strictEqual(logic.evaluateDelayAlert(told, 11).kind, 'worse', '+5 over what they were told');
+});
+
 test('alerts are spaced out and capped', () => {
-    const justTold = row({ last_delay_min: 10, last_alert_at: iso(Date.now() - 2 * MIN) });
+    const justTold = row({ last_delay_min: 10, alerts_sent: 1, last_alert_at: iso(Date.now() - 2 * MIN) });
     assert.strictEqual(logic.evaluateDelayAlert(justTold, 40).shouldAlert, false, 'too soon');
 
     const spent = row({ last_delay_min: 10, alerts_sent: logic.ALERT_MAX_PER_LEG,
@@ -185,10 +205,12 @@ test('English: names the train, never claims "on time", respects singular', () =
     assert.match(logic.alertText(row(), 1, 'appeared', 'PT 30114', { language: 'en' }).title, /1 minute$/, 'not "1 minutes"');
 });
 
-test('English: connection role names the NEXT train, not the current one', () => {
-    const t = logic.alertText(row(), 31, 'appeared', 'FT 8611', { role: 'connection', phase: 'preDeparture', language: 'en' });
-    assert.match(t.title, /next train FT 8611/);
-    assert.match(t.body, /not the one you are on/);
+test('English: a connection alert is about the connection, and says when it now leaves', () => {
+    const t = logic.alertText(row(), 31, 'appeared', 'FT 8611', {
+        role: 'connection', phase: 'preDeparture', language: 'en', destinationDisplay: 'Bansko', expectedHm: '09:26', scheduledHm: '08:55',
+    });
+    assert.strictEqual(t.title, 'Connection delayed by 31 minutes');
+    assert.strictEqual(t.body, 'FT 8611 to Bansko leaves at 09:26 instead of 08:55.');
 
     const rec = logic.alertText(row(), 2, 'recovered', 'FT 8611', { role: 'connection', language: 'en' });
     assert.match(rec.title, /catching up/);
@@ -238,25 +260,11 @@ test('transferArrivalUnix / nextDepartureUnix: predicted preferred, scheduled as
     );
 });
 
-test('isAlertActionable: not boarded yet is always actionable, transfer band aside', () => {
-    assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'preDeparture' }, 'fine', true), true);
-    assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'preDeparture' }, null, false), true);
-});
-
-test('isAlertActionable: riding, last leg (no transfer) — never actionable', () => {
-    assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'inTransit' }, null, false), false);
-});
-
-test('isAlertActionable: riding WITH a downstream transfer — follows the band', () => {
-    const ctx = { role: 'active', phase: 'inTransit' };
-    assert.strictEqual(logic.isAlertActionable(ctx, 'fine', true), false, 'comfortable buffer — nothing to act on right now');
-    assert.strictEqual(logic.isAlertActionable(ctx, 'tight', true), true);
-    assert.strictEqual(logic.isAlertActionable(ctx, 'departsBeforeArrival', true), true);
-});
-
-test('isAlertActionable: connection role follows the band the same way', () => {
-    const ctx = { role: 'connection', phase: 'inTransit' };
-    assert.strictEqual(logic.isAlertActionable(ctx, 'fine', true), false);
-    assert.strictEqual(logic.isAlertActionable(ctx, 'tight', true), true);
-    assert.strictEqual(logic.isAlertActionable(ctx, null, true), true, 'unknown band defaults to actionable, not silently normal');
+// Only a CONNECTION interrupts Focus/DND. The delay of the train being ridden (or about to be boarded) is on
+// the card every time the passenger looks; the connecting train is where a minute decides the journey.
+test('isAlertActionable: only the connection is time-sensitive', () => {
+    assert.strictEqual(logic.isAlertActionable({ role: 'connection', phase: 'preDeparture' }), true);
+    assert.strictEqual(logic.isAlertActionable({ role: 'connection', phase: 'inTransit' }), true);
+    assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'preDeparture' }), false, 'not boarded yet is no longer enough');
+    assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'inTransit' }), false);
 });

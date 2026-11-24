@@ -21,6 +21,11 @@ const counters = {
     push_to_start_failed: 0,
     push_to_start_refused: 0,
     delay_alerts_sent: 0,
+    connection_alerts_sent: 0,
+    // An alert that was due but could not be sent, by the reason — the silent kinds of "I got nothing".
+    alert_skipped_no_token: 0,
+    alert_send_failed: 0,
+    worker_ticks_skipped_overlap: 0,
     departure_reminders_sent: 0,
     approach_pushes_sent: 0,
     armed_auto_stopped: 0,

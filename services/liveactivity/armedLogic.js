@@ -164,7 +164,11 @@ function evaluateDelayAlert(row, delayMin, now = new Date(), ctx = {}) {
     }
 
     const changeBar = phase === 'inTransit' ? ALERT_CHANGE_MIN_IN_TRANSIT : ALERT_CHANGE_MIN;
-    const last = row.last_delay_min;
+    // The baseline for "changed" is what the passenger was TOLD, never merely what we saw. Until the
+    // first alert goes out there is none: a first reading of 2 min used to become the baseline, so a
+    // delay of 6 (above the 5-minute bar) stayed silent until it reached 7 — and a first reading of 4
+    // until 9. Real: alerts that "sometimes come and sometimes don't".
+    const last = row.alerts_sent > 0 ? row.last_delay_min : null;
 
     if (last == null) {
         return delayMin >= ALERT_MIN_DELAY_MIN
@@ -188,29 +192,24 @@ function evaluateDelayAlert(row, delayMin, now = new Date(), ctx = {}) {
     return { shouldAlert: false, reason: 'no-material-change' };
 }
 
-// ── Task 2b: whether a delay alert deserves to bypass Focus/DND ─────────────
+// ── Task 2b: whether an alert deserves to bypass Focus/DND ──────────────────
 //
-// Ported 1:1 from the client's own connection-risk banner (see the mobile
-// team's answer, JourneyLiveActivityAttributes.swift's ContentState —
-// connectionGapMinutes / connectionRisk), so the push priority and the Live
-// Activity's own transfer banner can never disagree with each other. Not a
-// server reinterpretation — the exact same formula and thresholds.
+// Only a CONNECTION does. The delay of the train the passenger is on (or about to board) is
+// something the card shows every time they glance at the phone; the connecting train is where a
+// minute decides whether the journey continues, so those alerts — the connecting train's own delay
+// and the risk to the transfer — interrupt. (This used to escalate the current leg's delay too,
+// whenever a transfer was tight; the transfer risk now has its own alert, so that is no longer
+// needed.)
 
-// The tight/fine boundary — the client's one named constant
-// (comfortableTransferMinutes). <= 0 (not < 1) is the at-risk boundary:
-// exactly 0 counts as at-risk, not tight.
+// The tight/fine boundary — the client's one named constant (comfortableTransferMinutes). <= 0 (not
+// < 1) is the at-risk boundary: exactly 0 counts as at-risk, not tight. The same banding as the
+// client's own transfer banner, so the app and the server cannot disagree about it.
 const COMFORTABLE_TRANSFER_MIN = 10;
 
 /**
- * Minutes between the connecting leg's departure and the arriving leg's
- * predicted arrival at the transfer station. Both inputs are expected to
- * already carry the client's own fallback (predicted, else scheduled) — see
- * transferArrivalUnix/nextDepartureUnix below — so this is just the
- * subtraction. No midnight-rollover correction is needed the way the
- * client's predictedDate(forStation:) needs one: our timestamps (both
- * predicted, from the GTFS-RT feed's own absolute epoch, and scheduled, ISO-
- * 8601 with a real date) are full instants end to end, never a bare HH:MM
- * that needs a reference day guessed for it.
+ * Minutes between the connecting leg's departure and the arriving leg's predicted arrival at the
+ * transfer station. Both are full instants (the feed's epoch, or a scheduled ISO time with a real
+ * date), so no midnight correction is needed.
  *
  * @returns {number|null} floor()'d minutes; null when either side is unknown.
  */
@@ -237,24 +236,73 @@ function connectionRiskBand(gapMin) {
     return 'fine';
 }
 
+/** Whether THIS alert is worth interrupting Focus/DND for: only a connection is. */
+function isAlertActionable(ctx) {
+    return ctx.role === 'connection';
+}
+
+// ── Task 2c: the connection itself ──────────────────────────────────────────
+//
+// A delay on the arriving train can make the transfer impossible without the connecting train
+// being late at all, and neither delay alert says so (the arriving train's alert is about ITS
+// delay, the connecting train's about THAT train). So the transfer gets its own alert, driven by
+// the gap between the two:
+//   - 'tight'  : the gap fell into the tight band because of delays
+//   - 'missed' : the arriving train is predicted in after the connecting one has left
+//   - 'holds'  : it was worse and is better again
+// The evidence must be MEASURED on the arriving side (its live predicted arrival); the connecting
+// train's own departure is its live prediction when the feed has one, else its timetable — said so
+// in the text, never presented as live.
+
+const CONNECTION_RISK_WINDOW_MS     = 60 * 60 * 1000;  // not earlier than this before the arrival
+const CONNECTION_ALERT_MIN_INTERVAL_MS = 3 * 60 * 1000;
+const CONNECTION_ALERT_MAX_PER_LEG  = 6;
+// Coming back to a better band needs a little room, or a gap hovering on a boundary would alert
+// "tight" / "holds" / "tight" every few minutes.
+const CONNECTION_RECOVER_MARGIN_MIN = 2;
+
+const BAND_SEVERITY = { fine: 0, tight: 1, departsBeforeArrival: 2 };
+const severityOf = (band) => (band == null ? 0 : BAND_SEVERITY[band] ?? 0);
+
 /**
- * Whether THIS delay alert is worth interrupting Focus/DND for — actionable
- * exactly when the passenger hasn't boarded yet (can still change plans), or
- * a transfer they're relying on is tight/at-risk. A delay on the leg they're
- * already riding, with nothing downstream to protect, is something the Live
- * Activity already shows passively every time they glance at the phone —
- * not worth an interruption on its own.
- *
- * @param {{phase:string, role:string}} ctx
- * @param {string|null} band          connectionRiskBand() for the relevant
- *        transfer, or null if none was computed (see hasTransfer).
- * @param {boolean} hasTransfer       false only for role 'active' on the
- *        journey's LAST leg — nothing downstream to protect at all.
+ * @param {object} row  the ARRIVING leg's armed_journeys row (conn_band, conn_alert_at, conn_alerts_sent)
+ * @param {{arrivalUnix:number|null, departUnix:number|null, schedArrivalUnix:number, schedDepartUnix:number}} c
+ *        arrivalUnix: the arriving train's LIVE predicted arrival (null = no coverage);
+ *        departUnix: the connecting train's predicted departure, else its scheduled one.
+ * @returns {{shouldAlert:boolean, reason:string, kind?:'tight'|'missed'|'holds', band?:string, gap?:number}}
  */
-function isAlertActionable(ctx, band, hasTransfer) {
-    if (ctx.role === 'active' && ctx.phase !== 'inTransit') return true; // not boarded yet
-    if (!hasTransfer) return false; // riding, no transfer at stake
-    return band == null || band !== 'fine';
+function evaluateConnectionRisk(row, c, now = new Date()) {
+    if (c.arrivalUnix == null || c.departUnix == null) return { shouldAlert: false, reason: 'no-coverage' };
+
+    const nowMs = now.getTime();
+    if (nowMs >= c.arrivalUnix * 1000)  return { shouldAlert: false, reason: 'already-arrived' };
+    if (c.arrivalUnix * 1000 - nowMs > CONNECTION_RISK_WINDOW_MS) return { shouldAlert: false, reason: 'too-early' };
+    if (nowMs >= c.departUnix * 1000)   return { shouldAlert: false, reason: 'connection-departed' };
+
+    const gap = connectionGapMinutes(c.arrivalUnix, c.departUnix);
+    const band = connectionRiskBand(gap);
+    const schedBand = connectionRiskBand(connectionGapMinutes(c.schedArrivalUnix, c.schedDepartUnix));
+    const base = { band, gap };
+
+    if ((row.conn_alerts_sent || 0) >= CONNECTION_ALERT_MAX_PER_LEG) return { ...base, shouldAlert: false, reason: 'cap' };
+    if (row.conn_alert_at && nowMs - new Date(row.conn_alert_at).getTime() < CONNECTION_ALERT_MIN_INTERVAL_MS) {
+        return { ...base, shouldAlert: false, reason: 'too-soon' };
+    }
+
+    const lastSev = severityOf(row.conn_band);
+    const nowSev  = severityOf(band);
+
+    // Worse than both what was last said and what the passenger planned for: a transfer that is tight
+    // on the timetable is theirs to know already, and says nothing until it gets worse.
+    if (nowSev > Math.max(lastSev, severityOf(schedBand))) {
+        return { ...base, shouldAlert: true, reason: 'worse', kind: nowSev === 2 ? 'missed' : 'tight' };
+    }
+
+    if (lastSev > 0 && nowSev < lastSev) {
+        const room = nowSev === 0 ? COMFORTABLE_TRANSFER_MIN + CONNECTION_RECOVER_MARGIN_MIN : CONNECTION_RECOVER_MARGIN_MIN;
+        if (gap >= room) return { ...base, shouldAlert: true, reason: 'better', kind: 'holds' };
+    }
+    return { ...base, shouldAlert: false, reason: 'no-change' };
 }
 
 /**
@@ -270,12 +318,14 @@ const ALERT_COPY = {
         word: (n) => (n === 1 ? 'минута' : 'минути'),
         bareTrain: (num) => `Влак ${num}`,
         connectionRecovered: (train) => ({
-            title: 'Връзката ви наваксва',
-            body: `Следващият влак ${train} вече не закъснява съществено.`,
+            title: 'Връзката наваксва',
+            body: `${train} вече не закъснява съществено.`,
         }),
-        connectionDelayed: (train, delayMin, word) => ({
-            title: `Следващият ви влак ${train} закъснява с ${delayMin} ${word}`,
-            body: 'Това е връзката ви след прекачването, не влакът, в който сте.',
+        // The title says WHICH train it is about (the connection, not the one being ridden); the body
+        // says what the passenger needs: when it now leaves.
+        connectionDelayed: (train, delayMin, word, to, exp, sched) => ({
+            title: `Връзката закъснява с ${delayMin} ${word}`,
+            body: exp && sched ? `${train} към ${to} тръгва в ${exp} вместо ${sched}.` : `${train} към ${to}.`,
         }),
         recovered: (train, to) => ({
             title: `${train} наваксва`,
@@ -294,12 +344,12 @@ const ALERT_COPY = {
         word: (n) => (n === 1 ? 'minute' : 'minutes'),
         bareTrain: (num) => `Train ${num}`,
         connectionRecovered: (train) => ({
-            title: 'Your connection is catching up',
-            body: `The next train ${train} is no longer significantly delayed.`,
+            title: 'Connection is catching up',
+            body: `${train} is no longer significantly delayed.`,
         }),
-        connectionDelayed: (train, delayMin, word) => ({
-            title: `Your next train ${train} is delayed by ${delayMin} ${word}`,
-            body: 'This is your connecting train after the transfer, not the one you are on.',
+        connectionDelayed: (train, delayMin, word, to, exp, sched) => ({
+            title: `Connection delayed by ${delayMin} ${word}`,
+            body: exp && sched ? `${train} to ${to} leaves at ${exp} instead of ${sched}.` : `${train} to ${to}.`,
         }),
         recovered: (train, to) => ({
             title: `${train} is catching up`,
@@ -338,12 +388,76 @@ function alertText(row, delayMin, kind, label, ctx = {}) {
     const to = ctx.destinationDisplay || row.destination_station;
     const word = c.word(delayMin);
 
+    // For a connection: ctx.expectedHm / ctx.scheduledHm are when that train now leaves and when it
+    // should (Sofia HH:MM), ctx.destinationDisplay where it goes.
     if (role === 'connection') {
-        return kind === 'recovered' ? c.connectionRecovered(train) : c.connectionDelayed(train, delayMin, word);
+        return kind === 'recovered'
+            ? c.connectionRecovered(train)
+            : c.connectionDelayed(train, delayMin, word, to, ctx.expectedHm, ctx.scheduledHm);
     }
     if (kind === 'recovered') return c.recovered(train, to);
     if (phase === 'inTransit') return c.inTransit(train, delayMin, word, kind === 'better', to);
     return c.preDeparture(train, delayMin, word, kind === 'better', to);
+}
+
+
+// ── The words of the connection alert ────────────────────────────────────────
+
+const RISK_COPY = {
+    bg: {
+        tight: {
+            title: 'Малко време за прекачване',
+            body: (arr, train, when, dep, gap) => `Пристигате в ${arr}, а ${train} тръгва ${when}в ${dep} (${gap} мин).`,
+        },
+        missed: {
+            // A prediction, so "probably"; with no live data for the connecting train, only "may".
+            live:    { title: 'Вероятно ще изпуснете връзката',
+                       body: (arr, train, dep) => `Пристигате в ${arr}, а ${train} тръгва в ${dep}.` },
+            noLive:  { title: 'Възможно е да изпуснете връзката',
+                       body: (arr, train, dep) => `Пристигате в ${arr}, а ${train} тръгва по разписание в ${dep} (няма данни на живо за него).` },
+        },
+        holds: {
+            title: 'Връзката се запазва',
+            body: (arr, train, when, dep, gap) => `Пристигате в ${arr}, а ${train} тръгва ${when}в ${dep} (${gap} мин).`,
+        },
+        schedule: 'по разписание ',
+    },
+    en: {
+        tight: {
+            title: 'Tight connection',
+            body: (arr, train, when, dep, gap) => `You arrive at ${arr} and ${train} leaves ${when}at ${dep} (${gap} min).`,
+        },
+        missed: {
+            live:    { title: 'You will probably miss your connection',
+                       body: (arr, train, dep) => `You arrive at ${arr} and ${train} leaves at ${dep}.` },
+            noLive:  { title: 'You may miss your connection',
+                       body: (arr, train, dep) => `You arrive at ${arr} and ${train} leaves on schedule at ${dep} (no live data for it).` },
+        },
+        holds: {
+            title: 'Your connection holds',
+            body: (arr, train, when, dep, gap) => `You arrive at ${arr} and ${train} leaves ${when}at ${dep} (${gap} min).`,
+        },
+        schedule: 'on schedule ',
+    },
+};
+
+/**
+ * @param {'tight'|'missed'|'holds'} kind
+ * @param {{arrivalUnix:number, departUnix:number, gap:number, connectionLive:boolean,
+ *          label:string, language?:string}} x
+ *        connectionLive: the connecting train's departure is the feed's prediction (else its timetable).
+ */
+function connectionRiskText(kind, x) {
+    const c = RISK_COPY[x.language === 'en' ? 'en' : 'bg'];
+    const arr = sofiaHm(x.arrivalUnix * 1000);
+    const dep = sofiaHm(x.departUnix * 1000);
+    const when = x.connectionLive ? '' : c.schedule;
+    if (kind === 'missed') {
+        const m = x.connectionLive ? c.missed.live : c.missed.noLive;
+        return { title: m.title, body: m.body(arr, x.label, dep) };
+    }
+    const k = kind === 'holds' ? c.holds : c.tight;
+    return { title: k.title, body: k.body(arr, x.label, when, dep, x.gap) };
 }
 
 
@@ -511,6 +625,8 @@ function evaluateDeadline(row, predictedArrivalUnix, now = new Date()) {
 
 module.exports = {
     evaluateTrigger, evaluateDelayAlert, alertText, evaluateDeadline,
+    evaluateConnectionRisk, connectionRiskText,
+    CONNECTION_RISK_WINDOW_MS, CONNECTION_ALERT_MIN_INTERVAL_MS, CONNECTION_ALERT_MAX_PER_LEG, CONNECTION_RECOVER_MARGIN_MIN,
     evaluateDepartureReminder, evaluateApproach, departureReminderText,
     REMINDER_BEFORE_MS, REMINDER_MIN_LEAD_MS, APPROACH_BEFORE_MS, APPROACH_MOVE_MS, APPROACH_MIN_GAP_MS, APPROACH_MAX_PER_LEG,
     legRole, mayStartLeg, legPhase,

@@ -401,46 +401,75 @@ async function retargetExistingActivity(row, existing, now) {
 
 // ── 2. Delay alert ───────────────────────────────────────────────────────────
 
-/**
- * The connection-risk band relevant to THIS alert, ported 1:1 from the
- * client's own transfer banner (see armedLogic.js's connectionGapMinutes doc)
- * — computed here rather than in armedLogic.js because it needs the SIBLING
- * leg's own live feed, which only armedWatcher.js has access to.
- *
- *  - role 'connection': this row IS the connecting leg — the other side of
- *    the gap is the ACTIVE leg (siblings[legCtx.activeIndex]), refetched for
- *    its own current prediction.
- *  - role 'active' + already rolling: the other side is the NEXT leg, if one
- *    exists — refetched the same way. No next leg = nothing to protect.
- *  - role 'active' + not yet departed: irrelevant (isAlertActionable() never
- *    consults it for that case), so not computed.
- *
- * @returns {{band: string|null, hasTransfer: boolean}}
- */
-function connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec) {
-    let activeRow, activeFeed, nextRow, nextFeed;
+// An alert that could not be sent is not retried on every 30-second tick: a token that is bad (say
+// the wrong APNs environment) would be asked again, and failed again, for as long as the leg lives.
+// In memory only — a restart simply tries once more.
+const RETRY_AFTER_FAILED_MS  = 2 * 60 * 1000;
+const RETRY_AFTER_BAD_TOKEN_MS = 10 * 60 * 1000;
+const retryAfter = new Map();   // `${row.id}:${what}` -> ms
 
-    if (ctx.role === 'connection') {
-        activeRow = siblings.find(s => s.leg_index === legCtx.activeIndex);
-        if (!activeRow) return { band: null, hasTransfer: true }; // shouldn't happen; err on the safe side
-        activeFeed = readFeed(activeRow, getRunFor(activeRow), nowSec, getVehicle(activeRow.train_number));
-        nextRow = row;
-        nextFeed = feed;
-    } else if (ctx.phase === 'inTransit') {
-        nextRow = siblings.find(s => s.leg_index === row.leg_index + 1);
-        if (!nextRow) return { band: null, hasTransfer: false }; // last leg — nothing downstream
-        activeRow = row;
-        activeFeed = feed;
-        nextFeed = readFeed(nextRow, getRunFor(nextRow), nowSec, getVehicle(nextRow.train_number));
-    } else {
-        return { band: null, hasTransfer: false }; // not consulted for this case anyway
+function backedOff(row, what, nowMs) {
+    const until = retryAfter.get(`${row.id}:${what}`);
+    return until != null && nowMs < until;
+}
+function noteFailure(row, what, res, nowMs) {
+    retryAfter.set(`${row.id}:${what}`, nowMs + (res.outcome === 'invalid-token' ? RETRY_AFTER_BAD_TOKEN_MS : RETRY_AFTER_FAILED_MS));
+    metrics.inc('alert_send_failed');
+}
+
+/**
+ * Deliver one alert notification, per platform. The decision and the words are made by the caller;
+ * this is only the envelope — the same for the delay alert and the connection alert.
+ *
+ * `delayMinutes` is sent only when there is one: no measurement means no field, never 0.
+ */
+function deliverAlert(row, device, text, { interruptionLevel, delayMinutes = null, connection = null }) {
+    if (device.platform === 'android') {
+        return fcm.send({
+            token: device.token,
+            data: {
+                type: 'delay_alert',
+                journeyId: row.journey_id,
+                legIndex: row.leg_index,
+                trainNumber: row.train_number,
+                ...(delayMinutes != null ? { delayMinutes } : {}),
+                ...(connection ? { connection } : {}),
+                title: text.title,
+                body: text.body,
+                // Same vocabulary as iOS's interruption-level. Android has no per-message DND bypass
+                // field the way APNs does, so acting on this means the app routing to a high-importance
+                // channel client-side; sent regardless so the data exists whenever that is wired up.
+                interruptionLevel,
+            },
+            ttlSeconds: ALERT_TTL_S,
+        });
     }
 
-    const gap = logic.connectionGapMinutes(
-        logic.transferArrivalUnix(activeRow, activeFeed),
-        logic.nextDepartureUnix(nextRow, nextFeed)
-    );
-    return { band: logic.connectionRiskBand(gap), hasTransfer: true };
+    const body = JSON.stringify({
+        aps: {
+            alert: { title: text.title, body: text.body },
+            sound: 'default',
+            // Without time-sensitive, Do Not Disturb swallows the alert silently. Only a CONNECTION asks
+            // for it (see armedLogic.isAlertActionable); everything else is a normal notification.
+            'interruption-level': interruptionLevel,
+            'thread-id': `journey-${row.journey_id}`,
+        },
+        journeyId: row.journey_id,
+        legIndex: row.leg_index,
+        trainNumber: row.train_number,
+        ...(delayMinutes != null ? { delayMinutes } : {}),
+        ...(connection ? { connection } : {}),
+    });
+
+    // A plain alert notification — not a Live Activity push, so it does not touch the Live Activity
+    // update budget at all.
+    return apns.send({
+        token: device.token,
+        environment: device.environment,
+        body,
+        priority: 10,
+        pushType: 'alert',
+    });
 }
 
 async function maybeAlert(row, feed, now, legCtx, siblings) {
@@ -449,6 +478,17 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
     // translated here so alertText() (kept DB-free by design) never has to.
     const destinationDisplay = stationDisplay.displayStationName(row.destination_station, row.app_language);
     const ctx = { phase, role: legCtx.role, language: row.app_language, destinationDisplay };
+
+    // A connection is about when THAT train now leaves, and where it goes (its direction).
+    if (ctx.role === 'connection') {
+        ctx.destinationDisplay = stationDisplay.displayStationName(row.direction_station || row.destination_station, row.app_language);
+        const schedSec = Math.floor(new Date(row.scheduled_departure).getTime() / 1000);
+        const expSec = feed.predictedDepUnix ?? (feed.delayMin != null ? schedSec + feed.delayMin * 60 : null);
+        if (expSec != null) {
+            ctx.expectedHm = hhmm(expSec * 1000);
+            ctx.scheduledHm = hhmm(schedSec * 1000);
+        }
+    }
 
     // Logged unconditionally, same discipline as maybeStart's trigger log —
     // this runs unattended overnight, and a silent "no alert" was exactly what
@@ -461,10 +501,6 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
         console.log(`[armed] delay-check j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
                     `delay=${feed.delayMin ?? '—'}m was=${row.last_delay_min ?? '—'} role=${ctx.role} phase=${ctx.phase} ` +
                     `decision=skip (${d.reason})`);
-        // Still remember what we saw, so the next comparison is against truth.
-        if (feed.delayMin != null && feed.delayMin !== row.last_delay_min && d.reason === 'below-threshold') {
-            store.recordDelaySeen(row.id, feed.delayMin);
-        }
         return;
     }
 
@@ -493,9 +529,12 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
         }
     }
 
+    if (backedOff(row, 'delay', now.getTime())) return;
+
     const device = store.getToken(row.install_id, 'alert');
     if (!device) {
         console.warn(`[armed] no alert token for install=${store.idTag(row.install_id)} — skipping delay alert j=${row.journey_id}`);
+        metrics.inc('alert_skipped_no_token');
         return;
     }
 
@@ -503,73 +542,14 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
     // pluralisation and the "never claim on time" rule are in alertText(), and
     // duplicating them in two clients is how they drift apart.
     const text = logic.alertText(row, feed.delayMin, d.kind, trainLabel(row), ctx);
+    const interruptionLevel = logic.isAlertActionable(ctx) ? 'time-sensitive' : 'active';
 
-    // Whether this specific alert is worth bypassing Focus/DND for — ported
-    // 1:1 from the client's own transfer-risk banner (see connectionRiskForAlert
-    // and armedLogic.js's connectionGapMinutes doc), so the push priority and
-    // what the Live Activity shows can never disagree with each other.
-    const nowSec = Math.floor(now.getTime() / 1000);
-    const { band, hasTransfer } = connectionRiskForAlert(row, feed, ctx, legCtx, siblings, nowSec);
-    const actionable = logic.isAlertActionable(ctx, band, hasTransfer);
-    const interruptionLevel = actionable ? 'time-sensitive' : 'active';
-
-    let res;
-    if (device.platform === 'android') {
-        res = await fcm.send({
-            token: device.token,
-            data: {
-                type: 'delay_alert',
-                journeyId: row.journey_id,
-                legIndex: row.leg_index,
-                trainNumber: row.train_number,
-                delayMinutes: feed.delayMin,
-                title: text.title,
-                body: text.body,
-                // Same computed signal as iOS's interruption-level, same
-                // vocabulary deliberately — Android has no per-message DND
-                // bypass field the way APNs does, so acting on this requires
-                // the app routing to a high-importance vs normal notification
-                // channel client-side. Sent now regardless so the data exists
-                // whenever that's wired up; unused today costs nothing.
-                interruptionLevel,
-            },
-            ttlSeconds: ALERT_TTL_S,
-        });
-    } else {
-        const body = JSON.stringify({
-            aps: {
-                alert: { title: text.title, body: text.body },
-                sound: 'default',
-                // Without this, Do Not Disturb swallows the alert silently — exactly
-                // when it matters most, since an actionable delay is worth knowing
-                // about before leaving for the station or missing a connection. The
-                // entitlement is in place on the app. Dropped to 'active' (normal
-                // priority) when there's nothing the passenger can act on right now
-                // — see isAlertActionable().
-                'interruption-level': interruptionLevel,
-                'thread-id': `journey-${row.journey_id}`,
-            },
-            journeyId: row.journey_id,
-            legIndex: row.leg_index,
-            trainNumber: row.train_number,
-            delayMinutes: feed.delayMin,
-        });
-
-        // A plain alert notification — not a Live Activity push, so it does not
-        // touch the Live Activity update budget at all.
-        res = await apns.send({
-            token: device.token,
-            environment: device.environment,
-            body,
-            priority: 10,
-            pushType: 'alert',
-        });
-    }
+    const res = await deliverAlert(row, device, text, { interruptionLevel, delayMinutes: feed.delayMin });
 
     console.log(`[armed] delay alert j=${row.journey_id}/${row.leg_index} train=${row.train_number} ` +
                 `platform=${device.platform} role=${ctx.role} phase=${ctx.phase} ` +
                 `delay=${feed.delayMin}m was=${row.last_delay_min ?? '—'} (${d.reason}) ` +
-                `connectionBand=${band ?? '—'} interruption=${interruptionLevel} -> ${res.outcome}`);
+                `interruption=${interruptionLevel} -> ${res.outcome}`);
 
     if (store.forgetTokenIfGone(device, res)) {
         console.log(`[armed] alert token is gone (app deleted?) — removed, install=${store.idTag(row.install_id)}`);
@@ -578,8 +558,81 @@ async function maybeAlert(row, feed, now, legCtx, siblings) {
     if (res.outcome === 'ok') {
         store.recordAlert(row.id, feed.delayMin);
         metrics.inc('delay_alerts_sent');
-    } else if (res.outcome === 'invalid-token') {
-        console.warn(`[armed] alert token dead for install=${store.idTag(row.install_id)}`);
+    } else {
+        noteFailure(row, 'delay', res, now.getTime());
+        if (res.outcome === 'invalid-token') console.warn(`[armed] alert token dead for install=${store.idTag(row.install_id)}`);
+    }
+}
+
+/**
+ * The transfer after this leg: a delay on the arriving train can make it impossible without the
+ * connecting train being late at all, which neither delay alert says. Evaluated on the ACTIVE leg,
+ * against the leg that follows it (see armedLogic.evaluateConnectionRisk for the rules, and for
+ * what counts as evidence).
+ */
+async function maybeConnectionRisk(row, feed, now, legCtx, siblings, nowSec) {
+    if (legCtx.role !== 'active') return;
+    const nextRow = siblings.find(s => s.leg_index === row.leg_index + 1);
+    if (!nextRow) return;   // the last leg: nothing downstream
+
+    const nextFeed = readFeed(nextRow, getRunFor(nextRow), nowSec, getVehicle(nextRow.train_number));
+    const departUnix = logic.nextDepartureUnix(nextRow, nextFeed);
+    const connectionLive = nextFeed.predictedDepUnix != null;
+
+    const d = logic.evaluateConnectionRisk(row, {
+        arrivalUnix: feed.predictedArrUnix,
+        departUnix,
+        schedArrivalUnix: Math.floor(new Date(row.scheduled_arrival).getTime() / 1000),
+        schedDepartUnix:  Math.floor(new Date(nextRow.scheduled_departure).getTime() / 1000),
+    }, now);
+
+    const head = `[armed] connection-check j=${row.journey_id}/${row.leg_index}→${nextRow.leg_index} ` +
+                 `arr=${feed.predictedArrUnix ? hhmm(feed.predictedArrUnix * 1000) : '—'} dep=${hhmm(departUnix * 1000)}` +
+                 `${connectionLive ? '' : ' (timetable)'} gap=${d.gap ?? '—'}m band=${d.band ?? '—'} was=${row.conn_band ?? '—'}`;
+    if (!d.shouldAlert) {
+        // 'no-coverage' and 'too-early' are the ordinary answers for most ticks of most journeys.
+        if (d.reason !== 'no-coverage' && d.reason !== 'too-early') console.log(`${head} decision=skip (${d.reason})`);
+        return;
+    }
+
+    // Same hold-back as the delay alert: a transfer that is already impossible the moment the journey
+    // is registered is something they saw in the app when they chose it.
+    if ((row.conn_alerts_sent || 0) === 0 && row.alerts_sent === 0) {
+        const sinceArm = now.getTime() - new Date(row.created_at).getTime();
+        if (sinceArm < logic.ALERT_ARM_GRACE_MS) {
+            console.log(`${head} decision=skip (arm-grace, ${Math.round(sinceArm / 1000)}s since arm)`);
+            return;
+        }
+    }
+    if (backedOff(row, 'connection', now.getTime())) return;
+
+    const device = store.getToken(row.install_id, 'alert');
+    if (!device) {
+        console.warn(`[armed] no alert token for install=${store.idTag(row.install_id)} — skipping connection alert j=${row.journey_id}`);
+        metrics.inc('alert_skipped_no_token');
+        return;
+    }
+
+    const text = logic.connectionRiskText(d.kind, {
+        arrivalUnix: feed.predictedArrUnix, departUnix, gap: d.gap, connectionLive,
+        label: trainLabel(nextRow), language: row.app_language,
+    });
+    const res = await deliverAlert(row, device, text, {
+        interruptionLevel: 'time-sensitive',   // a connection is the one thing worth interrupting for
+        delayMinutes: feed.delayMin,
+        connection: d.kind,
+    });
+
+    console.log(`${head} decision=ALERT (${d.reason}: ${d.kind}) platform=${device.platform} -> ${res.outcome}`);
+
+    if (store.forgetTokenIfGone(device, res)) {
+        console.log(`[armed] alert token is gone (app deleted?) — removed, install=${store.idTag(row.install_id)}`);
+    }
+    if (res.outcome === 'ok') {
+        store.recordConnectionAlert(row.id, d.band);
+        metrics.inc('connection_alerts_sent');
+    } else {
+        noteFailure(row, 'connection', res, now.getTime());
     }
 }
 
@@ -770,6 +823,8 @@ async function tick(now = new Date()) {
 
             await maybeAlert(row, feed, now, legCtx, siblings);
             if (store.getById(row.id)?.alerts_sent > row.alerts_sent) alerted++;
+
+            await maybeConnectionRisk(store.getById(row.id) || row, feed, now, legCtx, siblings, nowSec);
         } catch (err) {
             console.error(`[armed] row ${row.id} (j=${row.journey_id}) failed:`, err.message);
         }

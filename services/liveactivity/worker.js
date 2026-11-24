@@ -356,7 +356,25 @@ function scheduleDepartures(now = new Date()) {
 
 // ── Lifecycle ────────────────────────────────────────────────────────────────
 
+// A tick that outlasts the 30 s interval (a slow APNs/FCM answer, a long queue) must not be joined
+// by the next one: both would read the same unsent alert and send it twice.
+let tickRunning = false;
+
 async function runTick() {
+    if (tickRunning) {
+        console.warn('[la] previous tick still running — skipping this one');
+        metrics.inc('worker_ticks_skipped_overlap');
+        return;
+    }
+    tickRunning = true;
+    try {
+        await runTickBody();
+    } finally {
+        tickRunning = false;
+    }
+}
+
+async function runTickBody() {
     try {
         const r = await tick();
         if (r.queued) console.log(`[la] tick: ${r.sent} sent, ${r.skipped} skipped of ${r.queued} queued`);

@@ -88,7 +88,7 @@ test('a delayed leg with NO downstream connection gets normal priority, not time
     assert.strictEqual(body.aps['interruption-level'], 'active', 'nothing downstream to protect — normal priority');
 });
 
-test('the CURRENT leg\'s own delay shrinking a downstream connection escalates to time-sensitive', async () => {
+test('the CURRENT leg\'s own delay stays a normal notification; the transfer it endangers is the urgent one', async () => {
     const journeyId = 'j-prio-risk';
     // Comfortable 15-min gap under normal (no-delay) conditions.
     armLeg(journeyId, 0, 'TEST-PRIO-R1', 'Board', 'Transfer', -10 * 60000, 20 * 60000);
@@ -101,8 +101,7 @@ test('the CURRENT leg\'s own delay shrinking a downstream connection escalates t
         { station: 'Board', arrivalTime: nowSec - 900, departureTime: nowSec - 600, arrivalDelay: 1200, departureDelay: 1200 },
         { station: 'Transfer', arrivalTime: nowSec + 40 * 60, departureTime: null, arrivalDelay: 1200, departureDelay: null },
     ] } });
-    // Leg 2 has no live feed at all — falls back to its own schedule, exactly
-    // as the client's effectiveNextTransportDeparture would.
+    // Leg 2 has no live feed at all — falls back to its own schedule.
 
     const mock = mockApns();
     try {
@@ -112,35 +111,12 @@ test('the CURRENT leg\'s own delay shrinking a downstream connection escalates t
         armedStore.disarm(INSTALL, journeyId, null);
     }
 
-    // Only leg 0 has coverage to alert on (leg 1 has no delayMin at all).
-    assert.strictEqual(mock.calls.length, 1);
-    const body = JSON.parse(mock.calls[0].body);
-    assert.strictEqual(body.aps['interruption-level'], 'time-sensitive',
-        'the delay on the leg being RIDDEN, not the connecting train itself, is what created the risk');
-});
-
-test('the same downstream connection, comfortably on schedule, stays normal priority', async () => {
-    const journeyId = 'j-prio-fine';
-    armLeg(journeyId, 0, 'TEST-PRIO-F1', 'Board', 'Transfer', -10 * 60000, 20 * 60000);
-    armLeg(journeyId, 1, 'TEST-PRIO-F2', 'Transfer', 'End', 35 * 60000, 60 * 60000);
-
-    // Only a small delay this time — predicted arrival now+22min, still a
-    // comfortable 13-min gap before leg 1's scheduled now+35min departure.
-    const nowSec = Math.floor(Date.now() / 1000);
-    testFeed.set('TEST-PRIO-F1', { trip: { stops: [
-        { station: 'Board', arrivalTime: nowSec - 900, departureTime: nowSec - 600, arrivalDelay: 300, departureDelay: 300 },
-        { station: 'Transfer', arrivalTime: nowSec + 22 * 60, departureTime: null, arrivalDelay: 300, departureDelay: null },
-    ] } });
-
-    const mock = mockApns();
-    try {
-        await armedWatcher.tick();
-    } finally {
-        mock.restore();
-        armedStore.disarm(INSTALL, journeyId, null);
-    }
-
-    assert.strictEqual(mock.calls.length, 1);
-    const body = JSON.parse(mock.calls[0].body);
-    assert.strictEqual(body.aps['interruption-level'], 'active', 'a 13-min buffer is comfortable — the Live Activity already shows this passively');
+    // Two notifications: the delay of the train being ridden, and the transfer (see connection-risk.test.js).
+    assert.strictEqual(mock.calls.length, 2);
+    const bodies = mock.calls.map(c => JSON.parse(c.body));
+    const own  = bodies.find(b => b.connection === undefined);
+    const conn = bodies.find(b => b.connection === 'missed');
+    assert.strictEqual(own.aps['interruption-level'], 'active',
+        'only a connection interrupts Focus: the delay of the train being ridden is on the card anyway');
+    assert.strictEqual(conn.aps['interruption-level'], 'time-sensitive');
 });

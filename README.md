@@ -367,6 +367,32 @@ card back; the second leg was already `started`, so nothing moved it on until th
 
 `test/transfer.test.js` reproduces the Септември journey.
 
+### Notifications about delays and connections
+
+What is sent as an ordinary notification (not a card update), by `armedWatcher`:
+
+| What | When | Interrupts Focus/DND |
+|---|---|---|
+| **Delay of the train** (`БВ 3637 закъснява с 12 минути`) | the delay reaches 5 min; again when it changes by 5 (10 once aboard), recovers under 5; never closer than 10 min, at most 5 per leg | no |
+| **The connecting train is late** (`Връзката закъснява с 7 минути` — *БВ 8611 към Банско тръгва в 09:02 вместо 08:55.*) | the same rules, for the leg after the one being ridden, from 45 min before the arrival | **yes** |
+| **The transfer itself** (`Малко време за прекачване`, `Вероятно ще изпуснете връзката`, `Връзката се запазва`) | the gap between the arriving train's LIVE predicted arrival and the connecting train's departure gets worse than the timetable's gap (tight < 10 min; ≤ 0 = missed), and again when it is better; at most 6, never closer than 3 min | **yes** |
+
+Rules that are easy to break:
+
+- The baseline for "it changed" is what the passenger was **told**, never what the server merely saw. A first reading
+  of 2 min used to become the baseline, so a delay of 6 stayed silent until it reached 7 (a first reading of 4: until 9).
+- The transfer alert needs the **arriving** train's live arrival; without it nothing is sent. The connecting train's
+  departure is its live prediction when the feed has one; otherwise the timetable, and the text says so (*«Възможно е
+  да изпуснете връзката … по разписание … няма данни на живо за него»*, never «навреме»). With live data it is
+  «Вероятно», because a prediction can move and a train can wait.
+- A transfer that is tight **on the timetable** is not news until it gets worse; coming back to a better state needs
+  2 min of room so a gap hovering on a boundary does not flap.
+- Android gets the same words as the same `delay_alert` message (plus `connection: tight|missed|holds`, and
+  `interruptionLevel`); no new message type.
+- A send that fails is not retried for 2 min (10 for a bad token), and a tick that is still running is not joined by
+  the next one (no double sends). Counters `alert_skipped_no_token`, `alert_send_failed`,
+  `connection_alerts_sent`, `worker_ticks_skipped_overlap` are in `/api/live-activity/metrics`.
+
 ### Android: the two moments pushed from the server
 
 Android holds back an app's exact alarms (Doze, vendor battery managers) and ran them 15–18

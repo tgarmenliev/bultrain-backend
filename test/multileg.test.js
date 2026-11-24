@@ -78,11 +78,16 @@ test('the connection becomes announceable as the transfer approaches', () => {
     assert.strictEqual(d.shouldAlert, true);
 });
 
-test('a connection alert says plainly that it is about the NEXT train', () => {
-    const t = logic.alertText(leg(1), 31, 'appeared', 'БВ 8611', { role: 'connection', phase: 'preDeparture' });
-    assert.match(t.title, /Следващият ви влак/);
-    assert.match(t.title, /БВ 8611/);
-    assert.match(t.body, /не влакът, в който сте/);
+test('a connection alert says plainly that it is about the CONNECTION, and when it now leaves', () => {
+    const t = logic.alertText(leg(1), 31, 'appeared', 'БВ 8611', {
+        role: 'connection', phase: 'preDeparture', destinationDisplay: 'Банско', expectedHm: '09:26', scheduledHm: '08:55',
+    });
+    assert.strictEqual(t.title, 'Връзката закъснява с 31 минути', 'the title is about the connection, not the train being ridden');
+    assert.strictEqual(t.body, 'БВ 8611 към Банско тръгва в 09:26 вместо 08:55.');
+
+    // no times known: still names the train and where it goes, never claims one
+    const bare = logic.alertText(leg(1), 31, 'appeared', 'БВ 8611', { role: 'connection', destinationDisplay: 'Банско' });
+    assert.strictEqual(bare.body, 'БВ 8611 към Банско.');
 });
 
 // ── Phase-aware wording and thresholds ───────────────────────────────────────
@@ -98,7 +103,7 @@ test('"check before you leave" is never said to someone already aboard', () => {
 
 test('in transit the bar is higher, because the card already shows the delay', () => {
     // Anchored to the same synthetic timeline as `now`, not the wall clock.
-    const told = leg(0, { state: 'started', last_delay_min: 10, last_alert_at: iso(T - 30 * MIN) });
+    const told = leg(0, { state: 'started', last_delay_min: 10, alerts_sent: 1, last_alert_at: iso(T - 30 * MIN) });
     const now = new Date(T + 30 * MIN);
 
     const beforeDeparture = logic.evaluateDelayAlert(told, 16, now, { phase: 'preDeparture', role: 'active' });

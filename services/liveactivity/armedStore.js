@@ -194,6 +194,13 @@ function arm(row) {
                                     THEN armed_journeys.approach_arrival END,
             approach_count   = CASE WHEN excluded.scheduled_arrival = armed_journeys.scheduled_arrival
                                     THEN armed_journeys.approach_count ELSE 0 END,
+            -- the connection alerts describe the transfer after THIS leg: kept while its arrival is the same
+            conn_band        = CASE WHEN excluded.scheduled_arrival = armed_journeys.scheduled_arrival
+                                    THEN armed_journeys.conn_band END,
+            conn_alert_at    = CASE WHEN excluded.scheduled_arrival = armed_journeys.scheduled_arrival
+                                    THEN armed_journeys.conn_alert_at END,
+            conn_alerts_sent = CASE WHEN excluded.scheduled_arrival = armed_journeys.scheduled_arrival
+                                    THEN armed_journeys.conn_alerts_sent ELSE 0 END,
             state          = CASE WHEN @keep = 1 THEN armed_journeys.state ELSE 'armed' END,
             started_at     = CASE WHEN @keep = 1 THEN armed_journeys.started_at END,
             arrived_at     = NULL,
@@ -287,6 +294,13 @@ function recordAlert(id, delayMin) {
     conn().prepare(
         'UPDATE armed_journeys SET last_delay_min=?, last_alert_at=?, alerts_sent=alerts_sent+1, updated_at=? WHERE id=?'
     ).run(delayMin ?? null, nowIso(), nowIso(), id);
+}
+
+/** Record that the passenger was told about the state of the connection after this leg. */
+function recordConnectionAlert(id, band) {
+    conn().prepare(
+        'UPDATE armed_journeys SET conn_band=?, conn_alert_at=?, conn_alerts_sent=conn_alerts_sent+1, updated_at=? WHERE id=?'
+    ).run(band ?? null, nowIso(), nowIso(), id);
 }
 
 /** Remember the delay we observed without alerting (below the alert bar). */
@@ -426,7 +440,7 @@ function counts() {
 
 module.exports = {
     registerDevice, getToken, arm, disarm, markArrived, listActive, getById, getLeg, hasLaterLiveLeg,
-    markStarted, markStartedByJourney, markStopped, recordAlert, markReminderSent, markApproachSent, recordDelaySeen,
+    markStarted, markStartedByJourney, markStopped, recordAlert, recordConnectionAlert, markReminderSent, markApproachSent, recordDelaySeen,
     checkStartBudget, logStart, prune, forgetInstall, touchInstall, forgetTokenIfGone, idTag, deviceTtlDays, counts, toUtcIso, nowIso,
     KINDS, PLATFORMS, MAX_STARTS_PER_HOUR, MAX_STARTS_PER_DAY,
 };
