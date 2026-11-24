@@ -2,8 +2,19 @@ import { useState } from 'react';
 import { CircleAlert } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
+// The name (never the password) is remembered on this computer, so signing in is one field.
+const USERNAME_KEY = 'bultrain-admin-username';
+const savedUsername = () => {
+    try { return localStorage.getItem(USERNAME_KEY) ?? ''; } catch { return ''; }
+};
+const rememberUsername = (name: string) => {
+    try {
+        if (name) localStorage.setItem(USERNAME_KEY, name); else localStorage.removeItem(USERNAME_KEY);
+    } catch { /* private window: nothing to remember it in */ }
+};
+
 export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }) {
-    const [username, setUsername] = useState('');
+    const [username, setUsername] = useState(savedUsername);
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -33,6 +44,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
             }
 
             // Success - cookie is set automatically by the browser due to HttpOnly
+            rememberUsername(username.trim());
             onLoginSuccess();
         } catch (err: any) {
             setError(err.message);

@@ -533,6 +533,15 @@ Accounts live in the `users` table (passwords hashed with the built-in
 node scripts/create-user.js <username> author   # prompts for a hidden password
 ```
 
+**Sessions** (`services/auth/session.js`). A login lasts `ADMIN_SESSION_DAYS` (30 by default) and is *sliding*: a
+request on a session older than a day issues a fresh one, so using the panel at least once a month keeps you in.
+For an account in the table the token carries a fingerprint of the password it was issued under and is checked
+against the account on every request, so changing the password (the session that changed it is re-issued and stays),
+disabling the account, or changing its role takes effect at once on every device. The legacy `ADMIN_PASSWORD` login
+(blank username) has no account to check; rotating `JWT_SECRET` ends those. To sign in with a name instead of the
+blank username: `node scripts/create-user.js <name> admin` on the server, then remove `ADMIN_PASSWORD` from `.env`
+once it is no longer needed (the blank-username door closes with it).
+
 Roles are enforced by `middleware/verifyRole(...roles)`; `verifyAdmin` is
 `verifyRole('admin')`. A legacy token with no role counts as admin, so existing
 sessions keep working. `GET /api/admin/me` reports the caller's role (used by the

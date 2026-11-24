@@ -1,8 +1,8 @@
 const Database = require('better-sqlite3');
-const jwt = require('jsonwebtoken');
 const path = require('path');
 const users = require('../services/auth/users');
 const passwordHash = require('../services/auth/password');
+const session = require('../services/auth/session');
 
 // ── Database ────────────────────────────────────────────────────────────────
 const DB_PATH = path.join(__dirname, '..', 'bultrain.sqlite');
@@ -166,7 +166,7 @@ exports.login = (req, res) => {
             // Account-based login (authors, and any admins created in the table).
             const user = users.findByUsername(username);
             if (user && passwordHash.verify(password, user.password_hash, user.salt)) {
-                payload = { role: user.role, username: user.username, uid: user.id };
+                payload = session.payloadForUser(user);
             }
         } else if (password === process.env.ADMIN_PASSWORD) {
             // Bootstrap admin — unchanged, so the existing admin UI keeps working.
@@ -178,15 +178,7 @@ exports.login = (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials.' });
         }
 
-        payload.iat = Math.floor(Date.now() / 1000);
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
-
-        res.cookie('admin_token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
-            maxAge: 8 * 60 * 60 * 1000, // 8 hours
-        });
+        session.issue(res, payload);
 
         res.json({ message: 'Login successful.', role: payload.role });
     } catch (error) {

@@ -251,4 +251,8 @@ test('overview endpoint: schedule numbers plus the live blocks', () => {
     assert.strictEqual(res.body.gtfs.hasData, true);
     assert.ok(res.body.realtime && 'tripFresh' in res.body.realtime, 'realtime block present');
     assert.ok(res.body.tracking && 'devicesAndroid' in res.body.tracking, 'tracking block present');
+    const t = res.body.tracking;
+    assert.strictEqual(typeof t.iosWithoutAlertToken, 'number', 'iPhones that can never get an alert');
+    for (const k of ['delay', 'connection', 'skippedNoToken', 'failed']) assert.strictEqual(typeof t.alerts[k], 'number', k);
+    assert.ok(!Number.isNaN(Date.parse(t.alerts.since)), 'when the counters started');
 });

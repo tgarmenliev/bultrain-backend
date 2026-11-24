@@ -1,5 +1,5 @@
 import {
-    Activity, BookOpen, CalendarDays, MapPin, Radio, Smartphone, TrainFront,
+    Activity, BellOff, BellRing, BookOpen, CalendarDays, MapPin, Radio, Smartphone, TrainFront, TriangleAlert, Waypoints,
     type LucideIcon,
 } from 'lucide-react';
 import DataSync from './DataSync';
@@ -172,6 +172,41 @@ export default function Dashboard({ overview }: { overview: Overview | null }) {
                     />
                 </div>
             </section>
+
+            {o?.tracking && (
+                <section className="space-y-3">
+                    <h3 className="section-title">Известия</h3>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <StatCard
+                            label="За закъснение"
+                            value={o.tracking.alerts.delay}
+                            hint={`изпратени от рестарта (${timeAgo(o.tracking.alerts.since) ?? '—'})`}
+                            Icon={BellRing}
+                        />
+                        <StatCard
+                            label="За връзки"
+                            value={o.tracking.alerts.connection}
+                            hint="закъсняла връзка или риск при прекачване"
+                            Icon={Waypoints}
+                        />
+                        <StatCard
+                            label="iPhone без известия"
+                            value={o.tracking.iosWithoutAlertToken}
+                            hint={`от ${o.tracking.devicesIos} iOS устройства — не могат да получат известие`}
+                            Icon={BellOff}
+                        />
+                        <StatCard
+                            label="Неуспешни"
+                            value={o.tracking.alerts.failed + o.tracking.alerts.skippedNoToken}
+                            hint={`${o.tracking.alerts.failed} грешки при пращане · ${o.tracking.alerts.skippedNoToken} без токен`}
+                            Icon={TriangleAlert}
+                        />
+                    </div>
+                    <p className="hint">
+                        Броячите са на сървърния процес и тръгват отначало при рестарт; „iPhone без известия“ е от базата и не се нулира.
+                    </p>
+                </section>
+            )}
 
             {rows.length > 0 && (
                 <section className="space-y-3">

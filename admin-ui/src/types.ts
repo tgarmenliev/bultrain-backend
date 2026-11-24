@@ -31,6 +31,16 @@ export interface Overview {
     devices: number;
     devicesIos: number;
     devicesAndroid: number;
+    /** iPhones registered for the card but not for notifications — they can never get an alert. */
+    iosWithoutAlertToken: number;
+    /** Counters of the server process: they restart from zero with it (`since`). */
+    alerts: {
+      delay: number;
+      connection: number;
+      skippedNoToken: number;
+      failed: number;
+      since: string;
+    };
   } | null;
 }
 

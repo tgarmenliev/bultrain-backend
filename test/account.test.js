@@ -14,6 +14,8 @@ const fs     = require('node:fs');
 const os     = require('node:os');
 const path   = require('node:path');
 
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';   // the cookie a password change re-issues is signed
+
 const TMP = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bultrain-account-')), 'test.sqlite');
 process.env.BULTRAIN_DB = TMP;
 require('../database/migrate')(TMP);
@@ -22,7 +24,7 @@ const passwordHash = require('../services/auth/password');
 const users        = require('../services/auth/users');
 const ctrl         = require('../controllers/accountController');
 
-const mockRes = () => ({ statusCode: 200, body: null, status(c) { this.statusCode = c; return this; }, json(o) { this.body = o; return this; } });
+const mockRes = () => ({ statusCode: 200, body: null, cookies: [], status(c) { this.statusCode = c; return this; }, json(o) { this.body = o; return this; }, cookie(n, v, o) { this.cookies.push({ n, v, o }); } });
 
 function makeUser(username, password, role = 'author') {
     const { hash, salt } = passwordHash.hash(password);

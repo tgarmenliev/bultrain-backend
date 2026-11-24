@@ -434,6 +434,13 @@ function counts() {
         started: c.prepare("SELECT COUNT(*) AS n FROM armed_journeys WHERE state='started'").get().n,
         devices: c.prepare('SELECT COUNT(DISTINCT install_id) AS n FROM device_tokens').get().n,
         devices_ios: c.prepare("SELECT COUNT(DISTINCT install_id) AS n FROM device_tokens WHERE platform = 'ios'").get().n,
+        // iPhones that registered for the card but never for notifications (no permission, or an old
+        // build): they can be tracked, and can never be sent a delay or connection alert.
+        devices_ios_without_alert: c.prepare(
+            `SELECT COUNT(DISTINCT install_id) AS n FROM device_tokens
+              WHERE platform = 'ios' AND kind = 'push_to_start'
+                AND install_id NOT IN (SELECT install_id FROM device_tokens WHERE kind = 'alert')`
+        ).get().n,
         devices_android: c.prepare("SELECT COUNT(DISTINCT install_id) AS n FROM device_tokens WHERE platform = 'android'").get().n,
     };
 }

@@ -12,6 +12,7 @@
 
 const users        = require('../services/auth/users');
 const passwordHash = require('../services/auth/password');
+const session      = require('../services/auth/session');
 
 // Same floor scripts/create-user.js enforces when an account is created.
 const MIN_LENGTH = 8;
@@ -74,6 +75,10 @@ exports.changePassword = (req, res) => {
         }
 
         console.log(`[admin] password changed for user id=${user.id}`);
+        // Every session issued under the old password ends with it (see services/auth/session.js) —
+        // that is the point of changing it — except THIS one, which is replaced so the person who
+        // just changed it is not signed out on the spot.
+        session.issue(res, session.payloadForUser(users.findById(user.id)));
         res.json({ message: 'Password changed.' });
     } catch (err) {
         console.error('[admin] change-password failed:', err.message);

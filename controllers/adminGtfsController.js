@@ -11,6 +11,7 @@ const view       = require('../services/gtfs/adminView');
 const distance   = require('../services/gtfs/stationDistance');
 const cache      = require('../services/realtime/cache');
 const armedStore = require('../services/liveactivity/armedStore');
+const metrics    = require('../services/liveactivity/metrics');
 
 const BAD_DATE = 'date must be a real calendar date in YYYY-MM-DD format.';
 
@@ -44,9 +45,18 @@ exports.overview = (req, res) => {
         let tracking = null;
         try {
             const c = armedStore.counts();
+            const m = metrics.snapshot();
             tracking = {
                 armed: c.armed, started: c.started, devices: c.devices,
                 devicesIos: c.devices_ios, devicesAndroid: c.devices_android,
+                // Notifications (delay / connection alerts). The DB figure is lasting; the counters are of
+                // THIS server process, so they restart from zero with it — `since` says when that was.
+                iosWithoutAlertToken: c.devices_ios_without_alert,
+                alerts: {
+                    delay: m.delay_alerts_sent, connection: m.connection_alerts_sent,
+                    skippedNoToken: m.alert_skipped_no_token, failed: m.alert_send_failed,
+                    since: new Date(Date.now() - process.uptime() * 1000).toISOString(),
+                },
             };
         } catch (err) {
             console.warn('[admin] overview: tracking counters unavailable:', err.message);

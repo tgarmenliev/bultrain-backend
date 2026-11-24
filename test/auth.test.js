@@ -89,3 +89,133 @@ test('users store creates and finds an account, defaulting to author', () => {
     assert.ok(passwordHash.verify('pw-for-ana', found.password_hash, found.salt));
     assert.strictEqual(users.findByUsername('nobody'), null);
 });
+
+// ── the session: weeks long, and it ends when the account does ───────────────
+
+const session = require('../services/auth/session');
+
+function runRes(mw, token) {
+    const req = { cookies: token ? { admin_token: token } : {} };
+    const out = { status: 200, body: null, nexted: false, cookie: null };
+    const res = {
+        status(c) { out.status = c; return this; },
+        json(o) { out.body = o; return this; },
+        cookie(name, value, opts) { out.cookie = { name, value, opts }; },
+    };
+    mw(req, res, () => { out.nexted = true; });
+    out.req = req;
+    return out;
+}
+
+function makeUser(name, role = 'admin', password = 'first password') {
+    const { hash, salt } = passwordHash.hash(password);
+    const id = users.create({ username: name, password_hash: hash, salt, role });
+    return users.findById(id);
+}
+const tokenFor = (user, extra = {}, expiresIn = '30d') =>
+    jwt.sign({ ...session.payloadForUser(user), ...extra }, process.env.JWT_SECRET, { expiresIn });
+
+test('a login lasts a month by default, and can be set', () => {
+    assert.strictEqual(session.sessionDays(), 30);
+    process.env.ADMIN_SESSION_DAYS = '7';
+    assert.strictEqual(session.sessionDays(), 7);
+    process.env.ADMIN_SESSION_DAYS = 'nonsense';
+    assert.strictEqual(session.sessionDays(), 30);
+    delete process.env.ADMIN_SESSION_DAYS;
+
+    let cookie;
+    session.issue({ cookie: (n, v, o) => { cookie = { n, v, o }; } }, { role: 'admin', username: 'x' });
+    assert.strictEqual(cookie.o.maxAge, 30 * 24 * 60 * 60 * 1000);
+    assert.strictEqual(cookie.o.httpOnly, true);
+    assert.strictEqual(cookie.o.sameSite, 'strict');
+    const decoded = jwt.verify(cookie.v, process.env.JWT_SECRET);
+    assert.ok(decoded.exp - decoded.iat === 30 * 24 * 60 * 60);
+});
+
+test('a session in use renews itself once it is a day old, not before', () => {
+    const user = makeUser('renewer');
+    const day = 24 * 60 * 60;
+    const now = Math.floor(Date.now() / 1000);
+
+    const fresh = runRes(verifyRole('admin'), tokenFor(user, { iat: now - 3600 }));
+    assert.ok(fresh.nexted);
+    assert.strictEqual(fresh.cookie, null, 'an hour old: left alone');
+
+    const old = runRes(verifyRole('admin'), tokenFor(user, { iat: now - day - 60 }));
+    assert.ok(old.nexted);
+    assert.ok(old.cookie, 'over a day old: replaced');
+    const renewed = jwt.verify(old.cookie.value, process.env.JWT_SECRET);
+    assert.strictEqual(renewed.uid, user.id);
+    assert.strictEqual(renewed.pv, session.passwordFingerprint(user.password_hash), 'still bound to the same password');
+    assert.ok(renewed.iat >= now);
+    assert.strictEqual(renewed.exp - renewed.iat, 30 * day);
+});
+
+test('a changed password ends the old sessions', () => {
+    const user = makeUser('rotator');
+    const oldToken = tokenFor(user);
+    assert.ok(runRes(verifyRole('admin'), oldToken).nexted);
+
+    const { hash, salt } = passwordHash.hash('a different password');
+    users.updatePassword(user.id, hash, salt);
+
+    const after = runRes(verifyRole('admin'), oldToken);
+    assert.strictEqual(after.nexted, false);
+    assert.strictEqual(after.status, 401);
+    assert.match(after.body.error, /password was changed/);
+
+    assert.ok(runRes(verifyRole('admin'), tokenFor(users.findById(user.id))).nexted, 'a session under the new one works');
+});
+
+test('a disabled account is out at once, whatever its token says', () => {
+    const user = makeUser('leaver', 'author');
+    const token = tokenFor(user);
+    assert.ok(runRes(verifyRole('admin', 'author'), token).nexted);
+
+    const Database = require('better-sqlite3');
+    const db = new Database(TMP); db.prepare('UPDATE users SET active = 0 WHERE id = ?').run(user.id); db.close();
+
+    const after = runRes(verifyRole('admin', 'author'), token);
+    assert.strictEqual(after.status, 401);
+    assert.match(after.body.error, /no longer active/);
+});
+
+test('the role is the account\'s CURRENT one, not the one at login', () => {
+    const user = makeUser('demoted', 'admin');
+    const token = tokenFor(user);
+    assert.ok(runRes(verifyRole('admin'), token).nexted);
+
+    const Database = require('better-sqlite3');
+    const db = new Database(TMP); db.prepare("UPDATE users SET role = 'author' WHERE id = ?").run(user.id); db.close();
+
+    assert.strictEqual(runRes(verifyRole('admin'), token).status, 403, 'demotion takes effect at once');
+});
+
+test('a token from before the fingerprint existed still works until it expires', () => {
+    const user = makeUser('oldtoken');
+    const token = jwt.sign({ role: user.role, username: user.username, uid: user.id }, process.env.JWT_SECRET, { expiresIn: '8h' });
+    assert.ok(runRes(verifyRole('admin'), token).nexted);
+});
+
+test('the legacy ADMIN_PASSWORD session has no account to check and keeps working', () => {
+    const token = jwt.sign({ role: 'admin', username: 'admin' }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    assert.ok(runRes(verifyRole('admin'), token).nexted);
+});
+
+test('changing the password keeps THIS session alive under the new one', () => {
+    const accountController = require('../controllers/accountController');
+    const user = makeUser('changer', 'admin', 'old password 1');
+    const req = { admin: { uid: user.id }, body: { oldPassword: 'old password 1', newPassword: 'new password 22' } };
+    const out = { cookie: null, body: null, status: 200 };
+    const res = {
+        status(c) { out.status = c; return this; },
+        json(o) { out.body = o; return this; },
+        cookie(n, v, o) { out.cookie = { n, v, o }; },
+    };
+    accountController.changePassword(req, res);
+    assert.strictEqual(out.status, 200, JSON.stringify(out.body));
+
+    const fresh = jwt.verify(out.cookie.v, process.env.JWT_SECRET);
+    assert.strictEqual(fresh.pv, session.passwordFingerprint(users.findById(user.id).password_hash));
+    assert.ok(runRes(verifyRole('admin'), out.cookie.v).nexted, 'the new cookie is accepted');
+});
