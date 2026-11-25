@@ -20,7 +20,7 @@ The API behind the BulTrain iOS and Android apps: timetables, live delays and po
 
 ## What it does
 
-| | |
+| Capability | What you get |
 |---|---|
 | 🚆 **Timetables & journey search** | Built from Bulgaria's national GTFS feed, by date. Finds routes with transfers across every operator: БДЖ and, from December 2026, Ивкони Експрес. |
 | 📡 **Live delays & positions** | Follows the national GTFS-Realtime feed every few seconds. Says plainly when there is no live data instead of guessing. |
@@ -37,25 +37,9 @@ The API behind the BulTrain iOS and Android apps: timetables, live delays and po
 
 ## How it works
 
-```mermaid
-flowchart LR
-    subgraph NAP["National Access Point"]
-        S[("GTFS static<br/>timetables")]
-        R[("GTFS-Realtime<br/>delays and positions")]
-    end
-
-    S -->|daily refresh| DB[("SQLite")]
-    R -->|poll 10-30 s| C["In-memory<br/>realtime cache"]
-
-    DB --> API["Express API"]
-    C --> API
-    C --> W["Journey watcher"]
-    DB --> W
-
-    API --> Apps["iOS · Android · E-ink"]
-    API --> Admin["Admin panel"]
-    W -->|"APNs · FCM"| Apps
-```
+<div align="center">
+<img src="docs/img/architecture.svg" alt="The national timetable and realtime feeds feed SQLite and an in-memory cache; the API and a journey watcher serve the admin panel and the apps" width="900" />
+</div>
 
 ## Principles
 
@@ -66,7 +50,7 @@ flowchart LR
 
 ## Tech stack
 
-| | |
+| Layer | Choice |
 |---|---|
 | **Runtime** | Node.js 24 · Express 5 (CommonJS) |
 | **Data** | SQLite via `better-sqlite3` (WAL) · in-memory cache for realtime |
