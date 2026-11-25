@@ -133,6 +133,14 @@ shows what the poller is doing (`polls.*.everyMs`, `lastOkAt`, `failures`, `last
 `/api/realtime/vehicles` has its own rate limit (300/min per IP+key, not the shared 120):
 the map refreshes it every ~15 s and carriers put many phones behind one IP.
 
+**Trains in no timetable are withheld** (`services/realtime/timetableFilter.js`). The feed
+also carries runs nobody can board (service, freight or one-off movements, e.g. trip id
+`3401-20261125` with no category). A train number the saved schedule does not know on any
+date never enters the cache, so no app or website answer includes it; the poller logs which
+ones. Delay history is recorded for them all the same. Nothing is withheld when the schedule
+is empty, or knows less than half of a feed of 20+ trains (then it is the schedule that is
+out of date).
+
 **`GET /api/realtime/train/:trainNo`** (no language segment) merges the two
 feeds. It returns `progressSource` to say what kind of data you got:
 

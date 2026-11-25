@@ -7,7 +7,7 @@
  * so there is exactly one poller). Fetches TripUpdates and VehiclePositions on
  * their own intervals, decodes the protobuf, resolves the feed's trip_id /
  * stop_id to our train_number / station via the DB, and updates the in-memory
- * cache. Never writes to SQLite. A failed poll is logged and skipped — the
+ * cache with the trains the public may see (timetableFilter.js). Never writes to SQLite. A failed poll is logged and skipped — the
  * cache simply keeps the last data until it goes stale.
  */
 
@@ -20,6 +20,7 @@ const cfg     = require('../gtfs/config');
 const cache   = require('./cache');
 const history = require('./history');
 const { fromEntity } = require('./vehicleFields');
+const { publicOnly } = require('./timetableFilter');
 const schedule = require('../network/schedule');
 
 const HISTORY_ON = process.env.RT_HISTORY === 'on';
@@ -45,7 +46,7 @@ const VEHICLE_MIN_MS      = Number(process.env.RT_VEHICLE_MIN_MS) || 10000;
 const VEHICLE_MAX_MS      = 30000;
 const BACKOFF_MAX_MS      = 120000;
 const JITTER              = 0.1;
-const LOOKUP_REFRESH_MS   = 60 * 60 * 1000; // reload DB lookups hourly (after daily GTFS refresh)
+const LOOKUP_REFRESH_MS   = 10 * 60 * 1000; // reload DB lookups: a train added by the daily GTFS refresh is not held back long
 const HTTP_TIMEOUT_MS     = 20000;
 
 /**
@@ -73,6 +74,7 @@ let started = false;
 let db = null;
 let stopToStation = new Map();   // gtfs stop_id -> { station_id, name }
 let tripToNumber  = new Map();   // gtfs trip_id  -> train_number
+let scheduled     = new Set();   // every train number the saved schedule knows
 let lookupsAt = 0;
 
 function refreshLookups() {
@@ -92,6 +94,7 @@ function refreshLookups() {
         t.set(r.trip_id, r.train_number);
     }
     tripToNumber = t;
+    scheduled = new Set(t.values());
     lookupsAt = Date.now();
 }
 
@@ -109,6 +112,23 @@ function numberOf(tripId) {
 function serviceDate(tripId) {
     const d = String(tripId || '').split('-').pop();
     return /^\d{8}$/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : null;
+}
+
+// One line when the set of withheld trains changes, not on every poll.
+const lastHidden = { trips: '', vehicles: '' };
+/** The part of a feed that may reach the apps and the website. */
+function forPublic(kind, label, byNumber) {
+    const { shown, hidden, outOfStep } = publicOnly(byNumber, scheduled);
+    const said = outOfStep ? 'out of step' : hidden.join(', ');
+    if (said !== lastHidden[kind]) {
+        if (outOfStep) {
+            console.error(`[rt] ${label}: ${outOfStep} of ${byNumber.size} live trains are not in the timetable — it looks out of date, hiding none`);
+        } else if (hidden.length) {
+            console.log(`[rt] ${label}: not in the timetable, kept from apps and website: ${said}`);
+        }
+        lastHidden[kind] = said;
+    }
+    return shown;
 }
 
 /**
@@ -196,7 +216,8 @@ async function pollTripUpdates() {
                 const departureDelay = su.departure ? (su.departure.delay ?? null) : null;
 
                 // Quiet history: latest observed delay at this stop (arrival, or
-                // departure at the origin) for this train on its service date.
+                // departure at the origin) for this train on its service date. EVERY
+                // train, including the ones withheld from the public below.
                 if (HISTORY_ON && st && st.station_id != null) {
                     history.record(num, st.station_id, date, arrivalDelay ?? departureDelay);
                 }
@@ -223,7 +244,7 @@ async function pollTripUpdates() {
         const emptyTrips = suspiciousEmpty(map.size, 'trips');
         if (emptyTrips) throw new Error(emptyTrips);
         const sameTrips = feedTs === cache.status().tripFeedTs;
-        cache.setTrips(map, feedTs);
+        cache.setTrips(forPublic('trips', 'tripUpdates', map), feedTs);
         pollOk('trips', 'tripUpdates');
         schedule_('trips', sameTrips ? 'same' : 'new');
     } catch (err) {
@@ -259,7 +280,7 @@ async function pollVehicles() {
         const emptyVehicles = suspiciousEmpty(map.size, 'vehicles');
         if (emptyVehicles) throw new Error(emptyVehicles);
         const sameVehicles = feedTs === cache.status().vehicleFeedTs;
-        cache.setVehicles(map, feedTs);
+        cache.setVehicles(forPublic('vehicles', 'vehiclePositions', map), feedTs);
         pollOk('vehicles', 'vehiclePositions');
         schedule_('vehicles', sameVehicles ? 'same' : 'new');
     } catch (err) {

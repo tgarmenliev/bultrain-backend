@@ -78,6 +78,8 @@ const DEP_SEC = Math.floor(DEP.getTime() / 1000);
     trip.run(t2, '5614', 'ПВ'); date.run(t2, DEP_YMD);
     stop.run(t2, 1, 2, null, hhmm(DEP.getTime() + 20 * 60000));
     stop.run(t2, 2, 4, hhmm(DEP.getTime() + 200 * 60000), null);
+    // known numbers with no run today: for the test that needs a full feed (unknown ones are withheld)
+    for (let i = 0; i < 12; i++) trip.run(`${9000 + i}-PV-X`, String(9000 + i), 'ПВ');
     db.close();
 }
 
