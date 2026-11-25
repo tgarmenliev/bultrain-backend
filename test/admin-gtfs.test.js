@@ -168,6 +168,16 @@ test('getTrainOn: replacement-bus legs stay separate and ordered by time', () =>
     assert.deepStrictEqual(legs[1].stops.map(s => s.station), ['Волуяк', 'Драгоман']);
 });
 
+test('getTrainOn names who runs the train, and claims nothing when the schedule does not say', () => {
+    assert.deepStrictEqual(view.getTrainOn('30122', D0).operators, [], 'no operator on record');
+
+    const db = new Database(TMP);
+    db.prepare("UPDATE trip SET operator = 'IVKONI' WHERE train_number = '30122'").run();
+    db.close();
+    assert.deepStrictEqual(view.getTrainOn('30122', D0).operators,
+        [{ id: 'IVKONI', name: 'Ивкони Експрес', nameEn: 'Ivkoni Express' }], 'two legs, one operator: named once');
+});
+
 test('getTrainOn keeps a stop the crosswalk could not map — visible, not hidden', () => {
     const { legs } = view.getTrainOn('8000', D0);
     const mid = legs[0].stops[1];

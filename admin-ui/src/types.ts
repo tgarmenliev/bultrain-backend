@@ -87,6 +87,8 @@ export interface GtfsStop {
 export interface GtfsTrainDetail {
   trainNumber: string;
   date: string;
+  /** Who runs it that day (normally one); empty when the schedule does not say. */
+  operators: { id: string; name: string; nameEn: string }[];
   legs: { tripId: string; category: string; stops: GtfsStop[] }[];
 }
 

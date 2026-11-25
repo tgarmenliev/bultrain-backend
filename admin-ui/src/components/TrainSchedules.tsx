@@ -111,6 +111,11 @@ function ScheduleModal({ train, date, onClose }: { train: GtfsTrainRow; date: st
                             <h3 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
                                 <span>Влак {train.trainNumber}</span>
                                 <CategoryBadges categories={train.categories} />
+                                {!!detail?.operators.length && (
+                                    <span className="badge badge-accent">
+                                        Оператор: {detail.operators.map((o) => o.name).join(', ')}
+                                    </span>
+                                )}
                             </h3>
                             <p className="hint mt-1">
                                 {weekdayBg(date)}, {formatDateBg(date)} · {train.stops} спирки

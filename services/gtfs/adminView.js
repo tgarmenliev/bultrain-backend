@@ -15,6 +15,7 @@
 
 const path     = require('path');
 const Database = require('better-sqlite3');
+const { describe: describeOperator } = require('./operatorDisplay');
 
 const DB_PATH = process.env.BULTRAIN_DB || path.join(__dirname, '..', '..', 'bultrain.sqlite');
 
@@ -172,13 +173,16 @@ const UNMAPPED = null;
  * crosswalk could not map to a station are KEPT (name null, mapped:false):
  * hiding them would make the admin view look cleaner than the data really is.
  *
- * @returns {{trainNumber:string,date:string,legs:object[]}|null} null when the
- *          train does not run that day.
+ * `operators` lists who runs it that day (normally one); empty when the schedule
+ * does not say.
+ *
+ * @returns {{trainNumber:string,date:string,operators:object[],legs:object[]}|null}
+ *          null when the train does not run that day.
  */
 function getTrainOn(trainNo, date) {
     const c = conn();
     const trips = c.prepare(`
-        SELECT t.trip_id, t.category
+        SELECT t.trip_id, t.category, t.operator
         FROM trip t JOIN trip_date td ON td.trip_id = t.trip_id
         WHERE t.train_number = ? AND td.date = ?
     `).all(String(trainNo), date);
@@ -220,7 +224,9 @@ function getTrainOn(trainNo, date) {
         ),
     }));
 
-    return { trainNumber: String(trainNo), date, legs: out };
+    const operators = [...new Set(trips.map((t) => t.operator).filter(Boolean))].map(describeOperator);
+
+    return { trainNumber: String(trainNo), date, operators, legs: out };
 }
 
 // ── Dashboard numbers that come from the database ────────────────────────────
