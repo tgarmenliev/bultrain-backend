@@ -12,7 +12,7 @@ The API behind the BulTrain iOS and Android apps: timetables, live delays and po
 ![Express](https://img.shields.io/badge/express-5-000000?logo=express&logoColor=white)
 ![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)
 ![React](https://img.shields.io/badge/admin-react-61DAFB?logo=react&logoColor=black)
-[![License: ISC](https://img.shields.io/badge/license-ISC-blue.svg)](LICENSE)
+[![License: All rights reserved](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey.svg)](LICENSE)
 
 </div>
 
@@ -109,7 +109,7 @@ The full reference lives in the **[technical handbook](docs/HANDBOOK.md)**: the 
 
 ## License
 
-[ISC](LICENSE) © 2026 Tihomir Garmenliev
+© 2026 Tihomir Garmenliev. **All rights reserved.** The code is published for viewing only; see [LICENSE](LICENSE).
 
 ---
 
