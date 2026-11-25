@@ -49,3 +49,8 @@ map.html
 # Hand-off briefs dropped in the repo root by the mobile agents. Useful while
 # the work is live, but they are conversation artefacts, not source.
 *-BRIEF.md
+
+# One-off tooling from before the GTFS import (scraping BDZ, seeding stations, migrating the handbook).
+# Superseded by scripts/seed-stations.js and services/gtfs/; kept locally, no longer in the repo.
+stations_trains/
+guide_setup/

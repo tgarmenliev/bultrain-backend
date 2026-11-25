@@ -1,7 +1,26 @@
 {
   "name": "bultrain-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Backend for the BulTrain apps: Bulgarian rail timetables, live delays and positions, and journey tracking with connection alerts.",
+  "keywords": [
+    "gtfs",
+    "gtfs-realtime",
+    "public-transport",
+    "railway",
+    "bulgaria",
+    "live-activities",
+    "push-notifications",
+    "express",
+    "sqlite"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tgarmenliev/bultrain-backend.git"
+  },
+  "homepage": "https://github.com/tgarmenliev/bultrain-backend#readme",
+  "bugs": {
+    "url": "https://github.com/tgarmenliev/bultrain-backend/issues"
+  },
   "main": "server.js",
   "engines": {
     "node": ">=20.0.0"
@@ -10,7 +29,6 @@
     "start": "node server.js",
     "test": "bash scripts/ci-check.sh"
   },
-  "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",

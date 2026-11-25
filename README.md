@@ -1,645 +1,140 @@
-# BulTrain backend
+<div align="center">
 
-The API behind **BulTrain** — the iOS app, the Android app and an E-ink station
-display. It turns Bulgaria's national GTFS schedule and its GTFS-Realtime feed
-into clean endpoints for train info, live delays and positions, journey Live
-Activities, a guide, and author-written travel articles — plus a web admin panel
-to manage it all.
+<img src="admin-ui/public/logo.png" alt="BulTrain" width="140" />
 
-Express 5 (CommonJS) · Node 24 · a single SQLite database (`better-sqlite3`, WAL)
-· pm2 fork mode behind nginx. **No ORM, and dependencies are kept few on
-purpose** — auth hashing, APNs and JWTs all use Node built-ins.
+# BulTrain Backend
 
-```bash
-npm start     # node server.js
-npm test      # scripts/ci-check.sh — native module, syntax, migrations, route load, unit tests
-```
+**Live trains for Bulgaria.**
+The API behind the BulTrain iOS and Android apps: timetables, live delays and positions, and journey tracking that follows you through every transfer.
 
-Configuration is entirely environment variables: copy `.env.example` to `.env`
-and fill it in. Nothing secret is ever committed.
+[![CI](https://github.com/tgarmenliev/bultrain-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/tgarmenliev/bultrain-backend/actions/workflows/ci.yml)
+![Node](https://img.shields.io/badge/node-24-339933?logo=node.js&logoColor=white)
+![Express](https://img.shields.io/badge/express-5-000000?logo=express&logoColor=white)
+![SQLite](https://img.shields.io/badge/sqlite-WAL-003B57?logo=sqlite&logoColor=white)
+![React](https://img.shields.io/badge/admin-react-61DAFB?logo=react&logoColor=black)
+[![License: ISC](https://img.shields.io/badge/license-ISC-blue.svg)](LICENSE)
+
+</div>
 
 ---
 
-## Contents
+## What it does
 
-- [Architecture at a glance](#architecture-at-a-glance)
-- [Data & schedules](#data--schedules)
-- [Realtime: delays & positions](#realtime-delays--positions)
-- [Live Activity push updates](#live-activity-push-updates)
-- [Articles — the author portal](#articles--the-author-portal)
-- [Admin panel & accounts](#admin-panel--accounts)
-- [Configuration](#configuration)
-- [Deployment](#deployment)
-- [Testing & CI](#testing--ci)
-- [Operations](#operations)
-
----
-
-## Architecture at a glance
-
-```
-  iOS / Android / E-ink                     Admin panel (React, /admin)
-        │  X-Bultrain-Api-Key                       │  admin_token cookie (JWT)
-        ▼                                           ▼
-  ┌───────────────────────────── Express (server.js) ─────────────────────────┐
-  │  /api/*  (verifyMobileClient)          /api/admin/*  (verifyRole)          │
-  │  live · train-info · schedule · stations · realtime · live-activity ·      │
-  │  articles · guide                       login · articles · media · trains  │
-  └───────────────┬───────────────────────────────┬──────────────────────────┘
-                  │                                 │
-        in-memory realtime cache            SQLite (bultrain.sqlite, WAL)
-                  ▲                                 ▲
-     GTFS-Realtime poller (30s/15s)      daily GTFS refresh → materialize
-                  ▲                                 ▲
-             NAP GTFS-RT feeds              NAP GTFS static feed
-```
-
-- **Clients** authenticate with an API key (`X-Bultrain-Api-Key`) **and** a
-  `User-Agent` containing `BulTrainMobile` (the E-ink screen key is exempt from
-  the UA check). See `middleware/verifyMobileClient.js`.
-- **Background jobs** are each behind a flag (`REALTIME`, `RT_HISTORY`,
-  `LIVE_ACTIVITY`) so code can be deployed and inspected before it starts working.
-- **The admin panel** is a React/Vite app served from `admin-ui/dist` at `/admin`,
-  protected by a JWT cookie with a role.
-
----
-
-## Data & schedules
-
-Schedules come from the **national GTFS static feed** (published on NAP). A daily
-refresh (`scripts/gtfs-refresh.sh`) downloads and imports it, then materialises a
-date-based serving model:
-
-- `trip` — a train number resolves to one or more trips on a date, each with its
-  own category (`ПВ/БВ/КПВ/МБВ/ЕВ/АВТ`). A single number can be a train leg **plus a
-  replacement-bus leg** (route "A" = Автобус), presented as one journey. The category
-  is read by `materialize.categoryOf` from the feed's routes: `route_short_name` held
-  the code until 2026-11-16, and from 2026-11-17 (one route per train) the code is in
-  the `route_id` (`BDZ-PV_30121`, `IVKONI-KPV_19201`). A feed whose categories mostly
-  cannot be read is refused — the transaction rolls back and the previous schedule
-  keeps serving; a few unreadable ones are stored as `??` and printed as a warning.
-- `trip_date` — which dates a trip runs (calendar-dates model).
-- `trip_stop` — the ordered stops of a trip, with scheduled times and coordinates.
-- `stations` — our canonical station list; `station_map` maps GTFS stop ids to it.
-
-**Operators.** From 2026-12-13 a second passenger operator, «Ивкони Експрес», runs part of the network next to БДЖ,
-in the same national dataset (`agency_id` `BDZ` / `IVKONI`; the `route_id` starts with it too). 143 of its 190 train
-numbers are БДЖ's until 12.12 — the number stays, the operator changes on the date — so the operator is a property of
-the **trip** (`trip.operator`, filled by `materialize` from the route's `agency_id`), never of the number. Everywhere a
-train is described it is the same optional object, **absent when the schedule does not say** (never guessed):
-
-```json
-"operator": { "id": "IVKONI", "name": "Ивкони Експрес", "nameEn": "Ivkoni Express" }
-```
-
-| Where | Field |
+| | |
 |---|---|
-| `GET /api/train-info/:lang/:no/:date` | `operator` (the operator of **that date**) |
-| `GET /api/schedule/:lang/:from/:to/:date` (and `/api/schedule/:lang/:from/:to`, today) | `operator` on **each leg** (`trains[]`) — a journey can change operator between legs |
-| `GET /api/realtime/vehicles` | `operator` per vehicle (`null` when unknown) |
-| `GET /api/realtime/train/:no` | `operator` |
+| 🚆 **Timetables & journey search** | Built from Bulgaria's national GTFS feed, by date. Finds routes with transfers across every operator: БДЖ and, from December 2026, Ивкони Експрес. |
+| 📡 **Live delays & positions** | Follows the national GTFS-Realtime feed every few seconds. Says plainly when there is no live data instead of guessing. |
+| 📱 **Journey tracking** | iOS Live Activities and Android live notifications, started by the server at the right moment and carried across transfers. |
+| 🔔 **Smart alerts** | A delay alert when it matters, and a separate warning when a delay puts a **connection** at risk, in Bulgarian and English. |
+| 🗺️ **Live map** | Every moving train with its position, delay, type, origin, destination and operator. |
+| 🛠️ **Admin panel** | React dashboard for schedule health, realtime coverage per operator, notifications, a distance calculator and an author portal for travel articles. |
 
-The admin overview has a «Реално време по оператор» block: trains on the road by the saved schedule per operator, and
-how many the live feeds cover. Ивкони has no dataset of its own in NAP, so its trains are expected in the same
-realtime feeds as БДЖ's; if they are on the road and the feeds do not see them, that shows there the first morning.
+<div align="center">
+<img src="docs/img/admin-overview.png" alt="The BulTrain admin overview: schedule health, live data per operator and notifications" width="860" />
+<br />
+<sub>The admin overview, with sample data.</sub>
+</div>
 
-`stations.json` (repo root) is the **source of truth for coordinates** — the
-refresh re-applies it onto the DB (`reconcile-coords.js`). Station names live in
-both `stations` (DB) and `stations.json`; fix both, and use a migration for the
-DB (see `migrations/008` for the pattern).
+## How it works
 
-**`GET /api/train-info/:lang/:no/:date`** returns a train's full route. Where a
-journey switches to a replacement bus, each stop carries `mode: "train" | "bus"`
-(the mode of the leg departing that stop), so a train → bus → train journey reads
-correctly. `trainType`, `stations[].{station,arrive,depart}` are unchanged; `mode`
-is additive.
+```mermaid
+flowchart LR
+    subgraph NAP["National Access Point"]
+        S[("GTFS static<br/>timetables")]
+        R[("GTFS-Realtime<br/>delays and positions")]
+    end
 
----
+    S -->|daily refresh| DB[("SQLite")]
+    R -->|poll 10-30 s| C["In-memory<br/>realtime cache"]
 
-## Realtime: delays & positions
+    DB --> API["Express API"]
+    C --> API
+    C --> W["Journey watcher"]
+    DB --> W
 
-NAP publishes **two separate** GTFS-Realtime feeds with different coverage:
-**TripUpdates** (delays + per-stop times, ~40 trains) and **VehiclePositions**
-(GPS, ~60 trains). A single poller (`services/realtime/poller.js`, behind
-`REALTIME=on`) keeps an in-memory cache — it never writes to SQLite. It **adapts to the
-source's rhythm** (measured 2026-10-12: positions are published every 5 s — a week earlier
-every 30–60 s — delays every 30 s): positions are asked every 10 s (`RT_VEHICLE_MIN_MS`),
-easing off to 30 s if a poll finds nothing new; delays every 30 s; a failing feed backs off
-(x2, up to 2 min). The cache holds position data a mean ~8 s old (max ~15 s). `/status`
-shows what the poller is doing (`polls.*.everyMs`, `lastOkAt`, `failures`, `lastError`).
-`/api/realtime/vehicles` has its own rate limit (300/min per IP+key, not the shared 120):
-the map refreshes it every ~15 s and carriers put many phones behind one IP.
+    API --> Apps["iOS · Android · E-ink"]
+    API --> Admin["Admin panel"]
+    W -->|"APNs · FCM"| Apps
+```
 
-**`GET /api/realtime/train/:trainNo`** (no language segment) merges the two
-feeds. It returns `progressSource` to say what kind of data you got:
+## Principles
 
-| `progressSource` | meaning |
+- **No data, no claim.** Never says a train is on time without a measurement behind it. When the source is down the apps are told why, and nothing is invented.
+- **Small on purpose.** One SQLite database, no ORM, a handful of dependencies. Auth hashing, JWTs and APNs use Node built-ins.
+- **Deploy dark, switch on later.** Background jobs sit behind flags, so new code can ship and be inspected before it starts working.
+- **Tested.** More than 500 tests, run on every push; the schedule import refuses a feed it cannot understand and keeps serving the previous one.
+
+## Tech stack
+
+| | |
 |---|---|
-| `"feed"` | full data: real delay + predicted per-stop times |
-| `"position"` | GPS only — progress derived from geometry, **delay unknown** |
-| `null` | running but no usable progress; show the map dot only |
+| **Runtime** | Node.js 24 · Express 5 (CommonJS) |
+| **Data** | SQLite via `better-sqlite3` (WAL) · in-memory cache for realtime |
+| **Sources** | Bulgarian National Access Point: GTFS static and GTFS-Realtime |
+| **Push** | Apple APNs (Live Activities, alerts) · Firebase Cloud Messaging |
+| **Admin panel** | React · TypeScript · Vite · Tailwind |
+| **Delivery** | GitHub Actions CI · pm2 behind nginx |
 
-404 means the train is in neither feed (not running / feed stale) → fall back to
-the static timetable. Key rule for clients: `delayMinutes` is **nullable** and a
-missing delay is *unknown*, never `0` — do not render it as "on time". For a
-position-only train, progress and next stop are computed honestly from the live
-GPS projected onto the route geometry (never from assuming on-time), and only
-scheduled times are shown, labelled as such.
-
-Other endpoints (same auth): `/api/realtime/vehicle/:trainNo`,
-`/api/realtime/vehicles` (all positions), `/api/realtime/status` (poller health).
-
-### Live map
-
-**`GET /api/realtime/vehicles`** is self-sufficient for drawing and colouring the
-map, so a refresh needs one request, not one per train. Every entry is a
-*measured* VehiclePositions fix — nothing is interpolated or projected from
-TripUpdates — and the response is
-`{count, feedTimestamp, vehicles:[{trainNumber, lat, lon, bearing, positionTimestamp,
-stopStatus, delayMinutes, hasLiveDelay, progressSource, trainType, originStationId,
-destinationStationId, nextStationId, serviceDate}]}`. All new fields are additive and
-nullable.
-
-- `positionTimestamp` / `stopStatus` are the feed's own `VehiclePosition.timestamp`
-  and `current_status`, or `null` when the entity has none — never the poll time
-  or the feed header time. **Caveat:** NAP stamps every entity with the feed's
-  generation time, so the per-vehicle timestamp equals the feed time and does not
-  by itself prove a fix is fresh; a stationary train is told apart by
-  `stopStatus: "STOPPED_AT"`.
-- `delayMinutes` / `hasLiveDelay` / `progressSource` come from the same
-  `summarize()` as `/train/:no`, for the vehicle's *own* run (a TripUpdate of
-  another run of the same number is never borrowed). No TripUpdate ⇒ `null`/`false`.
-- `trainType` is a language-independent code (`PASSENGER`, `SUBURBAN`, `FAST`,
-  `EXPRESS`, `INTERNATIONAL`, `BUS`); origin/destination/next are station **ids**.
-  `nextStationId` is the next stop the train *calls at* (timing points and
-  `SKIPPED` stops excluded); the older `nextStation` string is unchanged.
-- `serviceDate` is derived from the saved schedule (the feed publishes no
-  `start_date`), `null` when it cannot be told.
-- `ETag` + `Cache-Control: private, max-age=5`; `If-None-Match` → `304` while
-  neither feed has ticked.
-- In `/train/:no`, `position` gains the same two fields and each feed stop gains
-  `callingPoint` (`true`/`false`, `null` if the trip is unknown).
-- `previousStationId` is the last stop the train has already passed *and calls at*
-  (`null` before it has left its origin) — the same `passed`/`callingPoint` that drive
-  `stops` and `nextStationId`, in both `/vehicles` and `/train/:no`.
-- `stoppedAtStationId` is the station of the feed's `stop_id`, only while
-  `stopStatus` is `STOPPED_AT` (the fix measured a median 13 m from it); `null` in
-  transit. (With IN_TRANSIT_TO the feed's stop is where it is heading, not exposed.)
-
-**`GET /api/route-shape/:trainNo?date=YYYY-MM-DD`** returns the track geometry
-from the GTFS `shapes.txt`: `{trainNumber, serviceDate, encoding:"polyline6", shape,
-totalMeters, stops:[{stationId, distanceMeters}], distanceSource}`. The shape is
-simplified (Douglas–Peucker, 10 m); stop distances are projected monotonically onto
-it (`distanceSource:"computed"` — the feed has no `shape_dist_traveled` on
-stop_times). `404` means no shape for that train/date (also for a replacement-bus
-leg): the client draws straight lines. `ETag` + `Cache-Control: private, max-age=3600`.
-
-**`GET /api/route-shapes?date=YYYY-MM-DD`** is the same data for a whole service day
-in one download, so a tap on the map is local (date defaults to today in Sofia;
-yesterday is valid for overnight trains): `{version, serviceDate, shapes:{<shapeId>:
-{encoding:"polyline6", shape, totalMeters}}, trains:{<trainNo>:{shapeId,
-stops:[{stationId, distanceMeters}]}}}`. Trains on one route share one shape. It is
-built by the same `prepareShape()` / `placeOn()` as the per-train endpoint, for the
-same trip choice, so for any train the two agree exactly (`test/route-shape-bundle.test.js`
-compares every train). Trains without a shape, and bus legs, are absent — treat that
-like the per-train 404. `ETag` = `version` (a hash of the content, so it only moves when
-the content does) → `304`; gzip; `Cache-Control: private, max-age=3600`.
-`GET /api/route-shapes/version?date=` returns `{version, serviceDate}` without the
-download. A day is built once per GTFS import (and at most hourly), in slices that hand
-the event loop back — never per request. 404 when no train has a shape that day.
-
-### Public network snapshot (website)
-
-**`GET /api/network`** and **`GET /api/network/radar`** are the data behind the
-website's "living network". They are **public** (no API key — a key in a web page
-is not a secret), read-only, rate-limited per IP, and answer CORS only for the
-website (`https://bultrain.eu`, `https://www.bultrain.eu`, anything in
-`SITE_ORIGINS`) and localhost dev ports. Mounted before the global CORS in
-`server.js` because that one rejects unknown origins with an error.
-
-Visitors never trigger work. `services/network/snapshot.js` rebuilds both files
-**once a minute** from the in-memory realtime cache (a few ms; the feeds tick every
-30–60 s, so building more often would only restate the same data), serialises and
-gzips them once, and every request is a buffer write. Nothing in a build leaves the
-process: the Sofia/Plovdiv departure boards are built from our own schedule and
-realtime delays (`services/live/ownBoard.js`), because БДЖ's live site (live.bdz.bg)
-is unreachable from the server. Starts with `REALTIME=on`; `503 + Retry-After`
-until the first build.
-
-`Cache-Control: public, max-age=N` where N is the seconds until the next build
-(5–60), so a cache never holds a copy past the point a newer one exists; plus
-`ETag`/`304`, `Vary: Origin, Accept-Encoding`, gzip.
-
-`/api/network` → `{generatedAt, realtime:{available, feedUpdatedAt, positionsUpdatedAt},
-summary:{running, withRealtime, onTimePercent, avgDelayMin, maxDelay}, boards:{sofia,plovdiv:{name,
-trains,fetchedAt}}}`. `/api/network/radar` → `{generatedAt, realtime, count, trains:[{type, trainNum,
-from, to, fromId, toId, delayMin, progress, lat, lon}]}`.
-
-Honesty rules (pinned by `test/network.test.js`): `realtime.available` is false when
-the trip feed is stale, and then `onTimePercent`, `avgDelayMin`, `maxDelay` are `null`
-(`withRealtime` 0) — never estimated; the figures count only trains that have a
-TripUpdate delay; "on time" = under 5 min late; early arrivals count as 0 in the
-average; `maxDelay` is `null` when nobody is late; `running` is the saved schedule's
-answer (first departure → last arrival, overnight runs included, replacement buses
-excluded) plus trains the realtime feeds themselves put on the road; `lat`/`lon` are
-measured fixes (`null` without one), `progress` is the measured position along the
-route (`null` if it cannot be placed, never schedule-projected), `delayMin` is `null`
-when unknown. Each board train has `hasLiveDelay` — true only when the realtime feed
-has a delay for it at that station; otherwise the time is the schedule's and nothing
-is claimed about punctuality. A row the feed says is cancelled (trip CANCELED, or every
-stop SKIPPED) or not stopping here (this stop SKIPPED) carries `status: "cancelled"` /
-`"not_stopping"`; a train merely absent from the feed is never taken as cancelled. The
-E-ink shape has no place for that, so it simply omits those trains. `boards.*.trains` is
-`null` only if the board could not be built.
-
-**`GET /api/live/:language/:station/:type`** (the E-ink screen) is served from
-`services/live/ownBoard.js`: the saved schedule plus the realtime delays, in the same JSON
-shape as БДЖ's board (ordered by scheduled time, a window of ~6 hours, a late train shows
-its expected time with `delayedTime` the scheduled one, an early train keeps its scheduled
-time — as БДЖ's page does). БДЖ is **not asked** by default: its live site stopped
-answering from the server, and measured on 130 board rows every train БДЖ marked late was
-one the realtime feed already knows, so the delays are the same. A train the feed has no
-delay for is listed at its scheduled time, unmarked — on БДЖ's page too. What this board
-lacks is БДЖ's free-text notices. `LIVE_BDZ=on` makes it scrape БДЖ first again; after two
-failures it leaves БДЖ alone and probes once an hour in the background (no request ever
-waits for БДЖ).
-
-A quiet `RT_HISTORY=on` job accumulates observed delays for future statistics.
-
----
-
-## Data retention (what is kept about a device, and for how long)
-
-Read from the code; the privacy policy should match this table. The hourly cleanup lives
-in the Live Activity worker, so **it only runs with `LIVE_ACTIVITY=on`**.
-
-| Data | Table | Deleted when |
-|---|---|---|
-| Install id + push token (iOS/Android) | `device_tokens` | (1) at once when Apple/Google say the app is gone (APNs 410 / FCM UNREGISTERED — not on BadDeviceToken, which can be our own mistake); (2) after **180 days with no call from the app** (`DEVICE_TOKEN_TTL_DAYS`, 0 = off), measured by the last register-device / arm / disarm / leg-arrived, and never while the install has a journey in play; (3) replaced when the same install registers a new token of the same kind; (4) on request via `POST /api/live-activity/forget`. A returning user simply registers again. |
-| Armed legs (train, stations, scheduled times, install id) | `armed_journeys` | 7 days after the leg ended (`arrived` or `stopped`), hourly cleanup. A leg ends on disarm, on arrival, or automatically at predicted arrival + 20 min / scheduled arrival + 45 min (hard cap 12 h after start). `arm` accepts any future date, so a leg armed far ahead is kept until its trip is over. |
-| Push-start budget log (install id, journey id) | `push_start_log` | 48 hours. |
-| Live Activity token + journey (no install id) | `live_activity_tokens` | 2 h after the scheduled arrival (hourly cleanup, so up to ~3 h); earlier on unregister, disarm, auto-stop or a dead token. |
-| Database backups (contain all of the above) | `/root/backups`, Backblaze B2 | 30 copies locally (daily, ~30 days); 180 days off-box. |
-| Install id in server logs | pm2 logs | Only the first 8 characters (`install=abcd1234…`); kept as long as the pm2 logs are (no rotation configured in the repo). |
-
-`POST /api/live-activity/forget {installId}` deletes the install's tokens, armed legs, push-start
-log and the Live Activity tokens of those journeys, in one transaction, and logs only counts. It
-does not touch backups, which age out as above.
-
----
-
-## Live Activity push updates
-
-The iOS app shows a Live Activity for the journey in progress. While the app is
-suspended or terminated it can't refresh that card itself, so the server pushes
-updates over APNs. Behind `LIVE_ACTIVITY=on`; needs `REALTIME=on` for data.
-
-The worker ticks every 30s, reads the realtime cache the poller already maintains
-(**it adds no polling of its own**), and pushes only when something a passenger
-would notice changed — phase, next stop, or delay crossing a 2-minute threshold
-in either direction. `apns-priority` is 5 by default; 10 only for phase changes
-and threshold/large-jump delay changes (priority 10 spends the activity's update
-budget faster and Apple throttles it). An unchanged card is still refreshed every
-**10 minutes** at priority 5 (`reason=heartbeat`): iOS dims a card 15 minutes after its
-last update, and the server is the card's only author (the app no longer writes it).
-Every push that goes out is logged with its reason, priority, phase, delay and predicted
-times (`[la] push update train=… reason=… phase=… delay=… dep=… arr=…`).
-
-### What the card says, and when
-
-*Until the train has left the passenger's boarding stop* the card is about the
-**departure**: phase `preDeparture`, `predictedDeparture` and `delayMinutes` are that stop's
-DEPARTURE time and delay — through the whole time the train stands at the platform, not the
-delay of the next stop. *After it has left*: `inTransit`, with the train's current delay (the
-next stop's predicted arrival delay). "Has left" is `contentState.hasDeparted()`: the train's
-**position** decides when it has one (the vehicle feed's stop is after the boarding stop ⇒
-gone; the boarding stop itself or an earlier one ⇒ not yet; a position of another run of the
-same number is ignored), otherwise the **predicted departure** (arrival, then the schedule,
-when the feed has no departure). Never the scheduled minute while the feed knows better: a
-train +20 is not "under way" at its scheduled time. The departure timer follows the
-prediction and pushes only if the phase really changed when it fires. The delay-alert
-pipeline (`armedWatcher.readFeed`) uses the same function, so the card and the
-notifications cannot disagree. The card still **starts** 40 minutes before the *scheduled*
-departure. In `/api/realtime/train/:no` a stop is `passed` once the train has **left** it
-(departure, else arrival), and `previousStationId` follows; `nextStationId`/`nextStation`
-are unchanged (the next stop whose arrival is ahead).
-
-### Clock changes (DST) — two rules
-
-Bulgaria moves its clocks the last Sunday of March and October; on those days "midnight + N
-minutes" is an hour off after the change. So **a timetable time is never turned into an instant by
-adding minutes to midnight**: `services/time/sofia.js` (`wallToInstant`) goes through the time-zone
-rules, and `test/dst.test.js` pins it for every minute of the changing days (2026-10-25 is the day
-the boards showed every train an hour early). And the times an app registers
-(`scheduledDeparture` / `scheduledArrival` on `/arm` and `/register`) are checked against the
-timetable (`services/gtfs/timetableCheck.js`): a difference of exactly one hour is a time-zone
-mistake in the app (its card would say the train has already left), so the timetable's instant is
-used; any other difference is left as sent and logged (`[armed] TIME CHECK …`). `/arm` answers with
-`scheduledDeparture`, `scheduledArrival` and `timesAdjusted`.
-
-### Which run of the feed belongs to a journey
-
-The TripUpdates feed can still carry runs of the previous service day (on 2026-10-25 at 11:04 it held
-fifteen from the 24th), and the trip id's date suffix is not the service date. So a train *number*
-is not enough to pick a run:
-
-- `cache.js` treats a run whose last stop is more than 3 h in the past as dead (`isDeadRun`) and
-  never serves it — `/api/realtime/train/:no` answers "no live data" rather than a finished run.
-- The Live Activity and armed-journey pipelines choose the run per journey (`liveactivity/runMatch.js`):
-  the instant the feed implies for the boarding stop (`time − delay`) must be within 30 min of the
-  registered scheduled departure (3 h when the feed carries no delay). A run that is checked and
-  disagrees is never used; the card then shows the timetable ("not yet departed") instead of
-  another day's picture. A run that cannot be checked (stop absent) is used as before.
-
-`test/stale-run.test.js` reproduces the train-30122 incident.
-
-### The change between two trains (iOS card)
-
-Real journey 2026-10-30, София → Септември → Банско: the app reported the arrival, the server moved
-the card to the second train four seconds later — and the app's cold start in the middle of the
-change then registered the first train again (`/register` is an upsert by token), which put the
-card back; the second leg was already `started`, so nothing moved it on until the train had left.
-
-- **`/register` never goes back.** For the same token and journey a registration naming an earlier
-  leg than the card is on is ignored (`{ ok: true, ignored: 'older-leg', currentLegIndex }`,
-  logged as `[la] register IGNORED …`). Every registration is logged (`[la] register … leg=k existing=m`).
-- **`transferWindow`.** While the row is leg k > 0, the train has not left, and leg k−1 is finished
-  (`arrived`, or stopped as `arrival-not-confirmed`), the content-state is the transfer:
-  `phase: transferWindow`, `transferStation` (the row's boarding station), `nextTransportNumber` /
-  `nextTransportDirection` / `nextTransportDeparture` (the row's own train — not "the one after it"),
-  `nextTransportPredictedDeparture` and `nextTransportDelayMinutes` (the *departure's* delay; absent,
-  never 0, with no reading), `transferArrival` (leg k−1's predicted arrival at the change station,
-  else its timetable), `progressPercentage: 1`, `currentLegIndex: k−1` (the app's convention: the
-  completed leg), `isCurrentTransportBus: false`. `delayMinutes` is left out. It ends by the
-  ordinary departure rule (position, else predicted departure) with `phase: inTransit`.
-  `services/liveactivity/transfer.js`.
-- **Not one callback.** If `/leg-arrived` never comes, a leg that has another leg after it is marked
-  arrived on the feed's word (`[armed] leg-arrived (feed) …`): the train's position past the
-  destination, or standing at it; or, with no usable position, a predicted arrival more than 5 min
-  in the past. A position still short of the destination always wins. The last leg is never ended
-  this way. Giving up on a leg (`arrival-not-confirmed`) no longer deletes the journey's card
-  token while a later leg is live, and the worker does not end a card while a later leg is live.
-- **A finished leg stays finished.** `/arm` of a leg that has `arrived`, with the same departure, is
-  a no-op (the app re-arms on every start); a changed departure starts over as before.
-  Re-arming a leg whose card is already `started` with the same train, stations and times keeps it
-  `started` (and its alert bookkeeping) — the app arms every leg when tracking is switched on and
-  again when it moves to the next leg, and the watcher used to start the card a second time. A
-  different trip, or a leg stopped (disarmed) in between, starts over.
-
-`test/transfer.test.js` reproduces the Септември journey.
-
-### Notifications about delays and connections
-
-What is sent as an ordinary notification (not a card update), by `armedWatcher`:
-
-| What | When | Interrupts Focus/DND |
-|---|---|---|
-| **Delay of the train** (`БВ 3637 закъснява с 12 минути`) | the delay reaches 5 min; again when it changes by 5 (10 once aboard), recovers under 5; never closer than 10 min, at most 5 per leg | no |
-| **The connecting train is late** (`Връзката закъснява с 7 минути` — *БВ 8611 към Банско тръгва в 09:02 вместо 08:55.*) | the same rules, for the leg after the one being ridden, from 45 min before the arrival | **yes** |
-| **The transfer itself** (`Малко време за прекачване`, `Вероятно ще изпуснете връзката`, `Връзката се запазва`) | the gap between the arriving train's LIVE predicted arrival and the connecting train's departure gets worse than the timetable's gap (tight < 10 min; ≤ 0 = missed), and again when it is better; at most 6, never closer than 3 min | **yes** |
-
-Rules that are easy to break:
-
-- The baseline for "it changed" is what the passenger was **told**, never what the server merely saw. A first reading
-  of 2 min used to become the baseline, so a delay of 6 stayed silent until it reached 7 (a first reading of 4: until 9).
-- The transfer alert needs the **arriving** train's live arrival; without it nothing is sent. The connecting train's
-  departure is its live prediction when the feed has one; otherwise the timetable, and the text says so (*«Възможно е
-  да изпуснете връзката … по разписание … няма данни на живо за него»*, never «навреме»). With live data it is
-  «Вероятно», because a prediction can move and a train can wait.
-- A transfer that is tight **on the timetable** is not news until it gets worse; coming back to a better state needs
-  2 min of room so a gap hovering on a boundary does not flap.
-- Android gets the same words as the same `delay_alert` message (plus `connection: tight|missed|holds`, and
-  `interruptionLevel`); no new message type.
-- A send that fails is not retried for 2 min (10 for a bad token), and a tick that is still running is not joined by
-  the next one (no double sends). Counters `alert_skipped_no_token`, `alert_send_failed`,
-  `connection_alerts_sent`, `worker_ticks_skipped_overlap` are in `/api/live-activity/metrics`.
-
-### Android: the two moments pushed from the server
-
-Android holds back an app's exact alarms (Doze, vendor battery managers) and ran them 15–18
-minutes late in the field; FCM high-priority pushes arrive within seconds. So, for **Android
-legs only** (an iPhone has the Live Activity), the watcher sends — each only for a leg that is
-still in play (not disarmed, no arrival reported) and is the one being travelled:
-
-| push | when | data (all strings) |
-|---|---|---|
-| `start_tracking` | departure − 40 min (unchanged), and **again at arrival − 40 min** | `type, journeyId, legIndex, trainNumber`; the approach one also has `reason: approach` |
-| `departure_reminder` | scheduled departure − 30 min, once per leg | `type, journeyId, legIndex, trainNumber, title, body, scheduledDeparture` (ISO UTC), `delayMinutes` (only when the feed reports this departure) |
-
-The approach uses the feed's **predicted** arrival when it has one, is sent again (≥ 5 min apart,
-at most 3 per leg) if that prediction moves by more than 10 minutes, and is skipped for a leg
-shorter than 40 minutes (its departure start already covers it), for a train that has not left,
-and within 15 minutes of a start_tracking. The reminder goes out from departure − 30 min until 5
-minutes before the train really leaves (the feed's predicted departure, else the schedule).
-`title`/`body` follow `appLanguage` (train, direction, scheduled time; the expected time **only**
-when the feed really reports the departure, otherwise "on schedule at HH:MM" — never "on time").
-What was sent is remembered per leg (migration 016) and survives the app's re-arm while the leg's
-times are unchanged. All Android pushes are FCM `priority: high` with a TTL (start 20 min,
-reminder 15, delay alert 30): a message that cannot be delivered in time is dropped, not delivered
-hours late. The watcher ticks every 30 s, so a push leaves 0–30 s after its moment.
-
-### Three rules that fail SILENTLY
-
-If any is wrong, APNs returns `200`, the device drops the update, and nothing is
-logged. Covered by unit tests for exactly that reason.
-
-1. **Dates are seconds since the 2001 reference date**, sent as JSON *numbers*:
-   `swiftSeconds = unixSeconds - 978307200`. Not ISO, not Unix epoch.
-2. **Every non-optional Swift property is present on every push** — the
-   synthesized decoder throws on a missing key, discarding the whole update.
-3. **Unknown optionals are omitted, never sent as `null`.**
-
-### APNs setup
-
-Apple Developer portal, once: create an **APNs Auth Key** (`.p8`, downloadable
-only once), note the **Key ID** and **Team ID**, confirm the bundle id has the
-**Push Notifications** capability and `NSSupportsLiveActivities` in `Info.plist`.
-
-On the server, keep the key outside the repo (`*.p8` and `secrets/` are
-gitignored — a leaked key must be revoked in the portal, it doesn't expire):
+## Getting started
 
 ```bash
-install -d -m 700 /root/secrets
-install -m 600 AuthKey_XXXXXXXXXX.p8 /root/secrets/
+git clone https://github.com/tgarmenliev/bultrain-backend.git
+cd bultrain-backend
+npm install
+
+cp .env.example .env              # fill in the keys and secrets
+node scripts/seed-stations.js     # the station list
+bash scripts/gtfs-refresh.sh      # download and import the timetable
+
+npm start                     # http://localhost:3000
+npm test                      # syntax, migrations, route load and the unit tests
 ```
 
-Then set `APNS_KEY_P8` (path), `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`,
-`APNS_DEFAULT_ENV` and `LIVE_ACTIVITY=on` (see `.env.example`), and
-`pm2 restart bultrain --update-env`.
+Everything is configured through environment variables, and nothing secret is committed. See [`.env.example`](.env.example) for the annotated list.
 
-**Sandbox vs production:** a token from one host is rejected by the other
-(`400 BadDeviceToken`). Xcode builds are `sandbox`; TestFlight / App Store are
-`production`. The app declares its own environment when it registers, so one
-server pushes to both at once.
+## API at a glance
 
-### Endpoints & testing
+All `/api` routes are for the apps and need an `X-Bultrain-Api-Key`. `/health` is public.
 
-```
-POST /api/live-activity/register     20/min per client
-POST /api/live-activity/unregister   idempotent
-POST /api/live-activity/test-push    404 unless ENABLE_LIVE_ACTIVITY_TEST_PUSH=on
-GET  /api/live-activity/metrics
-```
-
-Register / unregister are pure DB work — a bad key or an Apple outage never stops
-a device from registering or trap it in an activity. Set
-`ENABLE_LIVE_ACTIVITY_TEST_PUSH=on` to push a hand-written content-state at a
-device while wiring up. Tokens are masked in every log line.
-
----
-
-## Articles — the author portal
-
-Author-written **"travel ideas"** (day trips by train) that the app pulls from
-the server. Built on the same tables as the guide (`handbook_topics` +
-`handbook_content`), with `category = 'travel_idea'`, so the app renders them with
-the block engine it already has.
-
-### Content model — blocks
-
-An article is a title + cover + metadata + an ordered list of **blocks**. Each
-block is one of six types: `heading · paragraph · image · quote · tip · route`.
-This is deliberate over free-form HTML — the app renders blocks natively and
-identically on iOS/Android, and the author styles by choosing block types, not
-raw markup. Metadata (`region`, `season`, `duration_min`, `related_train`,
-`featured`, `language`) powers filters and a "see this train" deep link.
-
-### Editor
-
-In the admin panel under **Идеи за пътуване**: a list plus a full editor with a
-block builder (add / reorder / delete), cover and per-block image upload, the
-metadata fields, a **live app-style preview**, and save-draft / publish /
-unpublish / preview-link. Images upload to `POST /api/admin/media` (author or
-admin) and are stored in `guide/images/` (served at `/guide/images/`); the
-server generates the filename from the MIME type, so nothing client-controlled
-reaches disk. JPEG/PNG/WebP, 6 MB max.
-
-### Admin CRUD (author or admin)
-
-```
-GET/POST      /api/admin/articles                list / create (draft)
-GET/PUT/DELETE /api/admin/articles/:id           read (with blocks) / update / delete
-POST          /api/admin/articles/:id/publish    ·/unpublish
-POST          /api/admin/articles/:id/preview-token   short-lived token for app preview
-```
-
-### App-facing (published only)
-
-```
-GET /api/articles?category=travel_idea&limit=&offset=
-GET /api/articles/:id
-```
-
-Read-only, behind `verifyMobileClient`. The detail uses the guide's envelope
-(`{ title, subtitle, image, content:[{ type, text, image? }] }`) with `type` per
-block and metadata on top. A **draft** is 404 to the app unless a valid
-`?preview=<token>` (minted by the author) is supplied — so an unpublished idea
-can be viewed in the real app before publishing.
-
----
-
-## Admin panel & accounts
-
-The React panel (`admin-ui/`, served at `/admin`) is JWT-cookie protected. Two
-roles:
-
-- **admin** — everything (trains, schedules, guide, exceptions, articles). Logs
-  in with the main `ADMIN_PASSWORD` (username left blank), or as a table account.
-- **author** — only the articles section. Logs in with a username + password.
-
-Accounts live in the `users` table (passwords hashed with the built-in
-`crypto.scrypt`). Create one on the server:
-
-```bash
-node scripts/create-user.js <username> author   # prompts for a hidden password
-```
-
-**Sessions** (`services/auth/session.js`). A login lasts `ADMIN_SESSION_DAYS` (30 by default) and is *sliding*: a
-request on a session older than a day issues a fresh one, so using the panel at least once a month keeps you in.
-For an account in the table the token carries a fingerprint of the password it was issued under and is checked
-against the account on every request, so changing the password (the session that changed it is re-issued and stays),
-disabling the account, or changing its role takes effect at once on every device. The legacy `ADMIN_PASSWORD` login
-(blank username) has no account to check; rotating `JWT_SECRET` ends those. To sign in with a name instead of the
-blank username: `node scripts/create-user.js <name> admin` on the server, then remove `ADMIN_PASSWORD` from `.env`
-once it is no longer needed (the blank-username door closes with it).
-
-Roles are enforced by `middleware/verifyRole(...roles)`; `verifyAdmin` is
-`verifyRole('admin')`. A legacy token with no role counts as admin, so existing
-sessions keep working. `GET /api/admin/me` reports the caller's role (used by the
-panel to scope its UI without hitting an admin-only endpoint).
-
-**Distances (admin only).** The panel's «Разстояния» section gives the track distance in
-km between two stations. `GET /api/admin/distance?from=<id>&to=<id>` measures it along the
-GTFS shape of a train that calls at both (`services/gtfs/stationDistance.js`, the same
-placement as `/api/route-shape`); several lines linking the pair are reported as a range
-with the median as the headline. No train linking the two (`found:false`) is a normal
-answer, with only the straight-line figure. `GET /api/admin/distance/stations` feeds the pickers.
-
-> **Rotating the mobile API keys:** `IOS_API_KEY` / `ANDROID_API_KEY` accept a
-> comma-separated list, so a new key can run alongside the old one. **Keep the old
-> key until old app versions retire** — dropping it 401s every un-updated install.
-
----
-
-## Configuration
-
-All via `.env` (see `.env.example` for the full annotated list). Highlights:
-
-| var | purpose |
+| Group | What it gives |
 |---|---|
-| `PORT` | Express port (nginx proxies to it) |
-| `IOS_API_KEY` / `ANDROID_API_KEY` / `SCREEN_API_KEY` | client keys (comma-separated lists) |
-| `ADMIN_PASSWORD` / `JWT_SECRET` | admin bootstrap login + cookie signing |
-| `SCHEDULE_SOURCE` | `gtfs` (date-based) or `legacy` |
-| `REALTIME` / `RT_HISTORY` / `LIVE_ACTIVITY` | background-job flags |
-| `APNS_*` | Live Activity push credentials |
+| `/api/schedule` | Journey search between two stations on a date |
+| `/api/train-info` | One train: stops, times, category and operator |
+| `/api/realtime` | Live delay and position per train, and the live map |
+| `/api/route-shape` | Track geometry for the per-train map |
+| `/api/live-activity` | Journey tracking: device registration, arming, Live Activity tokens |
+| `/api/stations` · `/api/network` | Station list and a public snapshot of the running network |
+| `/api/guide` · `/api/articles` | Travel guide and author-written articles |
+| `/api/admin` | Admin panel (cookie session, roles) |
 
----
+## Project structure
 
-## Deployment
-
-Releases are a plain `git pull` on the server, then a migration if the schema
-changed, then a pm2 restart if code changed:
-
-```bash
-bash /root/bultrain-app/scripts/backup.sh                 # snapshot the DB first
-git -C /root/bultrain-app pull origin main
-node /root/bultrain-app/database/migrate.js /root/bultrain-app/bultrain.sqlite
-pm2 restart bultrain --update-env
+```
+server.js            entry point
+routes/ controllers/ the HTTP layer
+services/
+  gtfs/              timetable import, categories, operators, route shapes
+  realtime/          GTFS-Realtime poller, cache, per-train status
+  liveactivity/      journey tracking, alerts, APNs / FCM delivery
+  network/ auth/     the living-network snapshot, admin sessions
+workers/             route search (runs in a worker thread)
+database/            migrations
+admin-ui/            React admin panel
+scripts/             refresh, backups, diagnostics, CI check
+test/                unit and integration tests
+docs/                the technical handbook
 ```
 
-- `--update-env` is **not optional** — without it pm2 reuses the old environment.
-  If a value still looks stale after a restart, pm2 has cached it: `pm2 delete
-  bultrain && pm2 start server.js --name bultrain && pm2 save`.
-- The migration runner is idempotent (applied migrations are skipped); a
-  schema-only change needs no restart, a code change does.
-- **The admin panel** ships as committed `admin-ui/dist` (no secrets — the same
-  bundle already served publicly). After changing `admin-ui/src`, rebuild and
-  commit it: `cd admin-ui && npm run build`, then commit `admin-ui/dist`.
+## Documentation
+
+The full reference lives in the **[technical handbook](docs/HANDBOOK.md)**: the data pipeline, realtime, Live Activities and notifications, the admin panel, configuration, deployment and operations.
+
+## License
+
+[ISC](LICENSE) © 2026 Tihomir Garmenliev
 
 ---
 
-## Testing & CI
-
-`npm test` runs `scripts/ci-check.sh`, six fast, fixture-free checks: the native
-module loads (the thing the Node 24 upgrade once broke), every source file parses,
-migrations apply from empty, `station-aliases.json` is valid, every route module
-loads, and the unit tests (`node --test test/*.test.js`). The same script runs in
-GitHub Actions on every push.
-
-Tests favour the surfaces where a mistake is **invisible** — the 2001-epoch date
-conversion, the realtime feed-merge and delay-zero handling, GPS progress
-geometry, the article/auth logic. They run against throwaway databases via
-`BULTRAIN_DB`, so they need no fixtures and never touch dev data.
-
----
-
-## Operations
-
-- **Backups:** `scripts/backup.sh` (daily via systemd timer) gzips the DB and
-  rotates old copies. Set `BULTRAIN_BACKUP_REMOTE` to push them off the box.
-- **Migrations:** forward-only `.sql` files in `database/migrations/`, each in a
-  transaction, recorded in `schema_version`. Additive and idempotent-friendly.
-- **Logs:** `pm2 logs bultrain`; subsystem lines are prefixed (`[rt]`, `[la]`).
-- **The realtime cache is memory-only** — a restart clears it; the poller refills
-  it within a tick. Nothing is lost.
+<div align="center">
+<sub>Built for Bulgarian rail passengers. Timetable and realtime data come from the Bulgarian National Access Point.</sub>
+</div>
