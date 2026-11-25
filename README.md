@@ -29,12 +29,6 @@ The API behind the BulTrain iOS and Android apps: timetables, live delays and po
 | 🗺️ **Live map** | Every moving train with its position, delay, type, origin, destination and operator. |
 | 🛠️ **Admin panel** | React dashboard for schedule health, realtime coverage per operator, notifications, a distance calculator and an author portal for travel articles. |
 
-<div align="center">
-<img src="docs/img/admin-overview.png" alt="The BulTrain admin overview: schedule health, live data per operator and notifications" width="860" />
-<br />
-<sub>The admin overview, with sample data.</sub>
-</div>
-
 ## How it works
 
 <div align="center">
