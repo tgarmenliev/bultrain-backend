@@ -14,16 +14,17 @@ interface StatCardProps {
     value: string | number;
     hint?: string;
     Icon: LucideIcon;
+    className?: string;
 }
 
-function StatCard({ label, value, hint, Icon }: StatCardProps) {
+function StatCard({ label, value, hint, Icon, className = '' }: StatCardProps) {
     return (
-        <div className="card card-pad">
-            <div className="flex items-center justify-between">
+        <div className={`card card-pad ${className}`}>
+            <div className="flex items-start justify-between gap-2">
                 <h3 className="text-[0.8125rem] text-muted">{label}</h3>
-                <Icon size={16} className="text-faint" aria-hidden="true" />
+                <Icon size={16} className="mt-0.5 shrink-0 text-faint" aria-hidden="true" />
             </div>
-            <p className="num mt-3 text-3xl font-bold tracking-tight">{value}</p>
+            <p className="num mt-2 text-2xl font-bold tracking-tight sm:mt-3 sm:text-3xl">{value}</p>
             {hint && <p className="hint mt-1">{hint}</p>}
         </div>
     );
@@ -38,9 +39,9 @@ interface StatusRowProps {
 
 function StatusRow({ label, value, title, badge }: StatusRowProps) {
     return (
-        <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-3">
+        <li className="flex flex-col gap-1 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-1.5">
             <span className="text-muted">{label}</span>
-            <span className="flex items-center gap-2.5" title={title}>
+            <span className="flex items-center justify-between gap-2.5" title={title}>
                 <span className="num font-medium">{value}</span>
                 {badge && (
                     <span className={`badge badge-dot ${badge.tone ? `badge-${badge.tone}` : ''}`}>{badge.text}</span>
@@ -132,7 +133,7 @@ export default function Dashboard({ overview }: { overview: Overview | null }) {
 
             {FEATURES.scheduleUpload && <DataSync />}
 
-            <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <section className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
                 <StatCard
                     label="Общо влакове"
                     value={o?.trains ?? '—'}
@@ -140,12 +141,12 @@ export default function Dashboard({ overview }: { overview: Overview | null }) {
                     Icon={TrainFront}
                 />
                 <StatCard label="Общо гари" value={o?.stations ?? '—'} Icon={MapPin} />
-                <StatCard label="Теми в справочника" value={o?.guideTopics ?? '—'} Icon={BookOpen} />
+                <StatCard label="Теми в справочника" value={o?.guideTopics ?? '—'} Icon={BookOpen} className="max-md:col-span-2" />
             </section>
 
             <section className="space-y-3">
                 <h3 className="section-title">Днес</h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
                     <StatCard
                         label="Влакове днес"
                         value={o?.today.trains ?? '—'}
@@ -176,7 +177,7 @@ export default function Dashboard({ overview }: { overview: Overview | null }) {
             {o?.tracking && (
                 <section className="space-y-3">
                     <h3 className="section-title">Известия</h3>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
                         <StatCard
                             label="За закъснение"
                             value={o.tracking.alerts.delay}
@@ -211,7 +212,7 @@ export default function Dashboard({ overview }: { overview: Overview | null }) {
             {o?.operators && o.operators.length > 0 && (
                 <section className="space-y-3">
                     <h3 className="section-title">Реално време по оператор</h3>
-                    <ul className="card divide-list px-5">
+                    <ul className="card divide-list px-4 sm:px-5">
                         {o.operators.map((op) => {
                             const share = op.running > 0 ? Math.round((op.withDelay / op.running) * 100) : null;
                             // Trains on the road and none of them seen by the feeds: the gap is the source's, not ours.
@@ -243,7 +244,7 @@ export default function Dashboard({ overview }: { overview: Overview | null }) {
             {rows.length > 0 && (
                 <section className="space-y-3">
                     <h3 className="section-title">Състояние на системата</h3>
-                    <ul className="card divide-list px-5">
+                    <ul className="card divide-list px-4 sm:px-5">
                         {rows.map((r) => <StatusRow key={r.label} {...r} />)}
                     </ul>
                 </section>

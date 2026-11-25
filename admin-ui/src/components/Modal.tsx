@@ -7,11 +7,15 @@ const EXIT_MS = 150;
 interface Props {
     label: string;
     onClose: () => void;
+    /** `top` keeps a form clear of the phone keyboard. */
+    align?: 'top';
+    /** Close on Escape or a tap outside. Only for dialogs with nothing to lose. */
+    dismissable?: boolean;
     /** Receives `close`, which plays the exit animation and then calls onClose. */
     children: (close: () => void) => ReactNode;
 }
 
-export default function Modal({ label, onClose, children }: Props) {
+export default function Modal({ label, onClose, align, dismissable, children }: Props) {
     const [closing, setClosing] = useState(false);
 
     // Always call the latest onClose, without restarting the exit timer when the
@@ -29,10 +33,20 @@ export default function Modal({ label, onClose, children }: Props) {
 
     const close = useCallback(() => setClosing(true), []);
 
+    useEffect(() => {
+        if (!dismissable) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+    }, [dismissable, close]);
+
     return createPortal(
         <div
             className="modal-backdrop"
             data-closing={closing ? '' : undefined}
+            data-align={align}
+            data-dismissable={dismissable ? '' : undefined}
+            onClick={dismissable ? (e) => { if (e.target === e.currentTarget) close(); } : undefined}
             role="dialog"
             aria-modal="true"
             aria-label={label}

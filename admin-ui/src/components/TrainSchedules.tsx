@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CircleAlert, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import Modal from './Modal';
+import { NARROW, useMediaQuery } from '../useMediaQuery';
 import { addDays, formatDateBg, todayInSofia, weekdayBg } from '../format';
 import type { GtfsStop, GtfsTrainDetail, GtfsTrainList, GtfsTrainRow } from '../types';
 
@@ -103,10 +104,10 @@ function ScheduleModal({ train, date, onClose }: { train: GtfsTrainRow; date: st
     }, [train.trainNumber, date]);
 
     return (
-        <Modal label={`Влак ${train.trainNumber}`} onClose={onClose}>
+        <Modal label={`Влак ${train.trainNumber}`} onClose={onClose} dismissable>
             {(close) => (
                 <div className="modal-panel max-w-2xl">
-                    <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
+                    <div className="flex items-start justify-between gap-3 border-b border-line px-4 py-3 sm:gap-4 sm:px-6 sm:py-4">
                         <div>
                             <h3 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
                                 <span>Влак {train.trainNumber}</span>
@@ -126,7 +127,7 @@ function ScheduleModal({ train, date, onClose }: { train: GtfsTrainRow; date: st
                         </button>
                     </div>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto p-6">
+                    <div className="modal-scroll flex-1 px-4 py-5 sm:p-6">
                         {error ? (
                             <div role="alert" className="alert alert-danger">
                                 <CircleAlert size={16} aria-hidden="true" />
@@ -169,6 +170,41 @@ function ScheduleModal({ train, date, onClose }: { train: GtfsTrainRow; date: st
     );
 }
 
+// ── The same trains on a narrow screen ───────────────────────────────────────
+
+/** Seven columns do not fit a phone: one tappable row per train instead. */
+function TrainList({ trains, onOpen }: { trains: GtfsTrainRow[]; onOpen: (t: GtfsTrainRow) => void }) {
+    const unknown = <em className="text-muted">Неразпозната гара</em>;
+    return (
+        <ul className="divide-list">
+            {trains.map((t) => (
+                <li key={t.trainNumber}>
+                    <button type="button" className="row-button" onClick={() => onOpen(t)}>
+                        <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-2">
+                                <span className="num font-mono text-base font-semibold">{t.trainNumber}</span>
+                                <CategoryBadges categories={t.categories} />
+                                <span className="num ml-auto whitespace-nowrap font-mono text-[0.8125rem]">
+                                    {t.departs ?? '—'}
+                                    <span className="mx-1 text-faint">–</span>
+                                    {t.arrives ? <Time value={t.arrives} day={t.arrivesDay} /> : '—'}
+                                </span>
+                            </span>
+                            <span className="mt-1 block text-[0.8125rem] text-muted">
+                                {t.from ?? unknown}
+                                <span className="mx-1.5 text-faint">→</span>
+                                {t.to ?? unknown}
+                            </span>
+                        </span>
+                        <ChevronRight size={16} className="shrink-0 text-faint" aria-hidden="true" />
+                    </button>
+                </li>
+            ))}
+            {trains.length === 0 && <li className="py-12 text-center text-muted">Няма намерени влакове.</li>}
+        </ul>
+    );
+}
+
 // ── The screen ───────────────────────────────────────────────────────────────
 
 export default function TrainSchedules() {
@@ -179,6 +215,7 @@ export default function TrainSchedules() {
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState<GtfsTrainRow | null>(null);
     const requestId = useRef(0);
+    const narrow = useMediaQuery(NARROW);
 
     // `wanted` null = let the server pick (today, or the nearest covered day).
     const load = useCallback(async (wanted: string | null) => {
@@ -239,9 +276,9 @@ export default function TrainSchedules() {
             </div>
 
             <div className="card card-pad flex flex-wrap items-end justify-between gap-4">
-                <div>
+                <div className="w-full sm:w-auto">
                     <label htmlFor="sched-date" className="label">Дата</label>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
                         <button
                             type="button"
                             aria-label="Предишен ден"
@@ -254,7 +291,7 @@ export default function TrainSchedules() {
                         <input
                             id="sched-date"
                             type="date"
-                            className="input w-44"
+                            className="input min-w-0 flex-1 sm:w-44 sm:flex-none"
                             value={date}
                             min={range?.from}
                             max={range?.to}
@@ -271,7 +308,7 @@ export default function TrainSchedules() {
                         </button>
                         <button
                             type="button"
-                            className="btn btn-secondary ml-1.5"
+                            className="btn btn-secondary w-full sm:ml-1.5 sm:w-auto"
                             disabled={!date || date === todayTarget}
                             onClick={() => changeDate(todayTarget)}
                         >
@@ -301,11 +338,16 @@ export default function TrainSchedules() {
 
             {list && list.hasData && (
                 <>
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="relative w-full max-w-sm">
+                    <div className="sticky-search flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                        <div className="relative w-full sm:max-w-sm">
                             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" aria-hidden="true" />
                             <input
-                                type="text"
+                                type="search"
+                                enterKeyHint="search"
+                                autoCorrect="off"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                                 aria-label="Търсене на влак"
                                 placeholder="Номер, категория или гара..."
                                 value={query}
@@ -313,7 +355,7 @@ export default function TrainSchedules() {
                                 className="input pl-9"
                             />
                         </div>
-                        <p className="num text-muted">
+                        <p className="num text-[0.8125rem] text-muted sm:text-sm">
                             {filtered.length === list.trains.length
                                 ? `${list.trains.length} влака`
                                 : `${filtered.length} от ${list.trains.length} влака`}
@@ -328,51 +370,53 @@ export default function TrainSchedules() {
                         </div>
                     ) : (
                         <div className={`card overflow-hidden transition-opacity duration-150 ${loading ? 'opacity-60' : ''}`}>
-                            <div className="max-h-[640px] overflow-y-auto">
-                                <table className="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Влак №</th>
-                                            <th>Категория</th>
-                                            <th>Маршрут</th>
-                                            <th>Тръгва</th>
-                                            <th>Пристига</th>
-                                            <th className="hidden md:table-cell">Спирки</th>
-                                            <th className="text-right"><span className="sr-only">Действия</span></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filtered.map((t) => (
-                                            <tr key={t.trainNumber} className="cursor-pointer" onClick={() => setOpen(t)}>
-                                                <td className="num font-mono text-base font-semibold">{t.trainNumber}</td>
-                                                <td>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        <CategoryBadges categories={t.categories} />
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span className="font-medium">{t.from ?? <em className="text-muted">Неразпозната гара</em>}</span>
-                                                    <span className="mx-1.5 text-faint">→</span>
-                                                    <span className="font-medium">{t.to ?? <em className="text-muted">Неразпозната гара</em>}</span>
-                                                </td>
-                                                <td className="num font-mono">{t.departs ?? '—'}</td>
-                                                <td className="num font-mono">
-                                                    {t.arrives ? <Time value={t.arrives} day={t.arrivesDay} /> : '—'}
-                                                </td>
-                                                <td className="num hidden text-muted md:table-cell">{t.stops}</td>
-                                                <td className="text-right">
-                                                    <button type="button" className="btn btn-secondary btn-sm">Маршрут</button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {filtered.length === 0 && (
+                            {narrow ? <TrainList trains={filtered} onOpen={setOpen} /> : (
+                                <div className="overflow-x-auto desktop:max-h-[640px] desktop:overflow-auto">
+                                    <table className="table">
+                                        <thead>
                                             <tr>
-                                                <td colSpan={7} className="!py-12 text-center text-muted">Няма намерени влакове.</td>
+                                                <th>Влак №</th>
+                                                <th>Категория</th>
+                                                <th>Маршрут</th>
+                                                <th>Тръгва</th>
+                                                <th>Пристига</th>
+                                                <th className="hidden md:table-cell">Спирки</th>
+                                                <th className="text-right"><span className="sr-only">Действия</span></th>
                                             </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {filtered.map((t) => (
+                                                <tr key={t.trainNumber} className="cursor-pointer" onClick={() => setOpen(t)}>
+                                                    <td className="num font-mono text-base font-semibold">{t.trainNumber}</td>
+                                                    <td>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            <CategoryBadges categories={t.categories} />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span className="font-medium">{t.from ?? <em className="text-muted">Неразпозната гара</em>}</span>
+                                                        <span className="mx-1.5 text-faint">→</span>
+                                                        <span className="font-medium">{t.to ?? <em className="text-muted">Неразпозната гара</em>}</span>
+                                                    </td>
+                                                    <td className="num font-mono">{t.departs ?? '—'}</td>
+                                                    <td className="num font-mono">
+                                                        {t.arrives ? <Time value={t.arrives} day={t.arrivesDay} /> : '—'}
+                                                    </td>
+                                                    <td className="num hidden text-muted md:table-cell">{t.stops}</td>
+                                                    <td className="text-right">
+                                                        <button type="button" className="btn btn-secondary btn-sm">Маршрут</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {filtered.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={7} className="!py-12 text-center text-muted">Няма намерени влакове.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
                 </>

@@ -2,6 +2,16 @@
 @import "tailwindcss";
 
 /*
+ * The sidebar layout needs width AND height: a phone held sideways is wide but
+ * short, and gets the phone layout. Keep in step with useMediaQuery.ts.
+ */
+@custom-variant desktop {
+    @media (min-width: 48rem) and (min-height: 32rem) {
+        @slot;
+    }
+}
+
+/*
  * BulTrain admin — design system.
  *
  * The palette is lifted from the product itself rather than invented:
@@ -54,6 +64,14 @@
     --shadow-key: 0 1px 2px rgb(10 23 48 / 0.1);
     --edge: 0 0 0 0 transparent;
     --overlay: rgb(8 18 40 / 0.5);
+
+    /* Phone chrome: the bars, including the notch and the home indicator. */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --appbar-h: calc(3.5rem + var(--safe-top));
+    --tabbar-h: calc(3.75rem + var(--safe-bottom));
 }
 
 :root[data-theme="dark"] {
@@ -166,6 +184,17 @@
 @layer base {
     html {
         -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* An open sheet or dialog keeps the page behind it still. */
+    html:has(.modal-backdrop) {
+        overflow: hidden;
+    }
+
+    /* A tap acts at once: no double-tap-to-zoom wait on controls. */
+    a, button, label, summary, [role="option"] {
+        touch-action: manipulation;
     }
 
     body {
@@ -178,6 +207,7 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         min-height: 100vh;
+        min-height: 100dvh;
     }
 
     * {
@@ -659,6 +689,7 @@
         flex-direction: column;
         width: 100%;
         max-height: 90vh;
+        max-height: 90dvh;
         overflow: hidden;
         background: var(--raised);
         border: 1px solid var(--line);
@@ -794,6 +825,293 @@
     .tl-name {
         padding-bottom: 0.875rem;
     }
+    /* ── Phone shell: top bar, bottom tabs, editor action bar ─────────────── */
+
+    .page {
+        padding:
+            1.25rem
+            max(1rem, var(--safe-right))
+            calc(var(--tabbar-h) + 1.5rem)
+            max(1rem, var(--safe-left));
+    }
+
+    .app-bar {
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        height: var(--appbar-h);
+        padding: var(--safe-top) max(0.5rem, var(--safe-right)) 0 max(1rem, var(--safe-left));
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+    }
+
+    .tab-bar,
+    .action-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        height: var(--tabbar-h);
+        padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+    }
+
+    .tab-bar {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+    }
+
+    .tab-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.1875rem;
+        min-width: 0;
+        color: var(--muted);
+        font-size: 0.6875rem;
+        font-weight: 550;
+        letter-spacing: -0.01em;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .tab-item > span:first-child {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.25rem;
+        height: 1.75rem;
+        border-radius: 9999px;
+        transition: background-color 160ms var(--ease-out), transform 160ms var(--ease-out);
+    }
+
+    .tab-item:active > span:first-child {
+        transform: scale(0.94);
+        background: var(--sunken);
+    }
+
+    .tab-item[aria-current="page"] {
+        color: var(--link);
+    }
+
+    .tab-item[aria-current="page"] > span:first-child {
+        background: var(--accent-soft);
+    }
+
+    .action-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding-left: max(0.75rem, var(--safe-left));
+        padding-right: max(0.75rem, var(--safe-right));
+    }
+
+    .action-bar > .btn {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0 0.5rem;
+    }
+
+    /* The smallest phones: five labels still fit under their icons. */
+    @media (max-width: 22.49rem) {
+        .tab-item {
+            font-size: 0.59375rem;
+        }
+    }
+
+    /* A row of a list that opens something. */
+    .row-button {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 0.875rem 0.75rem 1rem;
+        text-align: left;
+        cursor: pointer;
+        /* off-screen rows are not laid out: long timetables scroll smoothly */
+        content-visibility: auto;
+        contain-intrinsic-size: auto 4.5rem;
+    }
+
+    .row-button:active {
+        background: var(--sunken);
+    }
+
+    /* A search field that stays reachable while a long list scrolls under it. */
+    .sticky-search {
+        position: sticky;
+        top: var(--appbar-h);
+        z-index: 20;
+        margin-inline: -0.25rem;
+        padding: 0.5rem 0.25rem;
+        background: var(--canvas);
+    }
+
+    @media (min-width: 40rem) {
+        .sticky-search {
+            position: static;
+            margin-inline: 0;
+            padding: 0;
+            background: transparent;
+        }
+    }
+
+    /* Held sideways there is no height to spare: the top bar scrolls away. */
+    @media (max-height: 31.99rem) {
+        :root {
+            --appbar-h: calc(3rem + var(--safe-top));
+            --tabbar-h: calc(3.25rem + var(--safe-bottom));
+        }
+
+        .sticky-search {
+            position: static;
+        }
+
+        .tab-item {
+            flex-direction: row;
+            gap: 0.375rem;
+        }
+
+        .tab-item > span:first-child {
+            width: 2.25rem;
+        }
+    }
+
+    @media (min-height: 32rem) {
+        .app-bar {
+            position: sticky;
+            top: 0;
+        }
+    }
+
+    @media (min-width: 48rem) and (min-height: 32rem) {
+        .page {
+            padding: 2.5rem;
+        }
+    }
+
+    /* On a narrow screen a dialog is a sheet that rises from the bottom. */
+    @media (max-width: 39.99rem) {
+        .card-pad {
+            padding: 1rem;
+        }
+
+        .modal-backdrop {
+            align-items: flex-end;
+            padding: calc(var(--safe-top) + 2rem) 0 0;
+        }
+
+        .modal-panel {
+            max-height: 100%;
+            padding-bottom: var(--safe-bottom);
+            border-width: 1px 0 0;
+            border-radius: 1.125rem 1.125rem 0 0;
+        }
+
+        /* A form stays at the top, clear of the keyboard. */
+        .modal-backdrop[data-align="top"] {
+            align-items: flex-start;
+            padding: calc(var(--safe-top) + 0.75rem) 0.75rem 0.75rem;
+        }
+
+        .modal-backdrop[data-align="top"] .modal-panel {
+            padding-bottom: 0;
+            border-width: 1px;
+            border-radius: 1rem;
+        }
+
+        @starting-style {
+            .modal-panel {
+                transform: translateY(2.5rem);
+            }
+        }
+    }
+
+    /* iOS only reports a tap on a plain element that looks clickable. */
+    .modal-backdrop[data-dismissable] {
+        cursor: pointer;
+    }
+
+    .modal-backdrop[data-dismissable] .modal-panel {
+        cursor: auto;
+    }
+
+    .modal-scroll {
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    /* ── Touch: targets a finger can hit ──────────────────────────────────── */
+
+    @media (pointer: coarse) {
+        .btn {
+            height: 2.75rem;
+        }
+
+        .btn-sm {
+            height: 2.5rem;
+        }
+
+        .btn-icon {
+            width: 2.75rem;
+        }
+
+        .btn-icon.btn-sm {
+            width: 2.5rem;
+        }
+
+        .input {
+            height: 2.75rem;
+        }
+
+        .segmented > button {
+            width: 3rem;
+            height: 2.5rem;
+        }
+
+        /*
+         * While typing, iOS lifts a fixed bar above the keyboard, over the text
+         * being written. A native app lets the keyboard cover it: hide it.
+         */
+        html:has(:is(textarea, input:not([type="checkbox"], [type="radio"], [type="date"], [type="file"])):focus) :is(.tab-bar, .action-bar) {
+            display: none;
+        }
+
+        /* A text block grows with what is written, where the browser can. */
+        textarea.input {
+            height: auto;
+            field-sizing: content;
+            min-height: 6rem;
+            max-height: 60dvh;
+        }
+
+        input[type="checkbox"] {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        /* iOS draws its own date field, which ignores height and centres the text. */
+        input[type="date"].input {
+            -webkit-appearance: none;
+            appearance: none;
+            display: block;
+            min-width: 0;
+            line-height: 2.625rem;
+        }
+
+        input[type="date"].input::-webkit-date-and-time-value {
+            margin: 0;
+            text-align: left;
+        }
+    }
+
     /* ── Motion: light, short, ease-out ───────────────────────────────────── */
 
     .view-enter > * {
@@ -865,6 +1183,19 @@
 @keyframes fade {
     from {
         opacity: 0;
+    }
+}
+
+/*
+ * iOS Safari zooms the whole page into any field whose text is under 16px and
+ * leaves it zoomed. Unlayered on purpose: it must win over component and utility
+ * classes alike.
+ */
+@media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+        font-size: 16px;
     }
 }
 

@@ -54,8 +54,8 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center p-4">
-            <div className="absolute right-4 top-4"><ThemeToggle /></div>
+        <div className="relative flex min-h-dvh items-center justify-center px-4 pb-8 pt-20">
+            <div className="absolute right-4 top-[calc(1rem+var(--safe-top))]"><ThemeToggle /></div>
 
             <div className="w-full max-w-sm">
                 <div className="mb-8 flex flex-col items-center text-center">
@@ -71,6 +71,9 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess: () => void }
                             id="username"
                             type="text"
                             autoComplete="username"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             className="input"

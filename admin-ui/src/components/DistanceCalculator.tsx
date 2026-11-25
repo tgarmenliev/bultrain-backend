@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeftRight, CircleAlert, Info } from 'lucide-react';
 import type { DistanceResult, DistanceStation } from '../types';
+import { TOUCH, useMediaQuery } from '../useMediaQuery';
 
 const MAX_SUGGESTIONS = 8;
 
@@ -34,24 +35,28 @@ function StationPicker({ id, label, stations, value, onChange }: {
     const [open, setOpen] = useState(false);
     const [active, setActive] = useState(0);
     const box = useRef<HTMLDivElement>(null);
+    const touch = useMediaQuery(TOUCH);
 
     const options = useMemo(() => suggest(stations, text), [stations, text]);
 
     useEffect(() => {
-        const close = (e: MouseEvent) => {
+        // pointerdown, not mousedown: iOS sends no mouse events for taps on plain page.
+        const close = (e: PointerEvent) => {
             if (box.current && !box.current.contains(e.target as Node)) {
                 setOpen(false);
                 setDraft(null);   // leaving half-typed text: back to the chosen station
             }
         };
-        document.addEventListener('mousedown', close);
-        return () => document.removeEventListener('mousedown', close);
+        document.addEventListener('pointerdown', close);
+        return () => document.removeEventListener('pointerdown', close);
     }, []);
 
     const pick = (s: DistanceStation) => {
         onChange(s);
         setDraft(null);
         setOpen(false);
+        // On a phone, put the keyboard away so the next step is visible.
+        if (touch) box.current?.querySelector('input')?.blur();
     };
 
     const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -62,7 +67,7 @@ function StationPicker({ id, label, stations, value, onChange }: {
     };
 
     return (
-        <div ref={box} className="relative min-w-0 flex-1">
+        <div ref={box} className="relative w-full min-w-0 scroll-mt-[calc(var(--appbar-h)+0.5rem)] sm:flex-1">
             <label htmlFor={id} className="label">{label}</label>
             <input
                 id={id}
@@ -72,9 +77,19 @@ function StationPicker({ id, label, stations, value, onChange }: {
                 aria-controls={`${id}-list`}
                 aria-autocomplete="list"
                 autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="done"
                 placeholder="Започни да пишеш…"
                 value={text}
-                onFocus={(e) => { e.target.select(); setOpen(true); }}
+                onFocus={(e) => {
+                    e.target.select();
+                    setOpen(true);
+                    // Once the keyboard is up, lift the field so the suggestions fit above it.
+                    if (touch) window.setTimeout(() => box.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 300);
+                }}
+                // Tab or the keyboard's "Done" leaves the field without a tap outside.
+                onBlur={() => { setOpen(false); setDraft(null); }}
                 onChange={(e) => {
                     setDraft(e.target.value);
                     setActive(0);
@@ -87,7 +102,9 @@ function StationPicker({ id, label, stations, value, onChange }: {
                 <ul
                     id={`${id}-list`}
                     role="listbox"
-                    className="card absolute z-20 mt-1 max-h-72 w-full overflow-y-auto py-1"
+                    // pressing in the list (an option, its scrollbar) must not blur the field
+                    onMouseDown={(e) => e.preventDefault()}
+                    className="card absolute z-20 mt-1 max-h-[min(18rem,38dvh)] w-full overflow-y-auto overscroll-contain py-1"
                 >
                     {options.map((s, i) => (
                         <li
@@ -95,8 +112,9 @@ function StationPicker({ id, label, stations, value, onChange }: {
                             role="option"
                             aria-selected={i === active}
                             onMouseEnter={() => setActive(i)}
-                            onMouseDown={(e) => { e.preventDefault(); pick(s); }}
-                            className={`cursor-pointer px-3 py-2 text-sm ${i === active ? 'bg-sunken' : ''}`}
+                            // pick on click, not on press, so a finger can scroll the list
+                            onClick={() => pick(s)}
+                            className={`cursor-pointer px-3 py-2 text-sm pointer-coarse:py-3 pointer-coarse:text-base ${i === active ? 'bg-sunken' : ''}`}
                         >
                             {s.name}
                             {s.englishName && <span className="ml-2 text-xs text-muted">{s.englishName}</span>}
@@ -167,16 +185,16 @@ export default function DistanceCalculator() {
             </div>
 
             <div className="card card-pad">
-                <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                     <StationPicker id="dist-from" label="От гара" stations={stations} value={from} onChange={setFrom} />
                     <button
                         type="button"
                         aria-label="Размени гарите"
-                        className="btn btn-secondary btn-icon"
+                        className="btn btn-secondary btn-icon self-end"
                         disabled={!from && !to}
                         onClick={swap}
                     >
-                        <ArrowLeftRight size={16} aria-hidden="true" />
+                        <ArrowLeftRight size={16} className="rotate-90 sm:rotate-0" aria-hidden="true" />
                     </button>
                     <StationPicker id="dist-to" label="До гара" stations={stations} value={to} onChange={setTo} />
                 </div>

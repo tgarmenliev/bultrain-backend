@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { ArrowDown, ArrowLeft, ArrowUp, Plus, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Copy, ExternalLink, Plus, X } from 'lucide-react';
+import { DESKTOP, TOUCH, useMediaQuery } from '../useMediaQuery';
 
 type BlockType = 'heading' | 'paragraph' | 'image' | 'quote' | 'tip' | 'route';
 
@@ -28,6 +29,12 @@ const empty = (): Editing => ({
     id: null, title: '', subtitle: '', language: 'bg', cover_image: null, featured: false,
     region: '', season: '', duration_min: '', related_train: '', status: 'draft', blocks: [],
 });
+
+/** What "saved" is compared by: everything the author types, not id or status. */
+const contentKey = (e: Editing) => JSON.stringify([
+    e.title, e.subtitle, e.language, e.cover_image, e.featured,
+    e.region, e.season, e.duration_min, e.related_train, e.blocks,
+]);
 
 // Shrink in the browser BEFORE upload: cap the long edge at 1600px and re-encode
 // as JPEG ~0.82. Crisp on any phone (retina included), but a 4.5 MB photo becomes
@@ -68,9 +75,13 @@ async function uploadImage(file: File): Promise<string> {
     return data.filename as string;
 }
 
-interface Props { category?: 'travel_idea' | 'guide'; }
+interface Props {
+    category?: 'travel_idea' | 'guide';
+    /** Tells the app an article is open, so a phone can give it the bottom of the screen. */
+    onEditingChange?: (editing: boolean) => void;
+}
 
-export default function ArticlesManager({ category = 'travel_idea' }: Props) {
+export default function ArticlesManager({ category = 'travel_idea', onEditingChange }: Props) {
     const isGuide = category === 'guide';
     // Guide topics are official app content (how to read a departure board, what
     // a Desiro is) — travel/trip metadata doesn't apply to them, so that whole
@@ -92,6 +103,24 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
     const [busy, setBusy] = useState(false);
     const [preview, setPreview] = useState<{ url: string; deepLink: string } | null>(null);
 
+    const [copied, setCopied] = useState(false);
+    const desktop = useMediaQuery(DESKTOP);
+    const touch = useMediaQuery(TOUCH);
+    const savedKey = useRef('');
+    const errorRef = useRef<HTMLDivElement>(null);
+    const previewRef = useRef<HTMLDivElement>(null);
+
+    const isOpen = ed !== null;
+    useEffect(() => {
+        onEditingChange?.(isOpen);
+        window.scrollTo(0, 0);
+        return () => onEditingChange?.(false);
+    }, [isOpen, onEditingChange]);
+
+    // The buttons may be a screen away from where the answer to them appears.
+    useEffect(() => { if (error) errorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, [error]);
+    useEffect(() => { if (preview) previewRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, [preview]);
+
     const fetchList = async () => {
         try {
             setLoading(true);
@@ -102,13 +131,18 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
     };
     useEffect(() => { fetchList(); }, [category]);
 
-    const openNew = () => { setPreview(null); setEd(empty()); };
+    const open = (next: Editing) => { savedKey.current = contentKey(next); setEd(next); };
+    const openNew = () => { setPreview(null); open(empty()); };
+    const leave = () => {
+        if (ed && contentKey(ed) !== savedKey.current && !confirm('Има незаписани промени. Да ги изхвърля ли?')) return;
+        setEd(null);
+    };
     const openEdit = async (id: number) => {
         setError(null); setPreview(null);
         const res = await fetch(`/api/admin/articles/${id}`);
         if (!res.ok) { setError(L.loadError); return; }
         const a = await res.json();
-        setEd({
+        open({
             id: a.id, title: a.title || '', subtitle: a.subtitle || '', language: a.language || 'bg',
             cover_image: a.cover_image || null, featured: !!a.featured, region: a.region || '',
             season: a.season || '', duration_min: a.duration_min != null ? String(a.duration_min) : '',
@@ -121,6 +155,7 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
         if (!ed) return null;
         if (!ed.title.trim()) { setError('Заглавието е задължително'); return null; }
         setBusy(true); setError(null);
+        const sentKey = contentKey(ed);
         try {
             const payload: Record<string, unknown> = {
                 title: ed.title, subtitle: ed.subtitle, language: ed.language,
@@ -139,7 +174,9 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Записът се провали');
             const id = ed.id || data.id;
-            if (!ed.id) setEd({ ...ed, id });
+            savedKey.current = sentKey;
+            // keep whatever was typed while the request was in flight
+            if (!ed.id) setEd(cur => cur ? { ...cur, id } : cur);
             await fetchList();
             return id;
         } catch (e: any) { setError(e.message); return null; } finally { setBusy(false); }
@@ -157,7 +194,7 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
         if (!id) return;
         const res = await fetch(`/api/admin/articles/${id}/preview-token`, { method: 'POST' });
         const data = await res.json();
-        if (res.ok) setPreview({ url: data.url, deepLink: data.deepLink });
+        if (res.ok) { setCopied(false); setPreview({ url: data.url, deepLink: data.deepLink }); }
     };
 
     const del = async (id: number) => {
@@ -180,7 +217,7 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
     if (!ed) {
         return (
             <div key="list" className="view-enter space-y-6">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h2 className="page-title">{L.heading}</h2>
                         <p className="page-sub">{L.sub}</p>
@@ -193,24 +230,28 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
                 ) : (
                     <ul className="card divide-list overflow-hidden">
                         {items.map(a => (
-                            <li key={a.id} className="flex items-center gap-4 p-4">
-                                <div className="h-12 w-[4.5rem] shrink-0 overflow-hidden rounded-md bg-sunken">
-                                    {a.cover_image && <img src={IMG(a.cover_image)} alt="" className="h-full w-full object-cover" />}
+                            <li key={a.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4 sm:flex-nowrap">
+                                <div className="h-12 w-[4.5rem] shrink-0 self-start overflow-hidden rounded-md bg-sunken sm:self-center">
+                                    {a.cover_image && <img src={IMG(a.cover_image)} alt="" loading="lazy" className="h-full w-full object-cover" />}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="min-w-0 truncate font-medium">{a.title}</h3>
-                                        <StatusBadge status={a.status} />
-                                        {!isGuide && !!a.featured && <span className="badge badge-accent">Топ</span>}
+                                    <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                                        <h3 className="line-clamp-2 min-w-0 break-words font-medium sm:line-clamp-1">{a.title}</h3>
+                                        <span className="flex gap-2">
+                                            <StatusBadge status={a.status} />
+                                            {!isGuide && !!a.featured && <span className="badge badge-accent">Топ</span>}
+                                        </span>
                                     </div>
                                     {!isGuide && (
-                                        <p className="mt-0.5 truncate text-[0.8125rem] text-muted">
+                                        <p className="mt-1 line-clamp-2 text-[0.8125rem] text-muted sm:mt-0.5 sm:line-clamp-1">
                                             {[a.region, a.season, a.duration_min ? `${a.duration_min} мин` : null, a.related_train ? `влак ${a.related_train}` : null].filter(Boolean).join(' · ') || '—'}
                                         </p>
                                     )}
                                 </div>
-                                <button onClick={() => openEdit(a.id)} className="btn btn-secondary btn-sm">Редактирай</button>
-                                <button onClick={() => del(a.id)} className="btn btn-danger btn-sm">Изтрий</button>
+                                <div className="flex w-full gap-2 sm:w-auto">
+                                    <button onClick={() => openEdit(a.id)} className="btn btn-secondary btn-sm flex-1 sm:flex-none">Редактирай</button>
+                                    <button onClick={() => del(a.id)} className="btn btn-danger btn-sm">Изтрий</button>
+                                </div>
                             </li>
                         ))}
                     </ul>
@@ -220,29 +261,53 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
     }
 
     // ═══════════ EDITOR ═══════════
+    const actions = (
+        <>
+            <button onClick={save} disabled={busy} className="btn btn-secondary">{busy ? 'Записване…' : desktop ? 'Запази чернова' : 'Запази'}</button>
+            <button onClick={makePreview} className="btn btn-secondary">{desktop ? 'Линк за преглед' : 'Преглед'}</button>
+            {ed.status === 'published'
+                ? <button onClick={() => setStatus('unpublish')} className="btn btn-secondary">Скрий</button>
+                : <button onClick={() => setStatus('publish')} className="btn btn-primary">Публикувай</button>}
+        </>
+    );
+
     return (
+        <>
         <div key="editor" className="view-enter space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <button onClick={() => setEd(null)} className="btn btn-ghost btn-sm -ml-2.5"><ArrowLeft size={15} strokeWidth={2} aria-hidden="true" />Назад към списъка</button>
+                <button onClick={leave} className="btn btn-ghost btn-sm -ml-2.5"><ArrowLeft size={15} strokeWidth={2} aria-hidden="true" />Назад към списъка</button>
                 <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={ed.status} />
-                    <button onClick={save} disabled={busy} className="btn btn-secondary">{busy ? 'Записване…' : 'Запази чернова'}</button>
-                    <button onClick={makePreview} className="btn btn-secondary">Линк за преглед</button>
-                    {ed.status === 'published'
-                        ? <button onClick={() => setStatus('unpublish')} className="btn btn-secondary">Скрий</button>
-                        : <button onClick={() => setStatus('publish')} className="btn btn-primary">Публикувай</button>}
+                    {desktop && actions}
                 </div>
             </div>
 
-            {error && <ErrorBox msg={error} />}
+            {error && <div ref={errorRef}><ErrorBox msg={error} /></div>}
             {preview && (
-                <div className="card card-pad flex flex-col items-center gap-5 sm:flex-row">
-                    <div className="shrink-0 rounded-lg border border-line bg-white p-3">
+                <div ref={previewRef} className="card card-pad flex flex-col items-center gap-5 sm:flex-row">
+                    {/* a phone cannot scan its own screen: there it opens the link instead */}
+                    <div className={`shrink-0 rounded-lg border border-line bg-white p-3 ${touch ? 'hidden sm:block' : ''}`}>
                         <QRCodeSVG value={preview.deepLink} size={240} />
                     </div>
-                    <div className="min-w-0 space-y-2 text-sm">
+                    <div className="w-full min-w-0 space-y-2 text-sm">
                         <p className="section-title">Преглед в приложението (важи 30 мин)</p>
-                        <p className="text-muted">Сканирай QR кода с телефона си, за да отвориш черновата директно в приложението.</p>
+                        <p className="text-muted">
+                            {touch
+                                ? 'Отвори черновата в приложението на това устройство или копирай линка.'
+                                : 'Сканирай QR кода с телефона си, за да отвориш черновата директно в приложението.'}
+                        </p>
+                        {touch && (
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <a href={preview.deepLink} className="btn btn-primary"><ExternalLink size={16} aria-hidden="true" />Отвори в приложението</a>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => navigator.clipboard?.writeText(preview.deepLink).then(() => setCopied(true), () => setError('Линкът не се копира'))}
+                                >
+                                    <Copy size={16} aria-hidden="true" />{copied ? 'Копирано' : 'Копирай линка'}
+                                </button>
+                            </div>
+                        )}
                         <p className="break-all font-mono text-xs text-muted">{preview.deepLink}</p>
                     </div>
                 </div>
@@ -250,7 +315,7 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
 
             <div className="grid gap-6 lg:grid-cols-2">
                 {/* ── FORM ── */}
-                <div className="space-y-5">
+                <div className="min-w-0 space-y-5">
                     <div className="card card-pad space-y-4">
                         <Field label="Заглавие"><input className="input" value={ed.title} onChange={e => setEd({ ...ed, title: e.target.value })} /></Field>
                         <Field label="Подзаглавие"><input className="input" value={ed.subtitle} onChange={e => setEd({ ...ed, subtitle: e.target.value })} /></Field>
@@ -269,7 +334,7 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
                                     <Field label="Времетраене (мин)"><input type="number" className="input" value={ed.duration_min} onChange={e => setEd({ ...ed, duration_min: e.target.value })} /></Field>
                                     <Field label="Свързан влак"><input className="input" value={ed.related_train} onChange={e => setEd({ ...ed, related_train: e.target.value })} placeholder="номер" /></Field>
                                 </div>
-                                <label className="flex items-center gap-2 text-sm font-medium">
+                                <label className="flex items-center gap-2 text-sm font-medium pointer-coarse:min-h-11">
                                     <input type="checkbox" checked={ed.featured} onChange={e => setEd({ ...ed, featured: e.target.checked })} /> Featured
                                 </label>
                             </>
@@ -302,7 +367,7 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
                 </div>
 
                 {/* ── LIVE PREVIEW ── */}
-                <div className="h-fit lg:sticky lg:top-0">
+                <div className="h-fit min-w-0 lg:sticky lg:top-0">
                     <p className="hint mb-2">Преглед</p>
                     <div className="card overflow-hidden">
                         {ed.cover_image && <img src={IMG(ed.cover_image)} alt="" className="h-44 w-full object-cover" />}
@@ -320,6 +385,9 @@ export default function ArticlesManager({ category = 'travel_idea' }: Props) {
                 </div>
             </div>
         </div>
+        {/* outside the animated view: a transformed parent would unpin a fixed bar */}
+        {!desktop && <div className="action-bar">{actions}</div>}
+        </>
     );
 }
 

@@ -3,13 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- The browser's own bar takes the colour of ours (theme.ts follows a manual choice). -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c1b2e" media="(prefers-color-scheme: dark)" />
+    <!-- «Add to Home Screen»: its own icon, and a window without the browser bars. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="BulTrain" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Админ панел | BulTrain</title>
     <!-- Apply the saved theme before first paint so there is no light/dark flash. -->
     <script>
       try {
         var t = localStorage.getItem('bultrain-admin-theme');
-        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+          document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+            m.content = t === 'dark' ? '#0c1b2e' : '#ffffff';
+          });
+        }
       } catch (e) {}
     </script>
   </head>

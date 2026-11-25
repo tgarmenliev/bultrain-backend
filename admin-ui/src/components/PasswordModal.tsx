@@ -74,17 +74,17 @@ export default function PasswordModal({ onClose }: { onClose: () => void }) {
     };
 
     return (
-        <Modal label="Смяна на парола" onClose={onClose}>
+        <Modal label="Смяна на парола" onClose={onClose} align="top">
             {(close) => (
                 <div className="modal-panel max-w-md">
-                    <div className="flex items-center justify-between border-b border-line px-6 py-4">
+                    <div className="flex items-center justify-between border-b border-line px-4 py-3 sm:px-6 sm:py-4">
                         <h3 className="text-lg font-semibold">Смяна на парола</h3>
                         <button onClick={close} aria-label="Затвори" className="btn btn-ghost btn-icon">
                             <X size={16} strokeWidth={2} aria-hidden="true" />
                         </button>
                     </div>
 
-                    <div className="p-6">
+                    <div className="modal-scroll p-4 sm:p-6">
                         {canChange === null ? (
                             <p className="py-6 text-center text-muted">Зареждане...</p>
                         ) : canChange === false ? (
