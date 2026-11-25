@@ -313,6 +313,20 @@ function evaluateConnectionRisk(row, c, now = new Date()) {
  * push, because this text is composed server-side and nothing carried the
  * client's language here at all (see migration 015_app_language.sql).
  */
+/**
+ * "с" or "със" before the number in "закъснява с 12 минути" — Bulgarian takes «със» when the next
+ * word begins with с or з: «със седем», «със седемнадесет», «със седемдесет…», «със сто…»,
+ * «със седемстотин…». So exactly these numbers, and no others: 7, 17, 70–79, 100–199, 700–799
+ * («с 27», «с 207», «с 80» stay «с»).
+ */
+function bgWithBefore(n) {
+    const hit = n === 7 || n === 17
+        || (n >= 70 && n <= 79)
+        || (n >= 100 && n <= 199)
+        || (n >= 700 && n <= 799);
+    return hit ? 'със' : 'с';
+}
+
 const ALERT_COPY = {
     bg: {
         word: (n) => (n === 1 ? 'минута' : 'минути'),
@@ -324,7 +338,7 @@ const ALERT_COPY = {
         // The title says WHICH train it is about (the connection, not the one being ridden); the body
         // says what the passenger needs: when it now leaves.
         connectionDelayed: (train, delayMin, word, to, exp, sched) => ({
-            title: `Връзката закъснява с ${delayMin} ${word}`,
+            title: `Връзката закъснява ${bgWithBefore(delayMin)} ${delayMin} ${word}`,
             body: exp && sched ? `${train} към ${to} тръгва в ${exp} вместо ${sched}.` : `${train} към ${to}.`,
         }),
         recovered: (train, to) => ({
@@ -332,11 +346,11 @@ const ALERT_COPY = {
             body: `Закъснението към ${to} е под 5 минути.`,
         }),
         inTransit: (train, delayMin, word, better, to) => ({
-            title: `${train} закъснява с ${delayMin} ${word}`,
+            title: `${train} закъснява ${bgWithBefore(delayMin)} ${delayMin} ${word}`,
             body: better ? `Закъснението намаля. Пътуване към ${to}.` : `Закъснението нарасна. Пътуване към ${to}.`,
         }),
         preDeparture: (train, delayMin, word, better, to) => ({
-            title: `${train} закъснява с ${delayMin} ${word}`,
+            title: `${train} закъснява ${bgWithBefore(delayMin)} ${delayMin} ${word}`,
             body: better ? `Закъснението намаля. Пътуване към ${to}.` : `Пътуване към ${to}. Проверете преди да тръгнете.`,
         }),
     },
@@ -625,7 +639,7 @@ function evaluateDeadline(row, predictedArrivalUnix, now = new Date()) {
 
 module.exports = {
     evaluateTrigger, evaluateDelayAlert, alertText, evaluateDeadline,
-    evaluateConnectionRisk, connectionRiskText,
+    evaluateConnectionRisk, connectionRiskText, bgWithBefore,
     CONNECTION_RISK_WINDOW_MS, CONNECTION_ALERT_MIN_INTERVAL_MS, CONNECTION_ALERT_MAX_PER_LEG, CONNECTION_RECOVER_MARGIN_MIN,
     evaluateDepartureReminder, evaluateApproach, departureReminderText,
     REMINDER_BEFORE_MS, REMINDER_MIN_LEAD_MS, APPROACH_BEFORE_MS, APPROACH_MOVE_MS, APPROACH_MIN_GAP_MS, APPROACH_MAX_PER_LEG,

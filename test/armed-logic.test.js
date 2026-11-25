@@ -268,3 +268,42 @@ test('isAlertActionable: only the connection is time-sensitive', () => {
     assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'preDeparture' }), false, 'not boarded yet is no longer enough');
     assert.strictEqual(logic.isAlertActionable({ role: 'active', phase: 'inTransit' }), false);
 });
+
+// ── «с» or «със» before the number of minutes ────────────────────────────────
+// «със» exactly for 7, 17, 70–79, 100–199 and 700–799 (the next word begins with с/з: седем, седемнадесет,
+// седемдесет, сто, седемстотин); every other number stays «с» — «с 27», «с 207», «с 80».
+
+test('«със» for exactly 7, 17, 70–79, 100–199 and 700–799', () => {
+    const sas = new Set([7, 17]);
+    for (let n = 70; n <= 79; n++) sas.add(n);
+    for (let n = 100; n <= 199; n++) sas.add(n);
+    for (let n = 700; n <= 799; n++) sas.add(n);
+
+    for (let n = 1; n <= 999; n++) {
+        assert.strictEqual(logic.bgWithBefore(n), sas.has(n) ? 'със' : 'с', `n = ${n}`);
+    }
+});
+
+test('the numbers next to the ranges stay «с»', () => {
+    for (const n of [5, 6, 8, 16, 18, 27, 37, 47, 57, 67, 69, 80, 87, 97, 99, 200, 207, 217, 270, 699, 800, 807]) {
+        assert.strictEqual(logic.bgWithBefore(n), 'с', `n = ${n}`);
+    }
+    for (const n of [7, 17, 70, 77, 79, 100, 107, 117, 150, 199, 700, 777, 799]) {
+        assert.strictEqual(logic.bgWithBefore(n), 'със', `n = ${n}`);
+    }
+});
+
+test('all three Bulgarian delay titles use it — the train, the train being ridden, and the connection', () => {
+    const t = (n, kind, ctx) => logic.alertText(row(), n, kind, 'БВ 3637', ctx).title;
+    for (const [n, expected] of [[7, 'със 7 минути'], [17, 'със 17 минути'], [27, 'с 27 минути'], [75, 'със 75 минути'],
+                                 [80, 'с 80 минути'], [120, 'със 120 минути'], [207, 'с 207 минути'], [750, 'със 750 минути']]) {
+        assert.strictEqual(t(n, 'appeared', { phase: 'preDeparture', role: 'active' }), `БВ 3637 закъснява ${expected}`, `before departure, ${n}`);
+        assert.strictEqual(t(n, 'worse', { phase: 'inTransit', role: 'active' }), `БВ 3637 закъснява ${expected}`, `in transit, ${n}`);
+        assert.strictEqual(t(n, 'appeared', { role: 'connection' }), `Връзката закъснява ${expected}`, `connection, ${n}`);
+    }
+});
+
+test('English is untouched', () => {
+    assert.strictEqual(logic.alertText(row(), 7, 'appeared', 'FT 3637', { language: 'en' }).title, 'FT 3637 is delayed by 7 minutes');
+    assert.strictEqual(logic.alertText(row(), 17, 'appeared', 'FT 3637', { role: 'connection', language: 'en' }).title, 'Connection delayed by 17 minutes');
+});
